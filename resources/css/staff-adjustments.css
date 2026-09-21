@@ -1,0 +1,56 @@
+@media (min-width: 801px) {
+    .staff-app .staff-sidebar { height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .staff-app .transaction-summary { align-self: stretch; display: flex; flex-direction: column; min-height: calc(100vh - 145px); }
+    .staff-app .transaction-summary .notes-card { flex: 1; display: flex; flex-direction: column; }
+    .staff-app .transaction-summary .notes-card label { flex: 1; }
+    .staff-app .transaction-summary .notes-card textarea { flex: 1; height: auto; min-height: 180px; }
+}
+
+.staff-sidebar .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.staff-sidebar .brand img {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    display: block;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(246, 245, 221, .75);
+    transform: translateZ(0);      
+    backface-visibility: hidden;   
+}
+
+.staff-sidebar .staff-nav button svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+/* The transaction form is a focused workstation; other module tables stay full-width. */
+.prototype-panel[data-panel='transactions'] { max-width: 1300px; }
+.tag-field input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background: var(--staff-input-bg);
+    color: var(--staff-input-text);
+    font-size: 13px;
+    padding: 10px 12px;
+}
+
+@media (max-width: 1300px) and (min-width: 801px) {
+    .prototype-panel[data-panel='transactions'] { max-width: none; }
+    .transaction-layout { grid-template-columns: minmax(0, 1fr) 300px; }
+    .garment-grid { grid-template-columns: repeat(2, 1fr); }
+}

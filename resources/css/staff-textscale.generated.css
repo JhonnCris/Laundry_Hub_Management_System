@@ -1,0 +1,46 @@
+/* Auto-generated: makes font-size respond to --text-scale for the accessibility text-size toggle. Re-declares each original font-size as calc(px * var(--text-scale)); imported last so it wins the cascade at equal specificity. */
+.brand-mark{font-size:calc(11px * var(--text-scale))}
+.brand strong{font-size:calc(15px * var(--text-scale))}
+.brand small{font-size:calc(12px * var(--text-scale))}
+.staff-nav button{font-size:calc(14px * var(--text-scale))}
+.staff-nav b{font-size:calc(11px * var(--text-scale))}
+.staff-user>span{font-size:calc(12px * var(--text-scale))}
+.staff-user strong,.staff-user small{font-size:calc(12px * var(--text-scale))}
+.eyebrow{font-size:calc(11px * var(--text-scale))}
+.page-intro h1{font-size:calc(30px * var(--text-scale))}
+.prototype-label{font-size:calc(12px * var(--text-scale))}
+.section-heading h2{font-size:calc(16px * var(--text-scale))}
+.section-heading p{font-size:calc(13px * var(--text-scale))}
+.service-toggle button{font-size:calc(12px * var(--text-scale))}
+.form-grid label,.garments-label,.notes-card label{font-size:calc(12px * var(--text-scale))}
+.form-grid input,.form-grid select,.garments-label input,.notes-card textarea,.search-input{font-size:calc(13px * var(--text-scale))}
+.add-on strong{font-size:calc(14px * var(--text-scale))}
+.add-on small{font-size:calc(12px * var(--text-scale))}
+.quantity-control button{font-size:calc(17px * var(--text-scale))}
+.quantity-control output{font-size:calc(13px * var(--text-scale))}
+.text-button{font-size:calc(12px * var(--text-scale))}
+.summary-top>p{font-size:calc(15px * var(--text-scale))}
+.summary-top dl div{font-size:calc(13px * var(--text-scale))}
+.summary-total strong{font-size:calc(18px * var(--text-scale))}
+.save-notice{font-size:calc(12px * var(--text-scale))}
+.metric-grid span,.machine-grid span{font-size:calc(13px * var(--text-scale))}
+.metric-grid strong,.machine-grid strong{font-size:calc(26px * var(--text-scale))}
+.order-row{font-size:calc(13px * var(--text-scale))}
+.order-head{font-size:calc(11px * var(--text-scale))}
+.status{font-size:calc(11px * var(--text-scale))}
+.wide-field{font-size:calc(12px * var(--text-scale))}
+.tag-field button,.outline-action,.machine-grid button{font-size:calc(12px * var(--text-scale))}
+.garment-heading strong{font-size:calc(13px * var(--text-scale))}
+.garment-heading small{font-size:calc(11px * var(--text-scale))}
+.garment-heading b{font-size:calc(12px * var(--text-scale))}
+.garment-counter span{font-size:calc(12px * var(--text-scale))}
+.garment-counter button{font-size:calc(16px * var(--text-scale))}
+.garment-counter output{font-size:calc(15px * var(--text-scale))}
+.add-garment{font-size:calc(12px * var(--text-scale))}
+.add-garment b{font-size:calc(21px * var(--text-scale))}
+.modal-close{font-size:calc(27px * var(--text-scale))}
+.profile-modal h2{font-size:calc(20px * var(--text-scale))}
+.profile-modal>p{font-size:calc(13px * var(--text-scale))}
+.settings-options>a,.settings-options>button,.settings-options form button{font-size:calc(13px * var(--text-scale))}
+.tag-field input{font-size:calc(13px * var(--text-scale))}
+@media(max-width:800px){.page-intro h1{font-size:calc(26px * var(--text-scale))}}

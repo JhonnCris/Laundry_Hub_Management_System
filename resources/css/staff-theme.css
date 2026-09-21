@@ -1,0 +1,115 @@
+/*
+ * Theme + accessibility variables for the staff app.
+ * --text-scale is consumed by staff-textscale.generated.css.
+ * The actual color rules live in app.css / staff-adjustments.css (edited to
+ * reference these variables directly) so light/dark just means redefining
+ * the variables here, in one place.
+ */
+
+:root {
+    --text-scale: 1;
+
+    --staff-bg: #f6f1d5;
+    --staff-text: #143529;
+    --staff-muted: #718278;
+    --staff-accent: #064331;
+    --staff-sidebar-bg: #064331;
+    --staff-sidebar-text: #f9f7df;
+    --staff-card-bg: #fffef9;
+    --staff-card-shadow: 0 2px 0 rgba(8, 55, 42, .04);
+    --staff-border: #edf0e8;
+    --staff-input-border: #b6c1b8;
+    --staff-input-bg: #ffffff;
+    --staff-input-text: #173529;
+    --staff-row-head-bg: #f3f6ef;
+    --staff-modal-backdrop: rgba(7, 38, 30, .55);
+}
+
+[data-text-size="large"] { --text-scale: 1.18; }
+[data-text-size="xlarge"] { --text-scale: 1.4; }
+
+[data-theme="dark"] {
+    --staff-bg: #0e1712;
+    --staff-text: #eef3ea;
+    --staff-muted: #9fb3a5;
+    --staff-accent: #4ad39a;
+    --staff-sidebar-bg: #04120c;
+    --staff-sidebar-text: #e8f3ea;
+    --staff-card-bg: #16241d;
+    --staff-card-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+    --staff-border: #263a2f;
+    --staff-input-border: #34493c;
+    --staff-input-bg: #101b16;
+    --staff-input-text: #eef3ea;
+    --staff-row-head-bg: #182620;
+    --staff-modal-backdrop: rgba(0, 0, 0, .65);
+}
+
+.staff-user { border-top-color: color-mix(in srgb, var(--staff-sidebar-text) 20%, transparent); }
+
+/*
+ * Appearance & accessibility controls inside the settings modal, styled to
+ * match the existing .service-toggle segmented-control pattern.
+ */
+.appearance-options { display: grid; gap: 14px; margin-top: 20px; text-align: left; }
+.appearance-options > div { display: grid; gap: 7px; }
+.appearance-options label.group-label { font-size: calc(12px * var(--text-scale)); color: var(--staff-muted); font-weight: 700; }
+.option-toggle { display: flex; background: var(--staff-row-head-bg); padding: 3px; border-radius: 22px; gap: 2px; }
+.option-toggle button {
+    flex: 1;
+    border: 0;
+    border-radius: 18px;
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--staff-text);
+    font-size: calc(12px * var(--text-scale));
+    font-weight: 650;
+    cursor: pointer;
+}
+.option-toggle .is-selected { background: var(--staff-sidebar-bg); color: var(--staff-sidebar-text); }
+
+/*
+ * Layout safety net for larger text sizes: switch fixed-column grids to
+ * flexible/wrapping ones once text starts growing, so nothing clips or
+ * overlaps at [data-text-size="large"|"xlarge"].
+ */
+[data-text-size="large"] .order-row,
+[data-text-size="xlarge"] .order-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 14px 16px;
+}
+[data-text-size="large"] .order-head,
+[data-text-size="xlarge"] .order-head {
+    display: none;
+}
+[data-text-size="large"] .metric-grid,
+[data-text-size="large"] .machine-grid,
+[data-text-size="xlarge"] .metric-grid,
+[data-text-size="xlarge"] .machine-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+[data-text-size="large"] .garment-grid,
+[data-text-size="xlarge"] .garment-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+[data-text-size="large"] .garment-counter,
+[data-text-size="large"] .add-garment,
+[data-text-size="xlarge"] .garment-counter,
+[data-text-size="xlarge"] .add-garment {
+    min-height: max-content;
+}
+[data-text-size="xlarge"] .form-grid {
+    grid-template-columns: 1fr;
+}
+[data-text-size="large"] .quantity-control button,
+[data-text-size="xlarge"] .quantity-control button,
+[data-text-size="large"] .garment-counter button,
+[data-text-size="xlarge"] .garment-counter button {
+    width: auto;
+    height: auto;
+    padding: 2px 8px;
+}
+[data-text-size="xlarge"] .transaction-layout {
+    grid-template-columns: 1fr;
+}

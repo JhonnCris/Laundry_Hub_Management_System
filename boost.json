@@ -1,0 +1,6 @@
+{
+    "agents": [
+        "grok_build"
+    ],
+    "guidelines": true
+}
