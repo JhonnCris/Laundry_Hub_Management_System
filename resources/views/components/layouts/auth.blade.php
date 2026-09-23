@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{{ config('app.name', 'Laundry Management System') }}</title>
+    <title>{{ config('app.name', 'SSK Laba Dami') }}</title>
 
     @vite([
         'resources/css/app.css',
@@ -19,17 +19,27 @@
 
     <div class="auth-page">
 
-        <!-- Left Branding Section -->
+        <!-- Left Branding Section — logo + wordmark beside the form -->
         <section class="auth-brand">
 
             <div class="auth-brand-content">
 
-                <div class="auth-logo">
-                    LMS
-                </div>
+                <a href="{{ url('/') }}" class="auth-logo-link">
+                    <img
+                        class="auth-logo-img"
+                        src="{{ asset('images/ssk-laba-dami-logo.jpg') }}"
+                        alt="SSK Laba Dami Laundry Hub logo"
+                        width="72"
+                        height="72"
+                    >
+                    <div class="auth-logo-text">
+                        <strong>SSK Laba Dami</strong>
+                        <small>Laundry Hub</small>
+                    </div>
+                </a>
 
                 <p class="auth-brand-label">
-                    LAUNDRY MANAGEMENT SYSTEM
+                    STAFF PORTAL
                 </p>
 
                 <h1>
@@ -44,7 +54,7 @@
             </div>
 
             <div class="auth-brand-footer">
-                © {{ date('Y') }} Laundry Management System
+                © {{ date('Y') }} SSK Laba Dami Laundry Hub
             </div>
 
         </section>

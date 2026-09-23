@@ -40,7 +40,14 @@ new #[Layout('components.layouts.auth')] class extends Component {
         RateLimiter::clear($this->throttleKey());
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        // Separate UI by role: admin → admin console, staff → operations
+        $user = Auth::user();
+        $role = $user->role ?? 'staff';
+        $home = $role === 'admin'
+            ? route('admin.dashboard', absolute: false)
+            : route('dashboard', absolute: false);
+
+        $this->redirectIntended(default: $home, navigate: true);
     }
 
     /**

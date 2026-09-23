@@ -1,18 +1,60 @@
 @media (min-width: 801px) {
     .staff-app .staff-sidebar { height: 100vh; position: sticky; top: 0; overflow-y: auto; }
-    .staff-app .transaction-summary { align-self: stretch; display: flex; flex-direction: column; min-height: calc(100vh - 145px); }
-    .staff-app .transaction-summary .notes-card { flex: 1; display: flex; flex-direction: column; }
-    .staff-app .transaction-summary .notes-card label { flex: 1; }
-    .staff-app .transaction-summary .notes-card textarea { flex: 1; height: auto; min-height: 180px; }
+    .staff-app .transaction-summary {
+        align-self: start;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        position: sticky;
+        top: 24px;
+    }
+    /* Notes stays compact under summary — not stretched to page bottom */
+    .staff-app .transaction-summary .notes-card {
+        flex: 0 0 auto;
+        display: block;
+        margin-top: 0;
+    }
+    .staff-app .transaction-summary .notes-card label {
+        display: grid;
+        gap: 7px;
+    }
+    .staff-app .transaction-summary .notes-card textarea {
+        height: 120px;
+        min-height: 100px;
+        resize: vertical;
+    }
+}
+
+/* Critical: [hidden] must win over .modal-backdrop { display: grid } or the overlay blocks all clicks */
+.modal-backdrop[hidden],
+[data-receipt-modal][hidden],
+[data-modal][hidden],
+.basket-picker[hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+.modal-backdrop:not([hidden]) {
+    display: grid;
+    place-items: center;
+    z-index: 50;
+}
+
+.basket-picker:not([hidden]) {
+    display: block;
 }
 
 .staff-sidebar .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    text-decoration: none;
+    color: inherit;
 }
 
-.staff-sidebar .brand img {
+/* Logo sits to the left of the brand text (standard site mark + wordmark) */
+.staff-sidebar .brand .brand-logo {
     width: 48px;
     height: 48px;
     flex-shrink: 0;
@@ -21,8 +63,26 @@
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid rgba(246, 245, 221, .75);
-    transform: translateZ(0);      
-    backface-visibility: hidden;   
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+.staff-sidebar .brand .brand-text {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.staff-sidebar .brand .brand-text strong {
+    font-size: 15px;
+    font-weight: 750;
+    color: #f9f7df;
+}
+
+.staff-sidebar .brand .brand-text small {
+    font-size: 12px;
+    color: #b9e3d4;
 }
 
 .staff-sidebar .staff-nav button svg {
@@ -53,4 +113,415 @@
     .prototype-panel[data-panel='transactions'] { max-width: none; }
     .transaction-layout { grid-template-columns: minmax(0, 1fr) 300px; }
     .garment-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Customer name: first / middle / last */
+.name-grid {
+    grid-template-columns: 1fr 1fr;
+}
+
+@media (min-width: 900px) {
+    .name-grid {
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+}
+
+/* Basket reassign picker (under tag field) */
+.basket-picker {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 12px;
+    background: var(--staff-card-bg);
+    box-shadow: 0 8px 24px rgba(8, 55, 42, 0.08);
+}
+
+.basket-picker-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--staff-muted);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.basket-picker-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.basket-picker-list button {
+    width: 100%;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background: var(--staff-input-bg);
+    color: var(--staff-text);
+    padding: 10px 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.basket-picker-list button small {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--staff-muted);
+}
+
+.basket-picker-list button.is-selected {
+    border-color: var(--staff-accent);
+    background: color-mix(in srgb, var(--staff-accent) 12%, var(--staff-card-bg));
+    color: var(--staff-accent);
+}
+
+.basket-picker-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.basket-picker-actions .basket-save {
+    width: auto;
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 12px;
+}
+
+.basket-picker-actions .basket-save:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Dynamic summary — only show what was transacted */
+.summary-empty {
+    font-size: 13px;
+    color: #b9e3d4;
+    margin: 8px 0 0;
+    line-height: 1.45;
+}
+
+.summary-card .summary-top dl[hidden],
+.summary-card .summary-total[hidden],
+.summary-empty[hidden] {
+    display: none !important;
+}
+
+.summary-item-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    gap: 10px;
+}
+
+.summary-item-row dt {
+    font-weight: 600;
+}
+
+.summary-item-row dd {
+    font-weight: 800;
+}
+
+.save-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Receipt modal */
+.receipt-modal {
+    text-align: left;
+    max-width: 380px;
+}
+
+.receipt h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    color: var(--staff-text);
+}
+
+.receipt-sub,
+.receipt-meta {
+    color: var(--staff-muted);
+    font-size: 13px;
+    margin: 0 0 4px;
+}
+
+.receipt hr {
+    border: none;
+    border-top: 1px dashed var(--staff-border);
+    margin: 12px 0;
+}
+
+.receipt-total {
+    font-size: 18px;
+}
+
+.receipt-footer {
+    margin-top: 16px;
+    text-align: center;
+    color: var(--staff-muted);
+}
+
+.receipt-notes {
+    font-size: 12px;
+    color: var(--staff-muted);
+    margin-top: 8px;
+}
+
+/* Consumable quantity stepper */
+.qty-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.qty-field button {
+    width: 32px;
+    height: 36px;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 8px;
+    background: var(--staff-row-head-bg);
+    color: var(--staff-accent);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.qty-field input {
+    width: 64px;
+    text-align: center;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background: var(--staff-input-bg);
+    color: var(--staff-input-text);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 8px;
+}
+.wide-span {
+    grid-column: 1 / -1;
+}
+
+/* Action / payment / garment modals */
+.action-modal {
+    text-align: left;
+    max-width: 400px;
+}
+.action-modal h2 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    color: var(--staff-text);
+}
+.modal-hint {
+    color: var(--staff-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0 0 16px;
+}
+.modal-field {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--staff-muted);
+    margin-bottom: 12px;
+    text-align: left;
+}
+.modal-field input {
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background: var(--staff-input-bg);
+    color: var(--staff-input-text);
+    padding: 10px 12px;
+    font-size: 14px;
+    width: 100%;
+}
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+.modal-actions .save-button {
+    width: auto;
+    margin: 0;
+    padding: 10px 16px;
+}
+.modal-error {
+    color: #af3b2c;
+    font-size: 13px;
+    margin: 0 0 10px;
+}
+
+.payment-summary {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding: 12px;
+    border-radius: 10px;
+    background: var(--staff-row-head-bg);
+    font-size: 13px;
+}
+.payment-summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--staff-text);
+}
+.payment-summary strong {
+    font-weight: 650;
+    color: var(--staff-muted);
+}
+.payment-change {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #dff7e7;
+    color: #17653e;
+    font-size: 15px;
+    font-weight: 700;
+}
+.payment-change strong {
+    font-size: 18px;
+}
+
+[data-garment-modal][hidden],
+[data-payment-modal][hidden],
+[data-notice-modal][hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+/* Load weight & duration hints */
+.field-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--staff-muted);
+    font-weight: 500;
+}
+.req-mark {
+    color: #c0392b;
+    font-weight: 700;
+}
+.kg-price-preview {
+    margin: 12px 0 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #e8f6ef;
+    color: #0d5c3d;
+    font-size: 13px;
+}
+.kg-price-preview small {
+    opacity: 0.85;
+    font-weight: 500;
+}
+.kg-price-preview[hidden] {
+    display: none !important;
+}
+
+/* Sidebar: Staff vs Admin groups */
+.nav-group-label {
+    margin: 14px 4px 6px;
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8ec9b5;
+    opacity: 0.9;
+}
+.nav-group-label:first-child {
+    margin-top: 0;
+}
+.staff-nav button[data-admin-module] {
+    border: 1px solid rgba(246, 245, 221, 0.15);
+}
+
+[data-restock-modal][hidden],
+[data-archive-modal][hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+.form-grid.workflow-bottom {
+    align-items: start;
+}
+
+.form-grid.workflow-bottom label {
+    display: grid;
+    grid-template-rows: auto 42px auto; /* label text | control | hint */
+    gap: 7px;
+    align-content: start;
+}
+
+.form-grid.workflow-bottom label > input,
+.form-grid.workflow-bottom label > select {
+    grid-row: 2;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
+    padding: 0 12px !important;
+    line-height: 40px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    width: 100%;
+}
+
+.form-grid.workflow-bottom label > .qty-field {
+    grid-row: 2;
+    height: 42px !important;
+    min-height: 42px !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-grid.workflow-bottom label > .qty-field input {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding: 0 8px !important;
+    line-height: 36px !important;
+}
+
+.form-grid.workflow-bottom label > .field-hint,
+.form-grid.workflow-bottom label > small {
+    grid-row: 3;
+}
+
+/* Active Laundry: dedicated Action column, separate from the Status badge. */
+.queue-table .order-row {
+    grid-template-columns: .6fr 1fr 1.1fr .7fr 1.1fr;
+}
+.order-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.order-actions .text-button[disabled] {
+    opacity: .55;
+    cursor: default;
+}
+
+@media (max-width: 800px) {
+    .queue-table .order-row {
+        grid-template-columns: .6fr 1fr 1fr .9fr;
+    }
+    .queue-table .order-row span:nth-child(4),
+    .queue-table .order-head span:nth-child(4) {
+        display: none;
+    }
 }

@@ -33,6 +33,13 @@ class InventoryItem extends Model
 
     public function transactions(): BelongsToMany
     {
-        return $this->belongsToMany(LaundryTransaction::class, 'transaction_items')->withPivot('quantity', 'unit_price', 'line_total')->withTimestamps();
+        return $this->belongsToMany(LaundryTransaction::class, 'transaction_items')
+            ->withPivot('quantity', 'unit_price', 'line_total')
+            ->withTimestamps();
+    }
+
+    public function isLowStock(): bool
+    {
+        return $this->quantity_on_hand <= $this->low_stock_threshold;
     }
 }

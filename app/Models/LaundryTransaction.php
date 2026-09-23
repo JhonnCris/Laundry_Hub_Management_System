@@ -14,7 +14,13 @@ class LaundryTransaction extends Model
 
     protected function casts(): array
     {
-        return ['subtotal' => 'decimal:2', 'total_amount' => 'decimal:2'];
+        return [
+            'subtotal' => 'decimal:2',
+            'total_amount' => 'decimal:2',
+            'cash_tendered' => 'decimal:2',
+            'change_given' => 'decimal:2',
+            'load_weight_kg' => 'decimal:2',
+        ];
     }
 
     public function customer(): BelongsTo
@@ -54,12 +60,16 @@ class LaundryTransaction extends Model
 
     public function garmentTypes(): BelongsToMany
     {
-        return $this->belongsToMany(GarmentType::class, 'transaction_garments')->withPivot('quantity')->withTimestamps();
+        return $this->belongsToMany(GarmentType::class, 'transaction_garments')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 
     public function inventoryItems(): BelongsToMany
     {
-        return $this->belongsToMany(InventoryItem::class, 'transaction_items')->withPivot('quantity', 'unit_price', 'line_total')->withTimestamps();
+        return $this->belongsToMany(InventoryItem::class, 'transaction_items')
+            ->withPivot('quantity', 'unit_price', 'line_total')
+            ->withTimestamps();
     }
 
     public function statusLogs(): HasMany

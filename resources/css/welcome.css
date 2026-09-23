@@ -85,7 +85,8 @@
 .welcome-description {
     max-width: 580px;
     margin: 24px auto 0;
-    color: var(--muted-text);
+    /* Soft blue-slate — readable on white, not washed out */
+    color: #3d5a6c;
     font-size: 17px;
     line-height: 1.7;
 }

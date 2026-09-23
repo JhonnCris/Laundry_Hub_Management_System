@@ -1,18 +1,336 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"><head>@include('partials.head', ['title' => 'SSK Laba Dami | Staff'])</head>
 <body class="staff-body"><main class="staff-app" data-staff-app>
-<aside class="staff-sidebar"><a class="brand" href="#"><img src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo"><span><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a><nav class="staff-nav"><button data-screen="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Dashboard</span></button><button class="is-active" data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button><button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b>3</b></button><button data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Customers</span></button><button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b>2</b></button><button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Machines</span></button><button data-screen="summary"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Sales & Summary</span></button></nav><button class="staff-user" data-profile type="button"><span>SS</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button></aside>
+<aside class="staff-sidebar">
+<a class="brand" href="#"><img class="brand-logo" src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo" width="48" height="48"><span class="brand-text"><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a>
+<nav class="staff-nav">
+<p class="nav-group-label">Staff operations</p>
+<button class="is-active" data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
+<button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b>3</b></button>
+<button data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Customers</span></button>
+<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b>2</b></button>
+<button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Machines</span></button>
+<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
+</nav>
+<button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
+</aside>
 <section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button">☰</button><strong>SSK Laba Dami</strong></header>
-<section class="prototype-panel is-visible" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card"><div class="section-heading"><h2>Customer & Load Details</h2><div class="service-toggle"><button class="is-selected" data-service="drop_off" type="button">Drop Off</button><button data-service="self_service" type="button">Self Service</button></div></div><div class="form-grid"><label>Customer name<input data-customer placeholder="e.g. Maria Santos"></label><label>Contact number<input placeholder="09XX XXX XXXX"></label></div>
-<div data-workflow="drop_off"><label class="wide-field">Basket Tag <small>For drop-off</small><div class="tag-field"><input value="#014" readonly><button type="button">Reassign</button></div></label><div class="garment-heading"><div><strong>Garment separation & count</strong><small>Count each type separately for transparent recording.</small></div><b><span data-summary-garments>0</span> pcs total</b></div><div class="garment-grid"><div class="garment-counter"><span>Shirts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div><div class="garment-counter"><span>Shorts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div><div class="garment-counter"><span>Beddings</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div><button class="add-garment" type="button">Add type <b>+</b></button></div><div class="form-grid workflow-bottom"><label>Detergent / Downy used<select data-consumable><option value="0">None</option><option value="10">Downy Sachet · ₱10</option><option value="12">Ariel Sachet · ₱12</option></select></label><label>Service type<select data-service-price><option value="150">Wash, Dry, Fold · ₱150</option><option value="120">Wash with Dry · ₱120</option><option value="70">Wash Only · ₱70</option></select></label></div></div>
-<div data-workflow="self_service" hidden><div class="form-grid workflow-bottom"><label>Machine used<select data-machine><option>Washer 1</option><option>Washer 2</option><option>Washer 3</option></select></label><label>Time slot<select><option>9:00 AM - 10:00 AM</option><option>10:00 AM - 11:00 AM</option><option>1:00 PM - 2:00 PM</option></select></label><label>Detergent / Downy used<select data-consumable><option value="0">None</option><option value="10">Downy Sachet · ₱10</option><option value="12">Ariel Sachet · ₱12</option></select></label><label>Machine service<select data-service-price><option value="120">Wash with Dry · ₱120</option><option value="70">Wash Only · ₱70</option><option value="60">Dry Only · ₱60</option></select></label></div></div></section>
-<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list"><div class="add-on" data-price="30"><div><strong>Softdrinks</strong><small>₱30 · bottle · 40 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="20"><div><strong>Water Big</strong><small>₱20 · bottle · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="10"><div><strong>Biscuit</strong><small>₱10 · pc · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div></div></section></div><aside class="transaction-summary"><section class="summary-card"><div class="summary-top"><p>Service Summary</p><dl><div><dt>Basket tag</dt><dd data-summary-tag>#014</dd></div><div><dt>Service</dt><dd data-summary-service>Drop Off</dd></div><div><dt>Garments</dt><dd><span data-summary-garments>0</span> pcs</dd></div></dl></div><div class="summary-total"><span>Total</span><strong data-total>₱0.00</strong></div><button class="save-button" data-save type="button">Save Transaction</button></section><section class="notes-card"><label>Notes<textarea placeholder="Special requests, stains, or payment note..."></textarea></label></section><p class="save-notice" data-save-notice></p></aside></div></section>
-<section class="prototype-panel" data-panel="dashboard"><div class="page-intro"><div><p class="eyebrow">Today at a glance</p><h1>Dashboard</h1><p>Operations and alerts for September 17.</p></div><button class="outline-action">View report</button></div><div class="metric-grid"><article><span>Active laundry</span><strong>3</strong><small>2 processing · 1 ready</small></article><article><span>Today’s sales</span><strong>₱1,840</strong><small>12 completed orders</small></article><article><span>Low stock</span><strong>2</strong><small>Action required</small></article></div><section class="staff-card full-card"><div class="section-heading"><h2>Today’s order activity</h2><button class="text-button">View all orders</button></div><div class="order-row order-head"><span>Basket</span><span>Customer</span><span>Service</span><span>Status</span></div><div class="order-row"><strong>#014</strong><span>Ana Cruz</span><span>Wash, Dry, Fold</span><em class="status processing">Processing</em></div><div class="order-row"><strong>#013</strong><span>Bea Santos</span><span>Self Service</span><em class="status ready">Ready for pickup</em></div></section></section>
-<section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div><button class="outline-action">Update status</button></div><section class="staff-card full-card table-card"><div class="order-row order-head"><span>Basket</span><span>Customer</span><span>Service & Machine</span><span>Status</span></div><div class="order-row"><strong>#014</strong><span>Ana Cruz<br><small>14 garments</small></span><span>Wash, Dry, Fold<br><small>Washer 1</small></span><em class="status processing">Processing</em></div><div class="order-row"><strong>#012</strong><span>John Reyes<br><small>8 garments</small></span><span>Self Service<br><small>Washer 2</small></span><em class="status pending">Pending</em></div><div class="order-row"><strong>#013</strong><span>Bea Santos<br><small>10 garments</small></span><span>Wash with Dry<br><small>Dryer 1</small></span><em class="status ready">Ready for pickup</em></div></section></section>
-<section class="prototype-panel" data-panel="customers"><div class="page-intro"><div><p class="eyebrow">Customer records</p><h1>Customers</h1><p>Search and manage customer profiles and service history.</p></div><button class="outline-action">Add customer</button></div><section class="staff-card full-card table-card"><input class="search-input" placeholder="Search by name or contact number"><div class="order-row order-head"><span>Customer</span><span>Contact</span><span>Orders</span><span>Last service</span></div><div class="order-row"><strong>Ana Cruz</strong><span>0917 123 4567</span><span>8</span><span>Today</span></div><div class="order-row"><strong>John Reyes</strong><span>0918 123 4567</span><span>3</span><span>Sep 15, 2026</span></div></section></section>
-<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>Manage supplies, snacks, and drinks in one workspace.</p></div><button class="outline-action">Restock items</button></div><section class="staff-card full-card table-card"><div class="order-row order-head"><span>Item</span><span>Category</span><span>On hand</span><span>Status</span></div><div class="order-row"><strong>Downy Sachet</strong><span>Consumable</span><span>4 sachets</span><em class="status pending">Low stock</em></div><div class="order-row"><strong>Ariel Sachet</strong><span>Detergent</span><span>25 sachets</span><em class="status ready">In stock</em></div><div class="order-row"><strong>Softdrinks</strong><span>Snack / Drink</span><span>40 bottles</span><em class="status ready">In stock</em></div></section></section>
-<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div><button class="outline-action">Add machine</button></div><div class="machine-grid"><article class="staff-card"><span>Washer 1</span><strong>In Use</strong><small>Basket #014 · until 10:00 AM</small><button>View order</button></article><article class="staff-card"><span>Washer 2</span><strong class="available">Available</strong><small>Ready for next load</small><button>Reserve slot</button></article><article class="staff-card"><span>Dryer 1</span><strong class="available">Available</strong><small>Ready for next load</small><button>Reserve slot</button></article></div></section>
-<section class="prototype-panel" data-panel="summary"><div class="page-intro"><div><p class="eyebrow">Daily performance</p><h1>Sales & Summary</h1><p>Today’s revenue, operating costs, and service activity.</p></div><button class="outline-action">Export summary</button></div><div class="metric-grid"><article><span>Total sales</span><strong>₱2,450</strong><small>18 wash · 15 dry</small></article><article><span>Total expenses</span><strong>₱650</strong><small>Consumables & supplies</small></article><article><span>Net amount</span><strong>₱1,800</strong><small>For today</small></article></div><section class="staff-card full-card table-card"><div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div><div class="order-row"><strong>Income</strong><span>Laundry order #014</span><span>SSK Staff</span><span>₱150.00</span></div><div class="order-row"><strong>Expense</strong><span>Laundry supplies</span><span>SSK Staff</span><span>₱650.00</span></div></section></section>
+<section class="prototype-panel is-visible" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card"><div class="section-heading"><h2>Customer & Load Details</h2><div class="service-toggle"><button class="is-selected" data-service="drop_off" type="button">Drop Off</button><button data-service="self_service" type="button">Self Service</button></div></div><div class="form-grid name-grid"><label>First name<input data-customer-first placeholder="e.g. Maria" required></label><label>Middle name<input data-customer-middle placeholder="e.g. Santos"></label><label>Last name<input data-customer-last placeholder="e.g. Cruz" required></label><label>Contact number<input data-customer-contact placeholder="09XX XXX XXXX"></label><label>Contact email <small>(for pickup notice)</small><input type="email" data-customer-email placeholder="e.g. maria@email.com"></label></div>
+<div data-workflow="drop_off">
+<div class="wide-field">
+    <span>Basket Tag <small>For drop-off</small></span>
+    <div class="tag-field">
+        <input data-basket-tag value="#014" readonly>
+        <button type="button" data-reassign-basket>Reassign</button>
+    </div>
+    <div class="basket-picker" data-basket-picker hidden>
+        <p class="basket-picker-title">Available baskets</p>
+        <ul class="basket-picker-list" data-basket-list>
+            <li><button type="button" data-basket-option="#015">#015 <small>Available</small></button></li>
+            <li><button type="button" data-basket-option="#016">#016 <small>Available</small></button></li>
+            <li><button type="button" data-basket-option="#017">#017 <small>Available</small></button></li>
+            <li><button type="button" data-basket-option="#018">#018 <small>Available</small></button></li>
+            <li><button type="button" data-basket-option="#019">#019 <small>Available</small></button></li>
+            <li><button type="button" data-basket-option="#020">#020 <small>Available</small></button></li>
+        </ul>
+        <div class="basket-picker-actions">
+            <button type="button" class="text-button" data-basket-cancel>Cancel</button>
+            <button type="button" class="save-button basket-save" data-basket-confirm disabled>Save basket</button>
+        </div>
+    </div>
+</div>
+<div class="garment-heading"><div><strong>Garment separation & count</strong><small>Count each type separately for transparent recording.</small></div><b><span data-summary-garments>0</span> pcs total</b></div>
+<div class="garment-grid" data-garment-grid>
+    <div class="garment-counter"><span>Shirts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
+    <div class="garment-counter"><span>Shorts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
+    <div class="garment-counter"><span>Beddings</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
+    <button class="add-garment" type="button" data-add-garment>Add type <b>+</b></button>
+</div>
+<div class="form-grid workflow-bottom">
+    <label>Load weight(kg)
+        <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 5.0" inputmode="decimal">
+        <small class="field-hint">Record actual load weight for the order.</small>
+    </label>
+    <label>Service type
+        <select data-service-price data-pricing="flat">
+            <option value="150">Wash, Dry, Fold · ₱150</option>
+            <option value="120">Wash with Dry · ₱120</option>
+            <option value="70">Wash Only · ₱70</option>
+        </select>
+    </label>
+    <label>Detergent / Downy type
+        <select data-consumable>
+            <option value="0" data-unit-price="0">None</option>
+            <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
+            <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
+        </select>
+    </label>
+    <label>Quantity used
+        <div class="qty-field">
+            <button type="button" data-consumable-decrease>−</button>
+            <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
+            <button type="button" data-consumable-increase>+</button>
+        </div>
+    </label>
+</div>
+</div>
+<div data-workflow="self_service" hidden>
+<div class="form-grid workflow-bottom">
+    <label>Load weight (kg) <span class="req-mark"></span>
+        <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 6.5" inputmode="decimal">
+        <small class="field-hint">Price is based on kg × rate. Min. 3 kg billed.</small>
+    </label>
+    <label>Machine used
+        <select data-machine>
+            <option>Washer 1</option>
+            <option>Washer 2</option>
+            <option>Washer 3</option>
+            <option>Dryer 1</option>
+        </select>
+    </label>
+    <label>Cycle duration
+        <select data-cycle-duration>
+            <option value="30">30 min · Light load (up to ~4 kg)</option>
+            <option value="45" selected>45 min · Regular load (~4–7 kg)</option>
+            <option value="60">60 min · Full load (~7–10 kg)</option>
+            <option value="75">75 min · Heavy / mixed (~10–13 kg)</option>
+            <option value="90">90 min · Bulky / beddings (13 kg+)</option>
+        </select>
+        <small class="field-hint" data-duration-hint>Suggested from weight when you enter kg.</small>
+    </label>
+    <label>Machine service (per kg)
+        <select data-service-price data-pricing="per_kg">
+            <option value="40" data-rate="40">Wash with Dry · ₱40 / kg</option>
+            <option value="25" data-rate="25">Wash Only · ₱25 / kg</option>
+            <option value="20" data-rate="20">Dry Only · ₱20 / kg</option>
+        </select>
+    </label>
+    <label>Detergent / Downy type
+        <select data-consumable>
+            <option value="0" data-unit-price="0">None</option>
+            <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
+            <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
+        </select>
+    </label>
+    <label>Quantity used
+        <div class="qty-field">
+            <button type="button" data-consumable-decrease>−</button>
+            <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
+            <button type="button" data-consumable-increase>+</button>
+        </div>
+    </label>
+</div>
+<p class="kg-price-preview" data-kg-preview hidden>Load charge: <strong>—</strong></p>
+</div>
+</section>
+<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list"><div class="add-on" data-price="30"><div><strong>Softdrinks</strong><small>₱30 · bottle · 40 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="20"><div><strong>Water Big</strong><small>₱20 · bottle · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="10"><div><strong>Biscuit</strong><small>₱10 · pc · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div></div></section></div><aside class="transaction-summary"><section class="summary-card">
+<div class="summary-top">
+    <p data-summary-title>Summary</p>
+    <p class="summary-empty" data-summary-empty>Nothing recorded yet. Add garments or snacks to see a summary.</p>
+    <dl data-summary-service-block hidden>
+        <div data-row-basket><dt>Basket tag</dt><dd data-summary-tag>—</dd></div>
+        <div data-row-service><dt>Service</dt><dd data-summary-service>—</dd></div>
+        <div data-row-garments><dt>Garments</dt><dd><span data-summary-garments>0</span> pcs</dd></div>
+        <div data-row-kg hidden><dt>Load weight</dt><dd data-summary-kg>—</dd></div>
+        <div data-row-duration hidden><dt>Cycle duration</dt><dd data-summary-duration>—</dd></div>
+        <div data-row-service-type hidden><dt>Service type</dt><dd data-summary-service-type>—</dd></div>
+        <div data-row-consumable hidden><dt>Consumable</dt><dd data-summary-consumable>—</dd></div>
+    </dl>
+    <dl data-summary-items-block hidden>
+        <div data-summary-items></div>
+    </dl>
+</div>
+<div class="summary-total" data-summary-total-block hidden><span>Total</span><strong data-total>₱0.00</strong></div>
+<button class="save-button" data-save type="button" disabled>Save Transaction</button>
+</section>
+<section class="notes-card"><label>Notes<textarea placeholder="Special requests, stains, or payment note..."></textarea></label></section>
+<p class="save-notice" data-save-notice></p>
+</aside></div></section>
+<!-- Add garment type modal -->
+<div class="modal-backdrop" data-garment-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-garment-modal type="button">×</button>
+<h2>Add garment type</h2>
+<p class="modal-hint">Enter a type not listed (e.g. Towels, Jackets, Uniforms).</p>
+<label class="modal-field">Garment name<input type="text" data-new-garment-name placeholder="e.g. Towels" maxlength="40"></label>
+<label class="modal-field">Starting count<input type="number" data-new-garment-qty value="0" min="0" max="999"></label>
+<p class="modal-error" data-garment-modal-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-garment-modal>Cancel</button>
+<button type="button" class="save-button" data-confirm-garment>Add garment</button>
+</div>
+</section>
+</div>
+
+<!-- Payment modal: Transaction → Payment → Receipt -->
+<div class="modal-backdrop" data-payment-modal hidden>
+<section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-payment type="button">×</button>
+<h2>Record payment</h2>
+<p class="modal-hint">Collect cash from the customer, then confirm to issue a receipt.</p>
+<div class="payment-summary" data-payment-summary></div>
+<label class="modal-field">Amount due<input type="text" data-payment-due readonly></label>
+<label class="modal-field">Cash received<input type="number" data-payment-cash min="0" step="0.01" placeholder="0.00" inputmode="decimal"></label>
+<div class="payment-change" data-payment-change-row hidden>
+    <span>Change</span>
+    <strong data-payment-change>₱0.00</strong>
+</div>
+<p class="modal-error" data-payment-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-payment>Cancel</button>
+<button type="button" class="save-button" data-confirm-payment disabled>Confirm payment</button>
+</div>
+</section>
+</div>
+
+<!-- Receipt modal (after successful payment) -->
+<div class="modal-backdrop" data-receipt-modal hidden>
+<section class="profile-modal receipt-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-receipt type="button">×</button>
+<div data-receipt-body></div>
+<div class="modal-actions" style="margin-top:16px">
+<button type="button" class="text-button" data-close-receipt>Close</button>
+<button type="button" class="save-button" data-print-receipt>Print receipt</button>
+</div>
+</section>
+</div>
+
+<!-- Generic action toast / notice modal for secondary buttons -->
+
+<div class="modal-backdrop" data-restock-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-restock type="button">×</button>
+<h2>Restock items</h2>
+<p class="modal-hint">Add received stock to an inventory item.</p>
+<label class="modal-field">Item
+<select data-restock-item></select>
+</label>
+<label class="modal-field">Quantity received
+<input type="number" data-restock-qty min="1" value="1">
+</label>
+<label class="modal-field">Supplier (optional)
+<input type="text" data-restock-supplier placeholder="e.g. Local supplier">
+</label>
+<p class="modal-error" data-restock-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-restock>Cancel</button>
+<button type="button" class="save-button" data-confirm-restock>Save restock</button>
+</div>
+</section>
+</div>
+<div class="modal-backdrop" data-archive-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-archive type="button">×</button>
+<h2>Archive item</h2>
+<p class="modal-hint">Mark stock as expired, spoiled, or damaged.</p>
+<label class="modal-field">Item
+<select data-archive-item></select>
+</label>
+<label class="modal-field">Reason
+<select data-archive-reason>
+<option value="expired">Expired</option>
+<option value="spoiled">Spoiled</option>
+<option value="damaged">Damaged</option>
+</select>
+</label>
+<label class="modal-field">Quantity to remove
+<input type="number" data-archive-qty min="1" value="1">
+</label>
+<p class="modal-error" data-archive-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-archive>Cancel</button>
+<button type="button" class="save-button" data-confirm-archive>Archive</button>
+</div>
+</section>
+</div>
+
+<div class="modal-backdrop" data-notice-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-notice type="button">×</button>
+<h2 data-notice-title>Notice</h2>
+<p data-notice-body class="modal-hint"></p>
+<div class="modal-actions">
+<button type="button" class="save-button" data-close-notice>OK</button>
+</div>
+</section>
+</div>
+<section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div></div>
+<section class="staff-card full-card table-card queue-table">
+<div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span><span>Action</span></div>
+<div data-queue-rows></div>
+</section></section>
+<section class="prototype-panel" data-panel="customers"><div class="page-intro"><div><p class="eyebrow">Customer records</p><h1>Customers</h1><p>Search and manage customer profiles and service history.</p></div>
+<button class="outline-action" type="button" data-screen="transactions">New order</button></div>
+<section class="staff-card full-card table-card">
+<input class="search-input" data-customer-search placeholder="Search by name or contact number">
+<div class="order-row order-head"><span>Customer</span><span>Contact</span><span>Orders</span><span>Last service</span></div>
+<div data-customer-rows></div>
+</section></section>
+<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>Manage supplies, snacks, drinks, and laundry baskets in one workspace.</p></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button class="outline-action" type="button" data-open-restock>Restock items</button>
+<button class="outline-action" type="button" data-open-archive>Archive item</button>
+</div></div>
+<section class="staff-card full-card table-card"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Supplies & consumables</h2></div>
+<div class="order-row order-head"><span>Item</span><span>Category</span><span>On hand</span><span>Status</span></div>
+<div data-inventory-rows></div>
+</section>
+<section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Archived (expired / spoiled / damaged)</h2></div>
+<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>On hand</span></div>
+<div data-archived-rows><div class="order-row"><span colspan="4" style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
+</section>
+<section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Laundry baskets</h2></div>
+<div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span></span></div>
+<div data-basket-rows></div>
+</section></section>
+<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div>
+<button class="outline-action" type="button" data-open-add-machine>+ Add machine</button></div>
+<div class="machine-grid" data-machine-grid></div>
+</section>
+
+<div class="modal-backdrop" data-add-machine-modal hidden>
+<div class="profile-modal">
+<button class="modal-close" data-close-add-machine type="button">×</button>
+<h2>Add machine</h2>
+<label class="modal-field">Machine name
+<input type="text" data-machine-name placeholder="e.g. Washer 4">
+</label>
+<label class="modal-field">Type
+<select data-machine-type>
+<option value="washer">Washer</option>
+<option value="dryer">Dryer</option>
+</select>
+</label>
+<p class="modal-error" data-add-machine-error hidden></p>
+<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+<button type="button" class="text-button" data-close-add-machine>Cancel</button>
+<button type="button" class="save-button" style="margin:0" data-confirm-add-machine>Save machine</button>
+</div>
+</div>
+</div>
+<section class="prototype-panel" data-panel="attendance">
+<div class="page-intro">
+    <div>
+        <p class="eyebrow">Timekeeping</p>
+        <h1>Attendance</h1>
+        <p>Clock in and out for your shift. Today’s record is shown below.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="outline-action" type="button" data-clock-in>Clock in</button>
+        <button class="outline-action" type="button" data-clock-out>Clock out</button>
+    </div>
+</div>
+<div class="metric-grid">
+    <article><span>Status today</span><strong data-att-status>—</strong><small data-att-status-sub>Not clocked in</small></article>
+    <article><span>Hours so far</span><strong data-att-hours>—</strong><small>Updates on clock out</small></article>
+    <article><span>Records</span><strong data-att-count>0</strong><small>Loaded from database</small></article>
+</div>
+<section class="staff-card full-card table-card">
+    <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Recent attendance</h2></div>
+    <div class="order-row order-head"><span>Date</span><span>Clock in</span><span>Clock out</span><span>Status</span></div>
+    <div data-attendance-rows></div>
+</section>
+</section>
 </section>
 <div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true"><button class="modal-close" data-close-modal type="button">×</button>
 <div data-modal-view="menu"><span class="profile-avatar">SS</span><h2>{{ auth()->user()->name }}</h2><p>{{ auth()->user()->email }}</p><div class="settings-options"><button data-show-view="profile" type="button">Edit profile settings <span>›</span></button><button data-show-view="password" type="button">Change password <span>›</span></button><button data-show-view="display" type="button">Display settings <span>›</span></button><form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit">Log out</button></form></div></div>
