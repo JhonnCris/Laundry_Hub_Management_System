@@ -45,11 +45,44 @@
             return open || app.querySelector('[data-workflow="drop_off"]') || app.querySelector('[data-workflow]');
         };
 
+        const getSelectedCustomer = () => {
+            if (app._selectedCustomer && app._selectedCustomer.id) return app._selectedCustomer;
+            try {
+                const raw = sessionStorage.getItem('ssk_selected_customer');
+                if (raw) {
+                    const c = JSON.parse(raw);
+                    if (c && c.id) {
+                        app._selectedCustomer = c;
+                        return c;
+                    }
+                }
+            } catch (e) {}
+            return null;
+        };
+
         const customerFullName = () => {
-            const first = (app.querySelector('[data-customer-first]')?.value || '').trim();
-            const middle = (app.querySelector('[data-customer-middle]')?.value || '').trim();
-            const last = (app.querySelector('[data-customer-last]')?.value || '').trim();
-            return [first, middle, last].filter(Boolean).join(' ');
+            const c = getSelectedCustomer();
+            return c?.name || '';
+        };
+
+        const renderCustomerContext = () => {
+            const c = getSelectedCustomer();
+            const empty = app.querySelector('[data-customer-empty]');
+            const selected = app.querySelector('[data-customer-selected]');
+            const nameEl = app.querySelector('[data-tx-customer-name]');
+            const phoneEl = app.querySelector('[data-tx-customer-phone]');
+            if (!empty || !selected) return;
+            if (c && c.id) {
+                empty.hidden = true;
+                selected.hidden = false;
+                if (nameEl) nameEl.textContent = c.name || '—';
+                if (phoneEl) phoneEl.textContent = c.contact_number || '';
+            } else {
+                empty.hidden = false;
+                selected.hidden = true;
+                if (nameEl) nameEl.textContent = '—';
+                if (phoneEl) phoneEl.textContent = '';
+            }
         };
 
         const setOutputValue = (output, value) => {
@@ -513,12 +546,9 @@
             const serviceId = Number(serviceSelect?.selectedOptions?.[0]?.dataset?.serviceId || 0) || null;
             const machineId = Number(workflow?.querySelector('[data-machine]')?.selectedOptions?.[0]?.dataset?.machineId || 0) || null;
 
+            const customer = getSelectedCustomer();
             return {
-                first_name: (app.querySelector('[data-customer-first]')?.value || '').trim(),
-                middle_name: (app.querySelector('[data-customer-middle]')?.value || '').trim(),
-                last_name: (app.querySelector('[data-customer-last]')?.value || '').trim(),
-                contact_number: (app.querySelector('[data-customer-contact]')?.value || '').trim(),
-                contact_email: (app.querySelector('[data-customer-email]')?.value || '').trim(),
+                customer_id: customer?.id || null,
                 transaction_type: selfService ? 'self_service' : 'drop_off',
                 basket_code: selfService ? null : app.querySelector('[data-basket-tag]')?.value || null,
                 service_id: serviceId,
@@ -576,8 +606,9 @@
                     notice.classList.remove('is-error');
                 }
                 resetTransactionForm();
-                // Refresh lists from server
+                renderCustomerContext();
                 loadStaffBootstrap();
+                if (confirmBtn) confirmBtn.disabled = false;
             } catch (err) {
                 const payErr = document.querySelector('[data-payment-error]');
                 if (payErr) {
@@ -590,9 +621,16 @@
 
         const handleSaveClick = () => {
             const notice = app.querySelector('[data-save-notice]');
-            const first = (app.querySelector('[data-customer-first]')?.value || '').trim();
-            const last = (app.querySelector('[data-customer-last]')?.value || '').trim();
+            const customer = getSelectedCustomer();
             const s = app._lastSummary;
+
+            if (!customer || !customer.id) {
+                if (notice) {
+                    notice.textContent = 'Select a customer first (Manage Customer → Do Laundry).';
+                    notice.classList.add('is-error');
+                }
+                return;
+            }
 
             if (!s || (!s.hasLaundry && !s.hasAddOns)) {
                 if (notice) {
@@ -612,20 +650,11 @@
                 return;
             }
 
-            if (s.hasLaundry && (!first || !last)) {
-                if (notice) {
-                    notice.textContent = 'Enter first name and last name before saving a laundry transaction.';
-                    notice.classList.add('is-error');
-                }
-                return;
-            }
-
             if (notice) {
                 notice.textContent = '';
                 notice.classList.remove('is-error');
             }
 
-            // Systematic flow: tally → payment modal (not receipt yet)
             openPaymentModal();
         };
 
@@ -720,6 +749,154 @@
                 return;
             }
 
+
+
+            if (t.closest('[data-change-customer]')) {
+                e.preventDefault();
+                clearSelectedCustomer();
+                const custBtn = app.querySelector('[data-screen="customers"]');
+                if (custBtn) custBtn.click();
+                return;
+            }
+            if (t.closest('[data-new-tx-same-customer]')) {
+                e.preventDefault();
+                hideModal('[data-receipt-modal]');
+                resetTransactionForm();
+                renderCustomerContext();
+                const txBtn = app.querySelector('[data-screen="transactions"]');
+                if (txBtn) txBtn.click();
+                return;
+            }
+            if (t.closest('[data-back-to-customers]')) {
+                e.preventDefault();
+                hideModal('[data-receipt-modal]');
+                resetTransactionForm();
+                clearSelectedCustomer();
+                const custBtn = app.querySelector('[data-screen="customers"]');
+                if (custBtn) custBtn.click();
+                return;
+            }
+
+            // Manage Customer: Add
+            if (t.closest('[data-open-add-customer]')) {
+                e.preventDefault();
+                const err = document.querySelector('[data-add-customer-error]');
+                if (err) err.hidden = true;
+                document.querySelectorAll('[data-new-customer-name],[data-new-customer-phone],[data-new-customer-email],[data-new-customer-address]').forEach((el) => {
+                    el.value = '';
+                });
+                showModal('[data-add-customer-modal]');
+                return;
+            }
+            if (t.closest('[data-close-add-customer]')) {
+                e.preventDefault();
+                hideModal('[data-add-customer-modal]');
+                return;
+            }
+            if (t.closest('[data-confirm-add-customer]')) {
+                e.preventDefault();
+                const name = (document.querySelector('[data-new-customer-name]')?.value || '').trim();
+                const phone = (document.querySelector('[data-new-customer-phone]')?.value || '').trim();
+                const email = (document.querySelector('[data-new-customer-email]')?.value || '').trim();
+                const address = (document.querySelector('[data-new-customer-address]')?.value || '').trim();
+                const err = document.querySelector('[data-add-customer-error]');
+                if (!name || !phone) {
+                    if (err) {
+                        err.hidden = false;
+                        err.textContent = 'Name and phone/SMS are required.';
+                    }
+                    return;
+                }
+                api('/api/staff/customers', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        name,
+                        contact_number: phone,
+                        email: email || null,
+                        address: address || null,
+                    }),
+                })
+                    .then((r) => {
+                        hideModal('[data-add-customer-modal]');
+                        const c = r.customer;
+                        goToTransactionsForCustomer({
+                            id: c.id,
+                            name: c.name,
+                            contact_number: c.contact_number,
+                            email: c.email,
+                        });
+                        loadStaffBootstrap();
+                    })
+                    .catch((ex) => {
+                        if (err) {
+                            err.hidden = false;
+                            err.textContent = ex.message;
+                        }
+                    });
+                return;
+            }
+
+            // Manage Customer: Edit (phone + email only)
+            const editBtn = t.closest('[data-edit-customer]');
+            if (editBtn) {
+                e.preventDefault();
+                const err = document.querySelector('[data-edit-customer-error]');
+                if (err) err.hidden = true;
+                document.querySelector('[data-edit-customer-id]').value = editBtn.dataset.editCustomer;
+                document.querySelector('[data-edit-customer-name]').value = editBtn.dataset.customerName || '';
+                document.querySelector('[data-edit-customer-phone]').value = editBtn.dataset.customerPhone || '';
+                document.querySelector('[data-edit-customer-email]').value = editBtn.dataset.customerEmail || '';
+                showModal('[data-edit-customer-modal]');
+                return;
+            }
+            if (t.closest('[data-close-edit-customer]')) {
+                e.preventDefault();
+                hideModal('[data-edit-customer-modal]');
+                return;
+            }
+            if (t.closest('[data-confirm-edit-customer]')) {
+                e.preventDefault();
+                const id = document.querySelector('[data-edit-customer-id]')?.value;
+                const phone = (document.querySelector('[data-edit-customer-phone]')?.value || '').trim();
+                const email = (document.querySelector('[data-edit-customer-email]')?.value || '').trim();
+                const err = document.querySelector('[data-edit-customer-error]');
+                if (!phone) {
+                    if (err) {
+                        err.hidden = false;
+                        err.textContent = 'Phone / SMS is required.';
+                    }
+                    return;
+                }
+                api(`/api/staff/customers/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ contact_number: phone, email: email || null }),
+                })
+                    .then((r) => {
+                        hideModal('[data-edit-customer-modal]');
+                        openNotice('Customer updated', r.message || 'Contact info saved.');
+                        loadStaffBootstrap();
+                    })
+                    .catch((ex) => {
+                        if (err) {
+                            err.hidden = false;
+                            err.textContent = ex.message;
+                        }
+                    });
+                return;
+            }
+
+            // Manage Customer: Do Laundry
+            const laundryBtn = t.closest('[data-do-laundry]');
+            if (laundryBtn) {
+                e.preventDefault();
+                goToTransactionsForCustomer({
+                    id: Number(laundryBtn.dataset.doLaundry),
+                    name: laundryBtn.dataset.customerName || '',
+                    contact_number: laundryBtn.dataset.customerPhone || '',
+                });
+                return;
+            }
+
             if (t.closest('[data-open-restock]')) {
                 e.preventDefault();
                 showModal('[data-restock-modal]');
@@ -732,9 +909,6 @@
             }
             if (t.closest('[data-confirm-restock]')) {
                 e.preventDefault();
-                const btn = t.closest('[data-confirm-restock]');
-                if (btn.disabled) return; // guard against double-click / duplicate dispatch double-submitting the same restock
-                btn.disabled = true;
                 const itemId = document.querySelector('[data-restock-item]')?.value;
                 const qty = Number(document.querySelector('[data-restock-qty]')?.value || 0);
                 const supplier = document.querySelector('[data-restock-supplier]')?.value || '';
@@ -753,8 +927,7 @@
                             err.hidden = false;
                             err.textContent = ex.message;
                         }
-                    })
-                    .finally(() => { btn.disabled = false; });
+                    });
                 return;
             }
             if (t.closest('[data-open-archive]')) {
@@ -791,43 +964,6 @@
                 return;
             }
 
-            if (t.closest('[data-open-add-machine]')) {
-                e.preventDefault();
-                showModal('[data-add-machine-modal]');
-                return;
-            }
-            if (t.closest('[data-close-add-machine]')) {
-                e.preventDefault();
-                hideModal('[data-add-machine-modal]');
-                return;
-            }
-            if (t.closest('[data-confirm-add-machine]')) {
-                e.preventDefault();
-                const btn = t.closest('[data-confirm-add-machine]');
-                if (btn.disabled) return;
-                btn.disabled = true;
-                const name = document.querySelector('[data-machine-name]')?.value || '';
-                const type = document.querySelector('[data-machine-type]')?.value || 'washer';
-                const err = document.querySelector('[data-add-machine-error]');
-                api('/api/staff/machines', {
-                    method: 'POST',
-                    body: JSON.stringify({ name, type }),
-                })
-                    .then((r) => {
-                        hideModal('[data-add-machine-modal]');
-                        openNotice('Machine', r.message || 'Machine added');
-                        loadStaffBootstrap();
-                    })
-                    .catch((ex) => {
-                        if (err) {
-                            err.hidden = false;
-                            err.textContent = ex.message;
-                        }
-                    })
-                    .finally(() => { btn.disabled = false; });
-                return;
-            }
-
             const statusBtn = t.closest('[data-set-status]');
             if (statusBtn) {
                 e.preventDefault();
@@ -839,30 +975,6 @@
                 })
                     .then(() => loadStaffBootstrap())
                     .catch((err) => openNotice('Status', err.message));
-                return;
-            }
-
-            const emailBtn = t.closest('[data-notify-email]');
-            if (emailBtn) {
-                e.preventDefault();
-                if (emailBtn.disabled) return;
-                const id = emailBtn.dataset.notifyEmail;
-                emailBtn.disabled = true;
-                api(`/api/staff/transactions/${id}/notify-email`, { method: 'POST' })
-                    .then((r) => { openNotice('Email', r.message || 'Email sent'); loadStaffBootstrap(); })
-                    .catch((err) => { openNotice('Email', err.message); emailBtn.disabled = false; });
-                return;
-            }
-
-            const smsBtn = t.closest('[data-notify-sms]');
-            if (smsBtn) {
-                e.preventDefault();
-                if (smsBtn.disabled) return;
-                const id = smsBtn.dataset.notifySms;
-                smsBtn.disabled = true;
-                api(`/api/staff/transactions/${id}/notify-sms`, { method: 'POST' })
-                    .then((r) => { openNotice('SMS', r.message || 'SMS sent'); loadStaffBootstrap(); })
-                    .catch((err) => { openNotice('SMS', err.message); smsBtn.disabled = false; });
                 return;
             }
 
@@ -1163,7 +1275,7 @@
             if (t.matches('[data-customer-search]')) {
                 const q = (t.value || '').toLowerCase().trim();
                 app.querySelectorAll('[data-customer-row]').forEach((row) => {
-                    const hay = (row.dataset.name || '') + ' ' + (row.dataset.contact || '');
+                    const hay = [row.dataset.name, row.dataset.contact, row.dataset.email].filter(Boolean).join(' ');
                     row.style.display = !q || hay.includes(q) ? '' : 'none';
                 });
                 return;
@@ -1198,10 +1310,33 @@
             }
         };
 
+
+        const goToTransactionsForCustomer = (customer) => {
+            app._selectedCustomer = customer;
+            try {
+                sessionStorage.setItem('ssk_selected_customer', JSON.stringify(customer));
+            } catch (e) {}
+            const txBtn = app.querySelector('[data-screen="transactions"]');
+            if (txBtn) txBtn.click();
+            renderCustomerContext();
+            const notice = app.querySelector('[data-save-notice]');
+            if (notice) {
+                notice.textContent = '';
+                notice.classList.remove('is-error');
+            }
+            update();
+        };
+
+        const clearSelectedCustomer = () => {
+            app._selectedCustomer = null;
+            try {
+                sessionStorage.removeItem('ssk_selected_customer');
+            } catch (e) {}
+            renderCustomerContext();
+        };
+
         const resetTransactionForm = () => {
-            app.querySelectorAll('[data-customer-first], [data-customer-middle], [data-customer-last], [data-customer-contact], [data-customer-email]').forEach((el) => {
-                el.value = '';
-            });
+            // Order fields only — selected customer stays until Change / Back to list
             app.querySelectorAll('[data-garment-count]').forEach((el) => {
                 el.value = '0';
                 el.textContent = '0';
@@ -1301,43 +1436,49 @@
                               const cust = tx.customer?.name || '—';
                               const svc = tx.service?.name || tx.transaction_type || '—';
                               const machine = tx.machine?.name ? `<br><small>${tx.machine.name}</small>` : '';
-
-                              let actions = '';
-                              if (tx.status === 'pending') {
-                                  actions = `<button type="button" class="text-button" data-set-status="${tx.id}" data-next-status="processing">Mark Processing</button>`;
-                              } else if (tx.status === 'processing') {
-                                  actions = `<button type="button" class="text-button" data-set-status="${tx.id}" data-next-status="ready_for_pickup">Mark Ready for pickup</button>`;
-                              } else if (tx.status === 'ready_for_pickup') {
-                                  const emailed = !!tx.email_sent_at;
-                                  const texted = !!tx.sms_sent_at;
-                                  if (emailed && texted) {
-                                      actions = `<button type="button" class="text-button" data-set-status="${tx.id}" data-next-status="claimed">Mark Claimed</button>`;
-                                  } else {
-                                      actions = `
-                                          <button type="button" class="text-button" data-notify-email="${tx.id}" ${emailed ? 'disabled' : ''}>${emailed ? '✓ Emailed' : 'Send Email'}</button>
-                                          <button type="button" class="text-button" data-notify-sms="${tx.id}" ${texted ? 'disabled' : ''}>${texted ? '✓ Texted' : 'Send SMS'}</button>
-                                      `;
-                                  }
-                              }
-
-                              return `<div class="order-row"><strong>${basket}</strong><span>${cust}</span><span>${svc}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="order-actions">${actions}</span></div>`;
+                              const next =
+                                  tx.status === 'pending'
+                                      ? 'processing'
+                                      : tx.status === 'processing'
+                                        ? 'ready_for_pickup'
+                                        : tx.status === 'ready_for_pickup'
+                                          ? 'claimed'
+                                          : null;
+                              const btn = next
+                                  ? `<button type="button" class="text-button" data-set-status="${tx.id}" data-next-status="${next}">Mark ${statusLabel(next)}</button>`
+                                  : '';
+                              return `<div class="order-row"><strong>${basket}</strong><span>${cust}</span><span>${svc}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em> ${btn}</span></div>`;
                           })
                           .join('')
                     : '<div class="order-row"><span style="grid-column:1/-1">No active laundry orders.</span></div>';
             }
 
-            // Customers
+            // Manage Customer table
             const cr = app.querySelector('[data-customer-rows]');
             if (cr) {
                 const list = data.customers || [];
                 cr.innerHTML = list.length
                     ? list
-                          .map(
-                              (c) =>
-                                  `<div class="order-row" data-customer-row data-name="${(c.name || '').toLowerCase()}" data-contact="${(c.contact_number || '').toLowerCase()}"><strong>${c.name}</strong><span>${c.contact_number || '—'}</span><span>${c.orders_count ?? 0}</span><span>${c.last_service ? fmtDate(c.last_service) : '—'}</span></div>`
-                          )
+                          .map((c) => {
+                              const name = c.name || '—';
+                              const phone = c.contact_number || '—';
+                              const email = c.email || '—';
+                              const orders = c.orders_count ?? 0;
+                              const last = c.last_service ? fmtDate(c.last_service) : '—';
+                              return `<div class="order-row" data-customer-row data-name="${name.toLowerCase()}" data-contact="${(c.contact_number || '').toLowerCase()}" data-email="${(c.email || '').toLowerCase()}">
+                                <strong>${name}</strong>
+                                <span>${phone}</span>
+                                <span>${email}</span>
+                                <span>${orders}</span>
+                                <span>${last}</span>
+                                <span class="customer-actions">
+                                  <button type="button" class="text-button" data-do-laundry="${c.id}" data-customer-name="${name.replace(/"/g, '&quot;')}" data-customer-phone="${(c.contact_number || '').replace(/"/g, '&quot;')}">Do Laundry</button>
+                                  <button type="button" class="text-button" data-edit-customer="${c.id}" data-customer-name="${name.replace(/"/g, '&quot;')}" data-customer-phone="${(c.contact_number || '').replace(/"/g, '&quot;')}" data-customer-email="${(c.email || '').replace(/"/g, '&quot;')}">Edit</button>
+                                </span>
+                              </div>`;
+                          })
                           .join('')
-                    : '<div class="order-row"><span style="grid-column:1/-1">No customers yet.</span></div>';
+                    : '<div class="order-row"><span style="grid-column:1/-1">No customers yet. Click Add New Customer to begin.</span></div>';
             }
 
             // Inventory
@@ -1479,6 +1620,7 @@
         update();
 
         if (app.dataset.role !== 'admin') {
+            renderCustomerContext();
             loadStaffBootstrap();
         }
 

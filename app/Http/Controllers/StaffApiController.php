@@ -2,29 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\LaundryReadyMail;
 use App\Models\BasketTag;
 use App\Models\Customer;
 use App\Models\FinanceTransaction;
 use App\Models\GarmentType;
-use App\Models\InventoryAdjustment;
 use App\Models\InventoryItem;
-use App\Models\InventoryRestock;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
-use App\Models\Notification;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\TransactionGarment;
 use App\Models\TransactionItem;
 use App\Models\TransactionStatusLog;
-use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 class StaffApiController extends Controller
@@ -51,7 +45,7 @@ class StaffApiController extends Controller
         $inventory = InventoryItem::query()->with('category:id,name')->orderBy('name')->get();
         $activeInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') === 'active')->values();
         $archivedInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') !== 'active')->values();
-        $customers = Customer::query()->orderBy('name')->get(['id', 'name', 'contact_number']);
+        $customers = Customer::query()->orderBy('name')->get(['id', 'name', 'contact_number', 'email', 'address']);
 
         $activeLaundry = LaundryTransaction::query()
             ->with(['customer:id,name', 'basketTag:id,code', 'service:id,name', 'machine:id,name'])
@@ -78,12 +72,13 @@ class StaffApiController extends Controller
         $detergents = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Detergent', 'Consumable'], true))->values();
 
         $customersWithStats = $customers->map(function ($c) {
-            $tx = LaundryTransaction::query()->where('customer_id', $c->id);
-
+            $tx = \App\Models\LaundryTransaction::query()->where('customer_id', $c->id);
             return [
                 'id' => $c->id,
                 'name' => $c->name,
                 'contact_number' => $c->contact_number,
+                'email' => $c->email,
+                'address' => $c->address,
                 'orders_count' => (clone $tx)->count(),
                 'last_service' => optional((clone $tx)->latest('created_at')->first())->created_at,
             ];
@@ -115,11 +110,7 @@ class StaffApiController extends Controller
     public function saveTransaction(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'first_name' => ['nullable', 'string', 'max:100'],
-            'middle_name' => ['nullable', 'string', 'max:100'],
-            'last_name' => ['nullable', 'string', 'max:100'],
-            'contact_number' => ['nullable', 'string', 'max:40'],
-            'contact_email' => ['nullable', 'email', 'max:150'],
+            'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'transaction_type' => ['required', Rule::in(['drop_off', 'self_service'])],
             'basket_code' => ['nullable', 'string', 'max:20'],
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
@@ -140,16 +131,6 @@ class StaffApiController extends Controller
             'total_amount' => ['required', 'numeric', 'min:0'],
         ]);
 
-        $name = trim(implode(' ', array_filter([
-            $data['first_name'] ?? '',
-            $data['middle_name'] ?? '',
-            $data['last_name'] ?? '',
-        ])));
-
-        if ($data['transaction_type'] === 'drop_off' && $name === '') {
-            return response()->json(['message' => 'Customer first and last name are required for drop-off.'], 422);
-        }
-
         if ($data['transaction_type'] === 'self_service' && (float) ($data['load_weight_kg'] ?? 0) <= 0) {
             return response()->json(['message' => 'Load weight (kg) is required for self-service.'], 422);
         }
@@ -161,28 +142,9 @@ class StaffApiController extends Controller
         }
 
         $staffId = $this->staffId();
+        $customer = Customer::query()->findOrFail($data['customer_id']);
 
-        $tx = DB::transaction(function () use ($data, $name, $cash, $total, $staffId) {
-            $customer = null;
-            if ($name !== '') {
-                $customer = Customer::query()->firstOrCreate(
-                    [
-                        'name' => $name,
-                        'contact_number' => $data['contact_number'] ?? null,
-                    ],
-                    ['email' => $data['contact_email'] ?? null]
-                );
-            } else {
-                $customer = Customer::query()->firstOrCreate(
-                    ['name' => 'Walk-in'],
-                    ['contact_number' => $data['contact_number'] ?? null, 'email' => $data['contact_email'] ?? null]
-                );
-            }
-
-            if (! empty($data['contact_email']) && blank($customer->email)) {
-                $customer->update(['email' => $data['contact_email']]);
-            }
-
+        $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId) {
             $basketId = null;
             if (! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
                 $basket = BasketTag::query()->where('code', $data['basket_code'])->first();
@@ -306,10 +268,6 @@ class StaffApiController extends Controller
             'status' => ['required', Rule::in(['pending', 'processing', 'ready_for_pickup', 'claimed', 'cancelled'])],
         ]);
 
-        if ($data['status'] === 'claimed' && (! $transaction->email_sent_at || ! $transaction->sms_sent_at)) {
-            return response()->json(['message' => 'Send the email and SMS notification to the customer before marking this order claimed.'], 422);
-        }
-
         $staffId = $this->staffId();
 
         DB::transaction(function () use ($transaction, $data, $staffId) {
@@ -327,75 +285,6 @@ class StaffApiController extends Controller
         });
 
         return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh()]);
-    }
-
-    public function notifyEmail(LaundryTransaction $transaction): JsonResponse
-    {
-        $transaction->loadMissing('customer', 'basketTag');
-        $email = $transaction->customer?->email;
-
-        if (blank($email)) {
-            return response()->json(['message' => 'This customer has no email on file.'], 422);
-        }
-
-        Mail::to($email)->send(new LaundryReadyMail($transaction));
-
-        $transaction->update(['email_sent_at' => now()]);
-
-        Notification::query()->create([
-            'type' => 'laundry_ready',
-            'message' => 'Ready-for-pickup email sent to '.$email.' for basket '.($transaction->basketTag?->code ?? ('#'.$transaction->id)),
-            'notifiable_type' => LaundryTransaction::class,
-            'notifiable_id' => $transaction->id,
-            'is_read' => false,
-        ]);
-
-        return response()->json(['message' => 'Email sent', 'transaction' => $transaction->fresh()]);
-    }
-
-    public function notifySms(Request $request, LaundryTransaction $transaction, SmsService $sms): JsonResponse
-    {
-        $transaction->loadMissing('customer', 'basketTag');
-        $contact = $transaction->customer?->contact_number;
-
-        if (blank($contact)) {
-            return response()->json(['message' => 'This customer has no contact number on file.'], 422);
-        }
-
-        $basket = $transaction->basketTag?->code ?? ('#'.$transaction->id);
-        $sent = $sms->send($contact, "SSK Laba Dami: Your laundry (basket {$basket}) is ready for pickup.");
-
-        if (! $sent) {
-            return response()->json(['message' => 'Could not send SMS.'], 422);
-        }
-
-        $transaction->update(['sms_sent_at' => now()]);
-
-        Notification::query()->create([
-            'type' => 'laundry_ready',
-            'message' => 'Ready-for-pickup SMS sent to '.$contact.' for basket '.$basket,
-            'notifiable_type' => LaundryTransaction::class,
-            'notifiable_id' => $transaction->id,
-            'is_read' => false,
-        ]);
-
-        return response()->json(['message' => 'SMS sent', 'transaction' => $transaction->fresh()]);
-    }
-
-    public function storeMachine(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:80'],
-            'type' => ['required', Rule::in(['washer', 'dryer'])],
-        ]);
-
-        $machine = Machine::query()->create([
-            'name' => $data['name'],
-            'type' => $data['type'],
-            'status' => 'available',
-        ]);
-
-        return response()->json(['message' => 'Machine added', 'machine' => $machine], 201);
     }
 
     public function reassignBasket(Request $request): JsonResponse
@@ -495,7 +384,7 @@ class StaffApiController extends Controller
                 $item->update(['status' => 'active']);
             }
 
-            InventoryRestock::query()->create([
+            \App\Models\InventoryRestock::query()->create([
                 'inventory_item_id' => $item->id,
                 'staff_id' => $staffId,
                 'quantity_received' => $data['quantity_received'],
@@ -523,7 +412,7 @@ class StaffApiController extends Controller
             $qty = $data['quantity'] ?? $item->quantity_on_hand;
             if ($qty > 0 && $qty <= $item->quantity_on_hand) {
                 $item->decrement('quantity_on_hand', $qty);
-                InventoryAdjustment::query()->create([
+                \App\Models\InventoryAdjustment::query()->create([
                     'inventory_item_id' => $item->id,
                     'staff_id' => $staffId,
                     'quantity_change' => -$qty,
@@ -547,7 +436,40 @@ class StaffApiController extends Controller
             'status' => ['required', 'in:available,in_use,reserved,maintenance,out_of_service'],
         ]);
         $machine->update(['status' => $data['status']]);
-
         return response()->json(['message' => 'Machine updated', 'machine' => $machine]);
+    }
+
+    public function storeCustomer(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'contact_number' => ['required', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:190'],
+            'address' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $customer = Customer::query()->create($data);
+
+        return response()->json([
+            'message' => 'Customer created',
+            'customer' => $customer,
+            'start_transaction' => true,
+        ], 201);
+    }
+
+    public function updateCustomer(Request $request, Customer $customer): JsonResponse
+    {
+        // Design: regular edit is limited to phone/SMS and email only
+        $data = $request->validate([
+            'contact_number' => ['required', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:190'],
+        ]);
+
+        $customer->update($data);
+
+        return response()->json([
+            'message' => 'Customer updated',
+            'customer' => $customer->fresh(),
+        ]);
     }
 }

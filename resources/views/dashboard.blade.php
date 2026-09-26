@@ -15,7 +15,22 @@
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
 </aside>
 <section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button">☰</button><strong>SSK Laba Dami</strong></header>
-<section class="prototype-panel is-visible" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card"><div class="section-heading"><h2>Customer & Load Details</h2><div class="service-toggle"><button class="is-selected" data-service="drop_off" type="button">Drop Off</button><button data-service="self_service" type="button">Self Service</button></div></div><div class="form-grid name-grid"><label>First name<input data-customer-first placeholder="e.g. Maria" required></label><label>Middle name<input data-customer-middle placeholder="e.g. Santos"></label><label>Last name<input data-customer-last placeholder="e.g. Cruz" required></label><label>Contact number<input data-customer-contact placeholder="09XX XXX XXXX"></label><label>Contact email <small>(for pickup notice)</small><input type="email" data-customer-email placeholder="e.g. maria@email.com"></label></div>
+<section class="prototype-panel is-visible" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
+<div class="customer-context" data-customer-context>
+    <div class="customer-context-empty" data-customer-empty>
+        <p><strong>No customer selected.</strong> Open <button type="button" class="text-button" data-screen="customers">Manage Customer</button> and click <em>Do Laundry</em>, or add a new customer first.</p>
+    </div>
+    <div class="customer-context-selected" data-customer-selected hidden>
+        <div>
+            <p class="eyebrow">Transaction for</p>
+            <strong data-tx-customer-name>—</strong>
+            <span data-tx-customer-phone class="customer-context-phone"></span>
+        </div>
+        <button type="button" class="text-button" data-change-customer>Change customer</button>
+    </div>
+</div>
+<div class="section-heading"><h2>Load Details</h2><div class="service-toggle"><button class="is-selected" data-service="drop_off" type="button">Drop Off</button><button data-service="self_service" type="button">Self Service</button></div></div>
+
 <div data-workflow="drop_off">
 <div class="wide-field">
     <span>Basket Tag <small>For drop-off</small></span>
@@ -47,7 +62,7 @@
     <button class="add-garment" type="button" data-add-garment>Add type <b>+</b></button>
 </div>
 <div class="form-grid workflow-bottom">
-    <label>Load weight(kg)
+    <label>Load weight (kg)
         <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 5.0" inputmode="decimal">
         <small class="field-hint">Record actual load weight for the order.</small>
     </label>
@@ -76,7 +91,7 @@
 </div>
 <div data-workflow="self_service" hidden>
 <div class="form-grid workflow-bottom">
-    <label>Load weight (kg) <span class="req-mark"></span>
+    <label>Load weight (kg) <span class="req-mark">*</span>
         <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 6.5" inputmode="decimal">
         <small class="field-hint">Price is based on kg × rate. Min. 3 kg billed.</small>
     </label>
@@ -188,9 +203,11 @@
 <section class="profile-modal receipt-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-receipt type="button">×</button>
 <div data-receipt-body></div>
-<div class="modal-actions" style="margin-top:16px">
+<div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;gap:8px">
 <button type="button" class="text-button" data-close-receipt>Close</button>
-<button type="button" class="save-button" data-print-receipt>Print receipt</button>
+<button type="button" class="text-button" data-print-receipt>Print receipt</button>
+<button type="button" class="outline-action" data-new-tx-same-customer>New Transaction (same customer)</button>
+<button type="button" class="save-button" data-back-to-customers>Back to Customer List</button>
 </div>
 </section>
 </div>
@@ -244,6 +261,41 @@
 </section>
 </div>
 
+
+<div class="modal-backdrop" data-add-customer-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-add-customer type="button">×</button>
+<h2>Add New Customer</h2>
+<p class="modal-hint">After saving, you will continue to a new transaction for this customer.</p>
+<label class="modal-field">Full name<input type="text" data-new-customer-name placeholder="e.g. Juan Dela Cruz" maxlength="120"></label>
+<label class="modal-field">Phone / SMS<input type="text" data-new-customer-phone placeholder="09XX XXX XXXX" maxlength="40"></label>
+<label class="modal-field">Email <small>(optional)</small><input type="email" data-new-customer-email placeholder="name@email.com"></label>
+<label class="modal-field">Address <small>(optional)</small><input type="text" data-new-customer-address placeholder="Street, barangay, city"></label>
+<p class="modal-error" data-add-customer-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-add-customer>Cancel</button>
+<button type="button" class="save-button" data-confirm-add-customer>Save &amp; start laundry</button>
+</div>
+</section>
+</div>
+
+<div class="modal-backdrop" data-edit-customer-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-edit-customer type="button">×</button>
+<h2>Edit contact</h2>
+<p class="modal-hint">Name is locked to protect past transaction history. Update phone/SMS or email only.</p>
+<label class="modal-field">Name<input type="text" data-edit-customer-name readonly></label>
+<label class="modal-field">Phone / SMS<input type="text" data-edit-customer-phone maxlength="40"></label>
+<label class="modal-field">Email <small>(optional)</small><input type="email" data-edit-customer-email></label>
+<input type="hidden" data-edit-customer-id>
+<p class="modal-error" data-edit-customer-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-edit-customer>Cancel</button>
+<button type="button" class="save-button" data-confirm-edit-customer>Save changes</button>
+</div>
+</section>
+</div>
+
 <div class="modal-backdrop" data-notice-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-notice type="button">×</button>
@@ -255,17 +307,32 @@
 </section>
 </div>
 <section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div></div>
-<section class="staff-card full-card table-card queue-table">
-<div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span><span>Action</span></div>
+<section class="staff-card full-card table-card">
+<div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span></div>
 <div data-queue-rows></div>
 </section></section>
-<section class="prototype-panel" data-panel="customers"><div class="page-intro"><div><p class="eyebrow">Customer records</p><h1>Customers</h1><p>Search and manage customer profiles and service history.</p></div>
-<button class="outline-action" type="button" data-screen="transactions">New order</button></div>
+<section class="prototype-panel" data-panel="customers">
+<div class="page-intro">
+    <div>
+        <p class="eyebrow">Customer hub</p>
+        <h1>Manage Customer</h1>
+        <p>Find a customer, update contact info, or start a laundry order.</p>
+    </div>
+    <button class="outline-action" type="button" data-open-add-customer>Add New Customer</button>
+</div>
 <section class="staff-card full-card table-card">
-<input class="search-input" data-customer-search placeholder="Search by name or contact number">
-<div class="order-row order-head"><span>Customer</span><span>Contact</span><span>Orders</span><span>Last service</span></div>
-<div data-customer-rows></div>
-</section></section>
+    <input class="search-input" data-customer-search placeholder="Search by name or phone number">
+    <div class="order-row order-head">
+        <span>Name</span>
+        <span>Phone / SMS</span>
+        <span>Email</span>
+        <span>Orders</span>
+        <span>Last visit</span>
+        <span>Action</span>
+    </div>
+    <div data-customer-rows></div>
+</section>
+</section>
 <section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>Manage supplies, snacks, drinks, and laundry baskets in one workspace.</p></div>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <button class="outline-action" type="button" data-open-restock>Restock items</button>
@@ -283,31 +350,9 @@
 <div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span></span></div>
 <div data-basket-rows></div>
 </section></section>
-<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div>
-<button class="outline-action" type="button" data-open-add-machine>+ Add machine</button></div>
+<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>
 <div class="machine-grid" data-machine-grid></div>
 </section>
-
-<div class="modal-backdrop" data-add-machine-modal hidden>
-<div class="profile-modal">
-<button class="modal-close" data-close-add-machine type="button">×</button>
-<h2>Add machine</h2>
-<label class="modal-field">Machine name
-<input type="text" data-machine-name placeholder="e.g. Washer 4">
-</label>
-<label class="modal-field">Type
-<select data-machine-type>
-<option value="washer">Washer</option>
-<option value="dryer">Dryer</option>
-</select>
-</label>
-<p class="modal-error" data-add-machine-error hidden></p>
-<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
-<button type="button" class="text-button" data-close-add-machine>Cancel</button>
-<button type="button" class="save-button" style="margin:0" data-confirm-add-machine>Save machine</button>
-</div>
-</div>
-</div>
 <section class="prototype-panel" data-panel="attendance">
 <div class="page-intro">
     <div>

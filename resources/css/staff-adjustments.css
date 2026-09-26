@@ -457,71 +457,64 @@
     pointer-events: none !important;
     visibility: hidden !important;
 }
-.form-grid.workflow-bottom {
-    align-items: start;
-}
 
-.form-grid.workflow-bottom label {
-    display: grid;
-    grid-template-rows: auto 42px auto; /* label text | control | hint */
-    gap: 7px;
-    align-content: start;
-}
 
-.form-grid.workflow-bottom label > input,
-.form-grid.workflow-bottom label > select {
-    grid-row: 2;
-    height: 42px !important;
-    min-height: 42px !important;
-    max-height: 42px !important;
-    padding: 0 12px !important;
-    line-height: 40px !important;
-    box-sizing: border-box !important;
-    margin: 0 !important;
-    width: 100%;
+[data-add-customer-modal][hidden],
+[data-edit-customer-modal][hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
 }
-
-.form-grid.workflow-bottom label > .qty-field {
-    grid-row: 2;
-    height: 42px !important;
-    min-height: 42px !important;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.form-grid.workflow-bottom label > .qty-field input {
-    height: 36px !important;
-    min-height: 36px !important;
-    padding: 0 8px !important;
-    line-height: 36px !important;
-}
-
-.form-grid.workflow-bottom label > .field-hint,
-.form-grid.workflow-bottom label > small {
-    grid-row: 3;
-}
-
-/* Active Laundry: dedicated Action column, separate from the Status badge. */
-.queue-table .order-row {
-    grid-template-columns: .6fr 1fr 1.1fr .7fr 1.1fr;
-}
-.order-actions {
+.customer-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
+    justify-content: flex-end;
 }
-.order-actions .text-button[disabled] {
-    opacity: .55;
-    cursor: default;
+/* Manage Customer table: 6 columns */
+[data-panel="customers"] .order-row {
+    grid-template-columns: 1.4fr 1.1fr 1.2fr 0.6fr 0.8fr 1.2fr;
 }
 
-@media (max-width: 800px) {
-    .queue-table .order-row {
-        grid-template-columns: .6fr 1fr 1fr .9fr;
-    }
-    .queue-table .order-row span:nth-child(4),
-    .queue-table .order-head span:nth-child(4) {
-        display: none;
-    }
+
+/* Step 2: read-only customer context on Transaction */
+.customer-context {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--staff-primary, #1a4d3e) 8%, white);
+    border: 1px solid color-mix(in srgb, var(--staff-primary, #1a4d3e) 18%, transparent);
+}
+.customer-context-empty p {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--staff-muted, #5a6b6a);
+}
+.customer-context-selected {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+}
+.customer-context-selected .eyebrow {
+    margin: 0 0 2px;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--staff-muted, #5a6b6a);
+}
+.customer-context-selected strong {
+    font-size: 1.05rem;
+    color: var(--staff-primary, #1a4d3e);
+}
+.customer-context-phone {
+    display: block;
+    font-size: 0.88rem;
+    color: var(--staff-muted, #5a6b6a);
+    margin-top: 2px;
 }

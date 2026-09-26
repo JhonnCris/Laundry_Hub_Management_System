@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AdminApiController;
 use App\Http\Controllers\StaffApiController;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -12,7 +11,7 @@ Route::get('/', function () {
 })->name('home');
 
 Route::get('dashboard', function () {
-    /** @var User|null $user */
+    /** @var \App\Models\User|null $user */
     $user = Auth::user();
     $role = $user->role ?? 'staff';
 
@@ -25,7 +24,7 @@ Route::get('dashboard', function () {
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
     Route::get('/', function () {
-        /** @var User|null $user */
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
         $role = $user->role ?? 'staff';
 
@@ -44,15 +43,14 @@ Route::middleware(['auth', 'verified'])->prefix('api/staff')->group(function () 
     Route::get('bootstrap', [StaffApiController::class, 'bootstrap']);
     Route::post('transactions', [StaffApiController::class, 'saveTransaction']);
     Route::patch('transactions/{transaction}/status', [StaffApiController::class, 'updateStatus']);
-    Route::post('transactions/{transaction}/notify-email', [StaffApiController::class, 'notifyEmail']);
-    Route::post('transactions/{transaction}/notify-sms', [StaffApiController::class, 'notifySms']);
     Route::post('baskets/check', [StaffApiController::class, 'reassignBasket']);
     Route::post('garment-types', [StaffApiController::class, 'addGarmentType']);
     Route::post('attendance/clock-in', [StaffApiController::class, 'clockIn']);
     Route::post('attendance/clock-out', [StaffApiController::class, 'clockOut']);
+    Route::post('customers', [StaffApiController::class, 'storeCustomer']);
+    Route::patch('customers/{customer}', [StaffApiController::class, 'updateCustomer']);
     Route::post('inventory/restock', [StaffApiController::class, 'restockItem']);
     Route::post('inventory/{item}/archive', [StaffApiController::class, 'archiveItem']);
-    Route::post('machines', [StaffApiController::class, 'storeMachine']);
     Route::patch('machines/{machine}/status', [StaffApiController::class, 'updateMachineStatus']);
 });
 
