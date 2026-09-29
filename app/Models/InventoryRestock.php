@@ -11,13 +11,22 @@ class InventoryRestock extends Model
         'inventory_item_id',
         'staff_id',
         'quantity_received',
+        'quantity_invoiced',
         'supplier',
+        'invoice_number',
+        'invoice_date',
+        'cost',
+        'notes',
         'restocked_at',
     ];
 
     protected function casts(): array
     {
-        return ['restocked_at' => 'date'];
+        return [
+            'restocked_at' => 'date',
+            'invoice_date' => 'date',
+            'cost' => 'decimal:2',
+        ];
     }
 
     public function item(): BelongsTo

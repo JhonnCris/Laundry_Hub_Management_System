@@ -268,6 +268,10 @@ class StaffApiController extends Controller
             'status' => ['required', Rule::in(['pending', 'processing', 'ready_for_pickup', 'claimed', 'cancelled'])],
         ]);
 
+        if ($transaction->status === 'claimed') {
+            return response()->json(['message' => 'This order is already claimed and cannot be changed.'], 422);
+        }
+
         $staffId = $this->staffId();
 
         DB::transaction(function () use ($transaction, $data, $staffId) {
@@ -471,5 +475,36 @@ class StaffApiController extends Controller
             'message' => 'Customer updated',
             'customer' => $customer->fresh(),
         ]);
+    }
+
+    public function storeBasket(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'code' => ['required', 'string', 'max:20', 'unique:basket_tags,code'],
+        ]);
+
+        $code = strtoupper(trim($data['code']));
+        if (! str_starts_with($code, '#')) {
+            $code = '#'.$code;
+        }
+        // normalize #14 -> #014 style optional: keep user format if already padded
+        if (preg_match('/^#(\d+)$/', $code, $m)) {
+            $code = '#'.str_pad($m[1], 3, '0', STR_PAD_LEFT);
+        }
+
+        // re-check unique after normalize
+        if (BasketTag::query()->where('code', $code)->exists()) {
+            return response()->json(['message' => "Basket {$code} already exists."], 422);
+        }
+
+        $basket = BasketTag::query()->create([
+            'code' => $code,
+            'status' => 'available',
+        ]);
+
+        return response()->json([
+            'message' => 'Basket added',
+            'basket' => $basket,
+        ], 201);
     }
 }

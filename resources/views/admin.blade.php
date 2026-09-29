@@ -25,7 +25,7 @@
         </button>
         <button data-screen="procurement" type="button">
             <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12zM6 6L5 3H2M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
-            <span>Procurement</span>
+            <span>Stock Receiving</span>
         </button>
         <button data-screen="manage-users" type="button">
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c.5-3.5 2.5-5.5 6-5.5s5.5 2 6 5.5M16 11a3 3 0 100-6M19 20c-.3-2.5-1.5-4-3.5-4.8"/></svg>
@@ -54,23 +54,67 @@
             <div>
                 <p class="eyebrow">Admin · Overview</p>
                 <h1>Dashboard</h1>
-                <p>Operations and alerts at a glance.</p>
+                <p>Operations, sales, stock alerts, and machines at a glance.</p>
             </div>
-            <button class="outline-action" type="button" data-action-notice data-notice-title="Daily report" data-notice-body="Prototype: full sales report export will be available once the database is connected.">View report</button>
+            <div class="dash-toolbar">
+                <label class="dash-filter">
+                    <span>From</span>
+                    <input type="date" data-dash-from>
+                </label>
+                <label class="dash-filter">
+                    <span>To</span>
+                    <input type="date" data-dash-to>
+                </label>
+                <button class="action-btn-primary" type="button" data-dash-apply-range>Filter</button>
+                <button class="outline-action" type="button" data-dash-export title="Download CSV">Export CSV →</button>
+            </div>
         </div>
-        <div class="metric-grid">
-            <article><span>Active laundry</span><strong>3</strong><small>2 processing · 1 ready</small></article>
-            <article><span>Today’s sales</span><strong>₱1,840</strong><small>12 completed orders</small></article>
-            <article><span>Low stock</span><strong>2</strong><small>Action required</small></article>
+
+        <div class="metric-grid dash-kpis">
+            <article class="kpi-card is-active" data-kpi="active" title="Click to show active laundry orders">
+                <span>Active laundry</span>
+                <strong data-kpi-active-value>—</strong>
+                <small data-kpi-active-sub>Click to filter activity</small>
+            </article>
+            <article class="kpi-card" data-kpi="stock" title="Click to show low-stock items">
+                <span>Low stock</span>
+                <strong data-kpi-stock-value>—</strong>
+                <small data-kpi-stock-sub>Action required</small>
+            </article>
+            <article class="kpi-card" data-kpi="machines" title="Click to show machines needing attention">
+                <span>Machines</span>
+                <strong data-kpi-machines-value>—</strong>
+                <small data-kpi-machines-sub>Maintenance / offline</small>
+            </article>
         </div>
-        <section class="staff-card full-card">
+
+        <div class="dash-panels">
+            <section class="staff-card full-card">
+                <div class="section-heading">
+                    <h2 data-dash-activity-title>Order activity</h2>
+                    <button class="text-button" type="button" data-open-activity title="View transaction details">Activity</button>
+                </div>
+                <div class="order-row order-head"><span>Basket</span><span>Customer</span><span>Service</span><span>Amount</span><span>Status</span></div>
+                <div data-dash-order-rows></div>
+            </section>
+
+            <section class="staff-card full-card">
+                <div class="section-heading">
+                    <h2>Alerts</h2>
+                    <small data-dash-alert-count style="color:var(--staff-muted)">0 alerts</small>
+                </div>
+                <div data-dash-alerts>
+                    <p class="dash-empty">No alerts right now.</p>
+                </div>
+            </section>
+        </div>
+
+        <section class="staff-card full-card dash-busy-card" style="margin-top:18px">
             <div class="section-heading">
-                <h2>Today’s order activity</h2>
-                <button class="text-button" type="button" data-action-notice data-notice-title="Orders" data-notice-body="Full order list lives in the Staff operations app. Admins oversee metrics here; staff process laundry on the floor.">About orders</button>
+                <h2>Busiest hours</h2>
+                <small style="color:var(--staff-muted)">Orders by time of day in the selected range</small>
             </div>
-            <div class="order-row order-head"><span>Basket</span><span>Customer</span><span>Service</span><span>Status</span></div>
-            <div class="order-row"><strong>#014</strong><span>Ana Cruz</span><span>Wash, Dry, Fold</span><em class="status processing">Processing</em></div>
-            <div class="order-row"><strong>#013</strong><span>Bea Santos</span><span>Self Service</span><em class="status ready">Ready for pickup</em></div>
+            <div class="chart-bars chart-hours chart-hours-wide" data-chart-busy-hours></div>
         </section>
     </section>
 
@@ -80,20 +124,51 @@
             <div>
                 <p class="eyebrow">Admin · Finance</p>
                 <h1>Sales & Summary</h1>
-                <p>Today’s revenue, operating costs, and service activity.</p>
+                <p>Revenue, expenses, service mix, and product popularity for the selected range.</p>
             </div>
-            <button class="outline-action" type="button" data-action-notice data-notice-title="Export summary" data-notice-body="Prototype: export today’s sales and expenses as CSV/PDF once records are stored in the database.">Export summary</button>
+            <div class="dash-toolbar">
+                <label class="dash-filter"><span>From</span><input type="date" data-sum-from></label>
+                <label class="dash-filter"><span>To</span><input type="date" data-sum-to></label>
+                <button class="outline-action" type="button" data-sum-apply-range>Apply</button>
+                <button class="action-btn-primary" type="button" data-sum-export>Export CSV →</button>
+            </div>
         </div>
-        <div class="metric-grid">
-            <article><span>Total sales</span><strong>₱2,450</strong><small>18 wash · 15 dry</small></article>
-            <article><span>Total expenses</span><strong>₱650</strong><small>Consumables & supplies</small></article>
-            <article><span>Net amount</span><strong>₱1,800</strong><small>For today</small></article>
+
+        <div class="metric-grid dash-kpis">
+            <article class="kpi-card is-active" data-sum-kpi="sales" title="Show income rows">
+                <span>Total sales</span>
+                <strong data-sum-sales>—</strong>
+                <small data-sum-sales-sub>Paid laundry in range</small>
+            </article>
+            <article class="kpi-card" data-sum-kpi="expenses" title="Show expense rows">
+                <span>Total expenses</span>
+                <strong data-sum-expenses>—</strong>
+                <small data-sum-expenses-sub>Includes stock receipts</small>
+            </article>
+            <article class="kpi-card" data-sum-kpi="net" title="Show all finance rows">
+                <span>Net amount</span>
+                <strong data-sum-net>—</strong>
+                <small data-sum-net-sub>Sales − expenses</small>
+            </article>
         </div>
-        <section class="staff-card full-card table-card">
-            <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div>
-            <div class="order-row"><strong>Income</strong><span>Laundry order #014</span><span>SSK Staff</span><span>₱150.00</span></div>
-            <div class="order-row"><strong>Expense</strong><span>Laundry supplies</span><span>SSK Staff</span><span>₱650.00</span></div>
+
+        <section class="staff-card full-card" style="margin-top:8px">
+            <div class="section-heading"><h2>Daily sales</h2><small data-sum-range-label style="color:var(--staff-muted)">—</small></div>
+            <div class="chart-bars" data-chart-sales-expenses></div>
         </section>
+
+        <div class="dash-panels" style="margin-top:18px">
+            <section class="staff-card full-card">
+                <div class="section-heading"><h2>Popular products</h2><small style="color:var(--staff-muted)">Snacks, drinks & extras sold</small></div>
+                <div class="order-row order-head"><span>Product</span><span>Qty sold</span><span>Revenue</span><span></span></div>
+                <div data-popular-product-rows></div>
+            </section>
+            <section class="staff-card full-card table-card">
+                <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-sum-finance-title>Finance activity</h2></div>
+                <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div>
+                <div data-admin-finance-rows></div>
+            </section>
+        </div>
     </section>
 
     {{-- Admin: Manage Inventory --}}
@@ -102,44 +177,58 @@
             <div>
                 <p class="eyebrow">Admin · Stock control</p>
                 <h1>Manage Inventory</h1>
-                <p>Adjust stock levels, thresholds, and categories for supplies and snacks.</p>
+                <p>Stock levels, value, low-stock alerts, and what sells most from the counter.</p>
             </div>
-            <button class="outline-action" type="button" data-action-notice data-notice-title="Add item" data-notice-body="Prototype: create a new inventory item (name, unit, price, threshold). Will save when inventory APIs are connected.">Add item</button>
         </div>
-        <div class="metric-grid">
-            <article><span>SKUs tracked</span><strong>4</strong><small>Detergent · snacks · supply</small></article>
-            <article><span>Low stock</span><strong>1</strong><small>Downy Sachet</small></article>
-            <article><span>Total on-hand value</span><strong>₱1,820</strong><small>Estimated</small></article>
+        <div class="metric-grid dash-kpis">
+            <article class="kpi-card is-active" data-inv-kpi="all" title="Show all items">
+                <span>SKUs tracked</span>
+                <strong data-inv-sku>—</strong>
+                <small>All inventory items</small>
+            </article>
+            <article class="kpi-card" data-inv-kpi="low" title="Show low stock only">
+                <span>Low stock</span>
+                <strong data-inv-low>—</strong>
+                <small>Below threshold</small>
+            </article>
+            <article class="kpi-card" data-inv-kpi="value" title="Show all with values">
+                <span>On-hand value</span>
+                <strong data-inv-value>—</strong>
+                <small>Qty × unit price</small>
+            </article>
         </div>
-        <section class="staff-card full-card table-card">
-            <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>All items</h2></div>
-            <div class="order-row order-head"><span>Item</span><span>Category</span><span>On hand</span><span>Status</span></div>
-            <div class="order-row"><strong>Downy Sachet</strong><span>Consumable</span><span>4 sachets</span><em class="status pending">Low stock</em></div>
-            <div class="order-row"><strong>Ariel Sachet</strong><span>Detergent</span><span>25 sachets</span><em class="status ready">In stock</em></div>
-            <div class="order-row"><strong>Softdrinks</strong><span>Snack / Drink</span><span>40 bottles</span><em class="status ready">In stock</em></div>
-            <div class="order-row"><strong>Water Big</strong><span>Snack / Drink</span><span>30 bottles</span><em class="status ready">In stock</em></div>
-        </section>
+        <div class="dash-panels">
+            <section class="staff-card full-card table-card">
+                <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-inv-table-title>All items</h2></div>
+                <div class="order-row order-head"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
+                <div data-admin-inventory-rows></div>
+            </section>
+            <section class="staff-card full-card">
+                <div class="section-heading"><h2>Top sellers</h2><small style="color:var(--staff-muted)">From paid orders in current range</small></div>
+                <div class="chart-bars" data-chart-top-products></div>
+                <div data-inv-popular-rows style="margin-top:8px"></div>
+            </section>
+        </div>
     </section>
 
-    {{-- Admin: Procurement --}}
+    {{-- Admin: Stock Receiving (invoice-based) --}}
     <section class="prototype-panel" data-panel="procurement">
         <div class="page-intro">
             <div>
-                <p class="eyebrow">Admin · Purchasing</p>
-                <h1>Procurement</h1>
-                <p>Record purchase orders and restocks from suppliers.</p>
+                <p class="eyebrow">Admin · Receiving</p>
+                <h1>Stock Receiving</h1>
+                <p>Record what was delivered and confirm quantities against the supplier invoice. Stock is updated only when you save a receipt.</p>
             </div>
-            <button class="outline-action" type="button" data-action-notice data-notice-title="New purchase order" data-notice-body="Prototype: create a PO (supplier, items, qty, cost). Saving will update inventory when the backend is connected.">New PO</button>
+            <button class="action-btn-primary" type="button" data-open-procurement title="Record goods received from an invoice">Record receipt →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Open POs</span><strong>1</strong><small>Awaiting delivery</small></article>
-            <article><span>This month spend</span><strong>₱650</strong><small>Supplies</small></article>
-            <article><span>Last restock</span><strong>Today</strong><small>Laundry supplies</small></article>
+            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small>Confirmed deliveries</small></article>
+            <article><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Logged as expenses</small></article>
+            <article><span>Last receipt</span><strong data-admin-last-restock>—</strong><small data-admin-last-restock-sub>No records yet</small></article>
         </div>
         <section class="staff-card full-card table-card">
-            <div class="order-row order-head"><span>PO #</span><span>Supplier / notes</span><span>Status</span><span>Amount</span></div>
-            <div class="order-row"><strong>PO-001</strong><span>Laundry supplies restock</span><em class="status ready">Received</em><span>₱650.00</span></div>
-            <div class="order-row"><strong>PO-002</strong><span>Downy · 50 sachets</span><em class="status pending">Ordered</em><span>₱500.00</span></div>
+            <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span>Invoiced</span><span>Received qty</span></div>
+            <div data-admin-restock-rows></div>
         </section>
     </section>
 
@@ -165,6 +254,79 @@
         </section>
     </section>
 </section>
+
+
+
+
+<div class="modal-backdrop" data-kpi-detail-modal hidden>
+    <section class="profile-modal action-modal activity-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-kpi-detail type="button">×</button>
+        <h2 data-kpi-detail-title>Details</h2>
+        <p class="modal-hint" data-kpi-detail-hint></p>
+        <div class="activity-list" data-kpi-detail-body></div>
+        <div class="modal-actions">
+            <button type="button" class="save-button" data-close-kpi-detail>Close</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-activity-modal hidden>
+    <section class="profile-modal action-modal activity-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-activity type="button">×</button>
+        <h2 data-activity-title>Activity</h2>
+        <p class="modal-hint" data-activity-hint>Select a transaction to see full customer and purchase details.</p>
+
+        <div data-activity-view="list">
+            <div class="activity-list" data-activity-list></div>
+        </div>
+
+        <div data-activity-view="detail" hidden>
+            <button type="button" class="text-button activity-back" data-activity-back>← Back to list</button>
+            <div class="activity-detail" data-activity-detail></div>
+        </div>
+
+        <div class="modal-actions">
+            <button type="button" class="save-button" data-close-activity>Close</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-procurement-modal hidden>
+    <section class="profile-modal action-modal receive-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-procurement type="button">×</button>
+        <h2>Record stock receipt</h2>
+        <p class="modal-hint">Enter what the invoice shows, then confirm the quantity you actually received. Inventory updates only after you save.</p>
+        <label class="modal-field">Invoice number
+            <input type="text" data-po-invoice placeholder="e.g. INV-2026-0142">
+        </label>
+        <label class="modal-field">Invoice date
+            <input type="date" data-po-invoice-date>
+        </label>
+        <label class="modal-field">Supplier
+            <input type="text" data-po-supplier placeholder="Name on the invoice">
+        </label>
+        <label class="modal-field">Inventory item
+            <select data-po-item></select>
+        </label>
+        <label class="modal-field">Qty on invoice
+            <input type="number" data-po-qty-invoiced min="0" value="1">
+        </label>
+        <label class="modal-field">Qty received <small>(confirmed count)</small>
+            <input type="number" data-po-qty min="1" value="1">
+        </label>
+        <label class="modal-field">Invoice total (₱) <small>(optional · logged as expense)</small>
+            <input type="number" data-po-cost min="0" step="0.01" placeholder="0.00">
+        </label>
+        <label class="modal-field">Notes <small>(optional)</small>
+            <input type="text" data-po-notes placeholder="e.g. Short 2 pcs vs invoice · accepted">
+        </label>
+        <p class="modal-error" data-po-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-procurement>Cancel</button>
+            <button type="button" class="save-button" data-confirm-procurement>Confirm receipt &amp; update stock</button>
+        </div>
+    </section>
+</div>
 
 {{-- Notice modal --}}
 <div class="modal-backdrop" data-notice-modal hidden>

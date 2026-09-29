@@ -44,6 +44,7 @@ Route::middleware(['auth', 'verified'])->prefix('api/staff')->group(function () 
     Route::post('transactions', [StaffApiController::class, 'saveTransaction']);
     Route::patch('transactions/{transaction}/status', [StaffApiController::class, 'updateStatus']);
     Route::post('baskets/check', [StaffApiController::class, 'reassignBasket']);
+    Route::post('baskets', [StaffApiController::class, 'storeBasket']);
     Route::post('garment-types', [StaffApiController::class, 'addGarmentType']);
     Route::post('attendance/clock-in', [StaffApiController::class, 'clockIn']);
     Route::post('attendance/clock-out', [StaffApiController::class, 'clockOut']);
@@ -59,6 +60,7 @@ Route::middleware(['auth', 'verified'])->prefix('api/staff')->group(function () 
 */
 Route::middleware(['auth', 'verified'])->prefix('api/admin')->group(function () {
     Route::get('bootstrap', [AdminApiController::class, 'bootstrap']);
+    Route::get('transactions/{transaction}', [AdminApiController::class, 'showTransaction']);
     Route::post('inventory', [AdminApiController::class, 'storeInventoryItem']);
     Route::post('inventory/{item}/adjust', [AdminApiController::class, 'adjustInventory']);
     Route::post('procurement', [AdminApiController::class, 'storeRestock']);

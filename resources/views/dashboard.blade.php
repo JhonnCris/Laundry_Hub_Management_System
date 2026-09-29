@@ -5,17 +5,17 @@
 <a class="brand" href="#"><img class="brand-logo" src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo" width="48" height="48"><span class="brand-text"><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a>
 <nav class="staff-nav">
 <p class="nav-group-label">Staff operations</p>
-<button class="is-active" data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
+<button class="is-active" data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
+<button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
+<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b>3</b></button>
-<button data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Customers</span></button>
 <button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b>2</b></button>
 <button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Machines</span></button>
-<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
 </nav>
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
 </aside>
 <section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button">☰</button><strong>SSK Laba Dami</strong></header>
-<section class="prototype-panel is-visible" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
+<section class="prototype-panel" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
 <div class="customer-context" data-customer-context>
     <div class="customer-context-empty" data-customer-empty>
         <p><strong>No customer selected.</strong> Open <button type="button" class="text-button" data-screen="customers">Manage Customer</button> and click <em>Do Laundry</em>, or add a new customer first.</p>
@@ -61,26 +61,31 @@
     <div class="garment-counter"><span>Beddings</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
     <button class="add-garment" type="button" data-add-garment>Add type <b>+</b></button>
 </div>
-<div class="form-grid workflow-bottom">
-    <label>Load weight (kg)
+<div class="form-grid workflow-bottom field-align">
+    <label class="field">
+        <span class="field-label">Load weight (kg)</span>
         <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 5.0" inputmode="decimal">
         <small class="field-hint">Record actual load weight for the order.</small>
     </label>
-    <label>Service type
+    <label class="field">
+        <span class="field-label">Service type</span>
         <select data-service-price data-pricing="flat">
             <option value="150">Wash, Dry, Fold · ₱150</option>
             <option value="120">Wash with Dry · ₱120</option>
             <option value="70">Wash Only · ₱70</option>
         </select>
+        <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
-    <label>Detergent / Downy type
+    <label class="field">
+        <span class="field-label">Detergent / Downy type</span>
         <select data-consumable>
             <option value="0" data-unit-price="0">None</option>
             <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
             <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
         </select>
     </label>
-    <label>Quantity used
+    <label class="field">
+        <span class="field-label">Quantity used</span>
         <div class="qty-field">
             <button type="button" data-consumable-decrease>−</button>
             <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
@@ -90,20 +95,24 @@
 </div>
 </div>
 <div data-workflow="self_service" hidden>
-<div class="form-grid workflow-bottom">
-    <label>Load weight (kg) <span class="req-mark">*</span>
+<div class="form-grid workflow-bottom field-align">
+    <label class="field">
+        <span class="field-label">Load weight (kg) <span class="req-mark">*</span></span>
         <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 6.5" inputmode="decimal">
         <small class="field-hint">Price is based on kg × rate. Min. 3 kg billed.</small>
     </label>
-    <label>Machine used
+    <label class="field">
+        <span class="field-label">Machine used</span>
         <select data-machine>
             <option>Washer 1</option>
             <option>Washer 2</option>
             <option>Washer 3</option>
             <option>Dryer 1</option>
         </select>
+        <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
-    <label>Cycle duration
+    <label class="field">
+        <span class="field-label">Cycle duration</span>
         <select data-cycle-duration>
             <option value="30">30 min · Light load (up to ~4 kg)</option>
             <option value="45" selected>45 min · Regular load (~4–7 kg)</option>
@@ -113,21 +122,25 @@
         </select>
         <small class="field-hint" data-duration-hint>Suggested from weight when you enter kg.</small>
     </label>
-    <label>Machine service (per kg)
+    <label class="field">
+        <span class="field-label">Machine service (per kg)</span>
         <select data-service-price data-pricing="per_kg">
             <option value="40" data-rate="40">Wash with Dry · ₱40 / kg</option>
             <option value="25" data-rate="25">Wash Only · ₱25 / kg</option>
             <option value="20" data-rate="20">Dry Only · ₱20 / kg</option>
         </select>
+        <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
-    <label>Detergent / Downy type
+    <label class="field">
+        <span class="field-label">Detergent / Downy type</span>
         <select data-consumable>
             <option value="0" data-unit-price="0">None</option>
             <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
             <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
         </select>
     </label>
-    <label>Quantity used
+    <label class="field">
+        <span class="field-label">Quantity used</span>
         <div class="qty-field">
             <button type="button" data-consumable-decrease>−</button>
             <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
@@ -214,27 +227,23 @@
 
 <!-- Generic action toast / notice modal for secondary buttons -->
 
-<div class="modal-backdrop" data-restock-modal hidden>
+
+<div class="modal-backdrop" data-add-basket-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-restock type="button">×</button>
-<h2>Restock items</h2>
-<p class="modal-hint">Add received stock to an inventory item.</p>
-<label class="modal-field">Item
-<select data-restock-item></select>
+<button class="modal-close" data-close-add-basket type="button">×</button>
+<h2>Add basket</h2>
+<p class="modal-hint">Enter a basket number or code (e.g. 021 or #021). It will start as Available.</p>
+<label class="modal-field">Basket code
+<input type="text" data-new-basket-code placeholder="#021" maxlength="20">
 </label>
-<label class="modal-field">Quantity received
-<input type="number" data-restock-qty min="1" value="1">
-</label>
-<label class="modal-field">Supplier (optional)
-<input type="text" data-restock-supplier placeholder="e.g. Local supplier">
-</label>
-<p class="modal-error" data-restock-error hidden></p>
+<p class="modal-error" data-add-basket-error hidden></p>
 <div class="modal-actions">
-<button type="button" class="text-button" data-close-restock>Cancel</button>
-<button type="button" class="save-button" data-confirm-restock>Save restock</button>
+<button type="button" class="text-button" data-close-add-basket>Cancel</button>
+<button type="button" class="save-button" data-confirm-add-basket>Save basket</button>
 </div>
 </section>
 </div>
+
 <div class="modal-backdrop" data-archive-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-archive type="button">×</button>
@@ -296,6 +305,19 @@
 </section>
 </div>
 
+
+<div class="modal-backdrop" data-confirm-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-confirm type="button">×</button>
+<h2 data-confirm-title>Confirm</h2>
+<p class="modal-hint" data-confirm-body></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-confirm>Cancel</button>
+<button type="button" class="save-button" data-confirm-yes>Yes, continue</button>
+</div>
+</section>
+</div>
+
 <div class="modal-backdrop" data-notice-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-notice type="button">×</button>
@@ -308,10 +330,10 @@
 </div>
 <section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div></div>
 <section class="staff-card full-card table-card">
-<div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span></div>
+<div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span><span>Action</span></div>
 <div data-queue-rows></div>
 </section></section>
-<section class="prototype-panel" data-panel="customers">
+<section class="prototype-panel is-visible" data-panel="customers">
 <div class="page-intro">
     <div>
         <p class="eyebrow">Customer hub</p>
@@ -333,20 +355,23 @@
     <div data-customer-rows></div>
 </section>
 </section>
-<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>Manage supplies, snacks, drinks, and laundry baskets in one workspace.</p></div>
+<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>View stock levels and archive damaged, spoiled, or expired items. New stock is added by Admin through Procurement.</p></div>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
-<button class="outline-action" type="button" data-open-restock>Restock items</button>
-<button class="outline-action" type="button" data-open-archive>Archive item</button>
+<button class="action-btn-secondary" type="button" data-open-archive title="Mark stock as expired, spoiled, or damaged">Archive item →</button>
 </div></div>
 <section class="staff-card full-card table-card"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Supplies & consumables</h2></div>
-<div class="order-row order-head"><span>Item</span><span>Category</span><span>On hand</span><span>Status</span></div>
+<div class="order-row order-head"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
 <div data-inventory-rows></div>
 </section>
 <section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Archived (expired / spoiled / damaged)</h2></div>
-<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>On hand</span></div>
+<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>Quantity</span></div>
 <div data-archived-rows><div class="order-row"><span colspan="4" style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
 </section>
-<section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Laundry baskets</h2></div>
+<section class="staff-card full-card table-card" style="margin-top:18px">
+<div class="section-heading" style="padding:16px 20px 0;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h2 style="margin:0">Laundry baskets</h2>
+    <button class="action-btn-primary" type="button" data-open-add-basket title="Register a new basket tag">Add basket →</button>
+</div>
 <div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span></span></div>
 <div data-basket-rows></div>
 </section></section>
@@ -361,8 +386,8 @@
         <p>Clock in and out for your shift. Today’s record is shown below.</p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="outline-action" type="button" data-clock-in>Clock in</button>
-        <button class="outline-action" type="button" data-clock-out>Clock out</button>
+        <button class="action-btn-primary" type="button" data-clock-in title="Start your shift">Clock in →</button>
+        <button class="action-btn-secondary" type="button" data-clock-out title="End your shift">Clock out →</button>
     </div>
 </div>
 <div class="metric-grid">
