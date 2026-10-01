@@ -176,30 +176,31 @@ export function loadStaffBootstrap(app, updateFn) {
     return api('/api/staff/bootstrap')
         .then((data) => {
             app._bootstrap = data;
-            (data.snacks || []).forEach((snack) => {
-                app.querySelectorAll('.add-on').forEach((row) => {
-                    const name = row.querySelector('strong')?.textContent?.trim();
-                    if (name && name === snack.name) {
-                        row.dataset.itemId = String(snack.id);
-                        row.dataset.price = String(snack.unit_price);
-                        const small = row.querySelector('small');
-                        if (small) {
-                            small.textContent = `₱${snack.unit_price} · ${snack.unit} · ${snack.quantity_on_hand} stock`;
-                        }
-                    }
-                });
-            });
+            const snackList = app.querySelector('[data-snack-list]');
+            if (snackList) {
+                const snacks = data.snacks || [];
+                snackList.innerHTML = snacks.length
+                    ? snacks
+                          .map(
+                              (snack) =>
+                                  `<div class="add-on" data-item-id="${snack.id}" data-price="${snack.unit_price}">
+                                    <div><strong>${snack.name}</strong><small>₱${snack.unit_price} · ${snack.unit} · ${snack.quantity_on_hand} stock</small></div>
+                                    <div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div>
+                                  </div>`
+                          )
+                          .join('')
+                    : '<p class="dash-empty" style="padding:8px 0;margin:0">No snacks/drinks in inventory yet.</p>';
+            }
             app.querySelectorAll('[data-consumable]').forEach((select) => {
-                const current = select.value;
-                select.innerHTML = '<option value="0">None</option>';
+                select.innerHTML = '<option value="0" data-unit-price="0">None</option>';
                 (data.detergents || []).forEach((d) => {
                     const o = document.createElement('option');
                     o.value = String(d.unit_price);
+                    o.dataset.unitPrice = String(d.unit_price);
                     o.dataset.itemId = String(d.id);
-                    o.textContent = `${d.name} · ₱${d.unit_price} each`;
+                    o.textContent = `${d.name} · ₱${d.unit_price} each · ${d.quantity_on_hand} left`;
                     select.appendChild(o);
                 });
-                select.value = current;
             });
             app.querySelectorAll('[data-service-price][data-pricing="flat"]').forEach((select) => {
                 if (!(data.services || []).length) return;
@@ -224,14 +225,89 @@ export function loadStaffBootstrap(app, updateFn) {
                 });
             }
             const list = app.querySelector('[data-basket-list]');
-            if (list && (data.available_baskets || []).length) {
-                list.innerHTML = data.available_baskets
-                    .map(
-                        (b) =>
-                            `<li><button type="button" data-basket-option="${b.code}">${b.code} <small>${b.status}</small></button></li>`
-                    )
-                    .join('');
+            if (list) {
+                const avail = data.available_baskets || [];
+                list.innerHTML = avail.length
+                    ? avail
+                          .map(
+                              (b) =>
+                                  `<li><button type="button" data-basket-option="${b.code}">${b.code} <small>${b.status}</small></button></li>`
+                          )
+                          .join('')
+                    : '<li><span style="padding:8px;color:var(--staff-muted);font-size:13px">No available baskets. Add one in Inventory.</span></li>';
             }
+
+            // Nav badges from live counts (hide when zero)
+            const setBadge = (key, count) => {
+                const el = app.querySelector(`[data-nav-badge="${key}"]`);
+                if (!el) return;
+                const n = Number(count) || 0;
+                el.textContent = String(n);
+                if (n > 0) {
+                    el.hidden = false;
+                    el.removeAttribute('hidden');
+                } else {
+                    el.hidden = true;
+                    el.setAttribute('hidden', '');
+                }
+            };
+            setBadge('queue', data.active_laundry_count ?? (data.active_laundry || []).length);
+            setBadge(
+                'inventory',
+                data.low_stock_count ??
+                    (data.inventory || []).filter(
+                        (i) =>
+                            i.low_stock_threshold != null &&
+                            Number(i.quantity_on_hand) <= Number(i.low_stock_threshold)
+                    ).length
+            );
+
+            // Optional notification panel if present
+            const notifBox = app.querySelector('[data-notification-list]');
+            if (notifBox) {
+                const notes = data.notifications || [];
+                notifBox.innerHTML = notes.length
+                    ? notes
+                          .map(
+                              (n) =>
+                                  `<div class="dash-alert"><strong>${(n.type || 'alert').replace(/_/g, ' ')}</strong><small>${n.message}</small></div>`
+                          )
+                          .join('')
+                    : '<p class="dash-empty">No notifications.</p>';
+            }
+            const notifCount = app.querySelector('[data-notification-count]');
+            if (notifCount) {
+                const n = (data.notifications || []).length;
+                notifCount.textContent = String(n);
+                notifCount.hidden = n === 0;
+            }
+
+            // Default basket: first available, not a hardcoded tag
+            const basketInput = app.querySelector('[data-basket-tag]');
+            if (basketInput && !basketInput.value) {
+                const first = (data.available_baskets || [])[0];
+                if (first) basketInput.value = first.code;
+            }
+
+            // Garment types from DB if grid supports rebuild
+            const gGrid = app.querySelector('[data-garment-grid]');
+            if (gGrid && (data.garment_types || []).length) {
+                const addBtn = gGrid.querySelector('[data-add-garment]');
+                const existing = new Set(
+                    [...gGrid.querySelectorAll('.garment-counter span')].map((el) =>
+                        el.textContent.trim().toLowerCase()
+                    )
+                );
+                (data.garment_types || []).forEach((g) => {
+                    if (existing.has(String(g.name).toLowerCase())) return;
+                    const div = document.createElement('div');
+                    div.className = 'garment-counter';
+                    div.innerHTML = `<span>${g.name}</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div>`;
+                    if (addBtn) gGrid.insertBefore(div, addBtn);
+                    else gGrid.appendChild(div);
+                });
+            }
+
             renderStaffLists(app, data, updateFn);
             if (typeof updateFn === 'function') updateFn();
         })

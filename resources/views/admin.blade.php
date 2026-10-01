@@ -95,7 +95,7 @@
                     <button class="text-button" type="button" data-open-activity title="View transaction details">Activity</button>
                 </div>
                 <div class="order-row order-head"><span>Basket</span><span>Customer</span><span>Service</span><span>Amount</span><span>Status</span></div>
-                <div data-dash-order-rows></div>
+                <div data-dash-order-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading orders…</span></div></div>
             </section>
 
             <section class="staff-card full-card">
@@ -103,9 +103,7 @@
                     <h2>Alerts</h2>
                     <small data-dash-alert-count style="color:var(--staff-muted)">0 alerts</small>
                 </div>
-                <div data-dash-alerts>
-                    <p class="dash-empty">No alerts right now.</p>
-                </div>
+                <div data-dash-alerts><p class="dash-empty">Loading alerts…</p></div>
             </section>
         </div>
 
@@ -114,8 +112,26 @@
                 <h2>Busiest hours</h2>
                 <small style="color:var(--staff-muted)">Orders by time of day in the selected range</small>
             </div>
-            <div class="chart-bars chart-hours chart-hours-wide" data-chart-busy-hours></div>
+            <div class="chart-bars chart-hours chart-hours-wide" data-chart-busy-hours><p class="chart-empty">Loading busiest hours…</p></div>
+            <p class="busy-peak-note" data-busy-peak-note></p>
         </section>
+
+        <div class="dash-panels" style="margin-top:18px">
+            <section class="staff-card full-card">
+                <div class="section-heading">
+                    <h2>Sales per day</h2>
+                    <small style="color:var(--staff-muted)">₱, selected range</small>
+                </div>
+                <div class="chart-bars" data-chart-dash-sales><p class="chart-empty">Loading sales…</p></div>
+            </section>
+            <section class="staff-card full-card">
+                <div class="section-heading">
+                    <h2>Orders by service</h2>
+                    <small style="color:var(--staff-muted)">Share of orders</small>
+                </div>
+                <div data-dash-service-share><p class="dash-empty">Loading service mix…</p></div>
+            </section>
+        </div>
     </section>
 
     {{-- Admin: Sales & Summary --}}
@@ -154,21 +170,29 @@
 
         <section class="staff-card full-card" style="margin-top:8px">
             <div class="section-heading"><h2>Daily sales</h2><small data-sum-range-label style="color:var(--staff-muted)">—</small></div>
-            <div class="chart-bars" data-chart-sales-expenses></div>
+            <div class="chart-bars" data-chart-sales-expenses><p class="chart-empty">Loading daily sales…</p></div>
         </section>
 
         <div class="dash-panels" style="margin-top:18px">
             <section class="staff-card full-card">
-                <div class="section-heading"><h2>Popular products</h2><small style="color:var(--staff-muted)">Snacks, drinks & extras sold</small></div>
-                <div class="order-row order-head"><span>Product</span><span>Qty sold</span><span>Revenue</span><span></span></div>
-                <div data-popular-product-rows></div>
+                <div class="section-heading"><h2>Service mix</h2><small style="color:var(--staff-muted)">Share of sales</small></div>
+                <div data-sum-service-mix><p class="dash-empty">Loading service mix…</p></div>
             </section>
-            <section class="staff-card full-card table-card">
-                <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-sum-finance-title>Finance activity</h2></div>
-                <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div>
-                <div data-admin-finance-rows></div>
+            <section class="staff-card full-card">
+                <div class="section-heading"><h2>Popular products</h2><small style="color:var(--staff-muted)">Snacks, drinks & extras sold</small></div>
+                <div class="order-row order-head popular-head"><span>Product</span><span>Qty sold</span><span>Revenue</span></div>
+                <div data-popular-product-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading products…</span></div></div>
             </section>
         </div>
+
+        <section class="staff-card full-card table-card" style="margin-top:18px">
+            <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
+                <h2 data-sum-finance-title style="margin:0">Finance activity</h2>
+                <label class="toggle-inline"><input type="checkbox" data-sum-show-expenses> Show expense rows</label>
+            </div>
+            <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div>
+            <div data-admin-finance-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading finance…</span></div></div>
+        </section>
     </section>
 
     {{-- Admin: Manage Inventory --}}
@@ -179,6 +203,7 @@
                 <h1>Manage Inventory</h1>
                 <p>Stock levels, value, low-stock alerts, and what sells most from the counter.</p>
             </div>
+            <button class="action-btn-primary" type="button" data-open-add-item>Add item →</button>
         </div>
         <div class="metric-grid dash-kpis">
             <article class="kpi-card is-active" data-inv-kpi="all" title="Show all items">
@@ -201,7 +226,7 @@
             <section class="staff-card full-card table-card">
                 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-inv-table-title>All items</h2></div>
                 <div class="order-row order-head"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
-                <div data-admin-inventory-rows></div>
+                <div data-admin-inventory-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading inventory…</span></div></div>
             </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Top sellers</h2><small style="color:var(--staff-muted)">From paid orders in current range</small></div>
@@ -228,7 +253,7 @@
         </div>
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span>Invoiced</span><span>Received qty</span></div>
-            <div data-admin-restock-rows></div>
+            <div data-admin-restock-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading receipts…</span></div></div>
         </section>
     </section>
 
@@ -240,17 +265,16 @@
                 <h1>Manage Users</h1>
                 <p>Create and update staff and admin accounts and their roles.</p>
             </div>
-            <button class="outline-action" type="button" data-action-notice data-notice-title="Add user" data-notice-body="Prototype: create a user with name, email, password, and role (staff or admin). Wire to User model when ready.">Add user</button>
+            <button class="action-btn-primary" type="button" data-open-add-user>Add user →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Total users</span><strong>2</strong><small>From seeder</small></article>
-            <article><span>Admins</span><strong>1</strong><small>admin@ssklabadami.test</small></article>
-            <article><span>Staff</span><strong>1</strong><small>staff@ssklabadami.test</small></article>
+            <article><span>Total users</span><strong data-users-total>0</strong><small>Accounts</small></article>
+            <article><span>Admins</span><strong data-users-admins>0</strong><small>Full access</small></article>
+            <article><span>Staff</span><strong data-users-staff>0</strong><small>Operations</small></article>
         </div>
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Name</span><span>Email</span><span>Role</span><span>Status</span></div>
-            <div class="order-row"><strong>SSK Admin</strong><span>admin@ssklabadami.test</span><span>Admin</span><em class="status ready">Active</em></div>
-            <div class="order-row"><strong>SSK Staff</strong><span>staff@ssklabadami.test</span><span>Staff</span><em class="status ready">Active</em></div>
+            <div data-admin-user-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading users…</span></div></div>
         </section>
     </section>
 </section>
@@ -258,8 +282,52 @@
 
 
 
+
+<div class="modal-backdrop" data-add-user-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-add-user type="button">×</button>
+        <h2>Add user</h2>
+        <p class="modal-hint">Create a staff or admin account. They can sign in with this email and password.</p>
+        <label class="modal-field">Name<input type="text" data-new-user-name placeholder="Full name"></label>
+        <label class="modal-field">Email<input type="email" data-new-user-email placeholder="name@ssklabadami.test"></label>
+        <label class="modal-field">Password<input type="password" data-new-user-password placeholder="Min 8 characters"></label>
+        <label class="modal-field">Role
+            <select data-new-user-role>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+            </select>
+        </label>
+        <p class="modal-error" data-add-user-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-add-user>Cancel</button>
+            <button type="button" class="save-button" data-confirm-add-user>Create user</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-add-item-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-add-item type="button">×</button>
+        <h2>Add inventory item</h2>
+        <p class="modal-hint">New items appear in staff inventory and stock receiving.</p>
+        <label class="modal-field">Name<input type="text" data-new-item-name placeholder="e.g. Downy Sachet"></label>
+        <label class="modal-field">Category
+            <select data-new-item-category></select>
+        </label>
+        <label class="modal-field">Unit<input type="text" data-new-item-unit placeholder="sachet, bottle…" value="pc"></label>
+        <label class="modal-field">Unit price (₱)<input type="number" data-new-item-price min="0" step="0.01" value="0"></label>
+        <label class="modal-field">Starting qty<input type="number" data-new-item-qty min="0" value="0"></label>
+        <label class="modal-field">Low-stock threshold<input type="number" data-new-item-threshold min="0" value="5"></label>
+        <p class="modal-error" data-add-item-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-add-item>Cancel</button>
+            <button type="button" class="save-button" data-confirm-add-item>Save item</button>
+        </div>
+    </section>
+</div>
+
 <div class="modal-backdrop" data-kpi-detail-modal hidden>
-    <section class="profile-modal action-modal activity-modal" role="dialog" aria-modal="true">
+    <section class="profile-modal action-modal admin-modal activity-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-kpi-detail type="button">×</button>
         <h2 data-kpi-detail-title>Details</h2>
         <p class="modal-hint" data-kpi-detail-hint></p>
@@ -271,7 +339,7 @@
 </div>
 
 <div class="modal-backdrop" data-activity-modal hidden>
-    <section class="profile-modal action-modal activity-modal" role="dialog" aria-modal="true">
+    <section class="profile-modal action-modal admin-modal activity-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-activity type="button">×</button>
         <h2 data-activity-title>Activity</h2>
         <p class="modal-hint" data-activity-hint>Select a transaction to see full customer and purchase details.</p>
@@ -292,7 +360,7 @@
 </div>
 
 <div class="modal-backdrop" data-procurement-modal hidden>
-    <section class="profile-modal action-modal receive-modal" role="dialog" aria-modal="true">
+    <section class="profile-modal action-modal admin-modal receive-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-procurement type="button">×</button>
         <h2>Record stock receipt</h2>
         <p class="modal-hint">Enter what the invoice shows, then confirm the quantity you actually received. Inventory updates only after you save.</p>
@@ -329,8 +397,21 @@
 </div>
 
 {{-- Notice modal --}}
+
+<div class="modal-backdrop" data-confirm-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-confirm type="button">×</button>
+        <h2 data-confirm-title>Confirm</h2>
+        <p class="modal-hint" data-confirm-body></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-confirm>Cancel</button>
+            <button type="button" class="save-button" data-confirm-yes>Yes, continue</button>
+        </div>
+    </section>
+</div>
+
 <div class="modal-backdrop" data-notice-modal hidden>
-    <section class="profile-modal action-modal" role="dialog" aria-modal="true">
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-notice type="button">×</button>
         <h2 data-notice-title>Notice</h2>
         <p data-notice-body class="modal-hint"></p>

@@ -8,8 +8,8 @@
 <button class="is-active" data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
 <button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
 <button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
-<button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b>3</b></button>
-<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b>2</b></button>
+<button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
+<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b data-nav-badge="inventory" hidden>0</b></button>
 <button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Machines</span></button>
 </nav>
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
@@ -35,18 +35,13 @@
 <div class="wide-field">
     <span>Basket Tag <small>For drop-off</small></span>
     <div class="tag-field">
-        <input data-basket-tag value="#014" readonly>
+        <input data-basket-tag value="" placeholder="Select basket" readonly>
         <button type="button" data-reassign-basket>Reassign</button>
     </div>
     <div class="basket-picker" data-basket-picker hidden>
         <p class="basket-picker-title">Available baskets</p>
         <ul class="basket-picker-list" data-basket-list>
-            <li><button type="button" data-basket-option="#015">#015 <small>Available</small></button></li>
-            <li><button type="button" data-basket-option="#016">#016 <small>Available</small></button></li>
-            <li><button type="button" data-basket-option="#017">#017 <small>Available</small></button></li>
-            <li><button type="button" data-basket-option="#018">#018 <small>Available</small></button></li>
-            <li><button type="button" data-basket-option="#019">#019 <small>Available</small></button></li>
-            <li><button type="button" data-basket-option="#020">#020 <small>Available</small></button></li>
+            <li><span style="padding:8px;color:var(--staff-muted);font-size:13px">Loading available baskets…</span></li>
         </ul>
         <div class="basket-picker-actions">
             <button type="button" class="text-button" data-basket-cancel>Cancel</button>
@@ -70,9 +65,7 @@
     <label class="field">
         <span class="field-label">Service type</span>
         <select data-service-price data-pricing="flat">
-            <option value="150">Wash, Dry, Fold · ₱150</option>
-            <option value="120">Wash with Dry · ₱120</option>
-            <option value="70">Wash Only · ₱70</option>
+            <option value="0">Loading services…</option>
         </select>
         <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
@@ -80,8 +73,6 @@
         <span class="field-label">Detergent / Downy type</span>
         <select data-consumable>
             <option value="0" data-unit-price="0">None</option>
-            <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
-            <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
         </select>
     </label>
     <label class="field">
@@ -104,10 +95,7 @@
     <label class="field">
         <span class="field-label">Machine used</span>
         <select data-machine>
-            <option>Washer 1</option>
-            <option>Washer 2</option>
-            <option>Washer 3</option>
-            <option>Dryer 1</option>
+            <option>Loading machines…</option>
         </select>
         <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
@@ -135,8 +123,6 @@
         <span class="field-label">Detergent / Downy type</span>
         <select data-consumable>
             <option value="0" data-unit-price="0">None</option>
-            <option value="10" data-unit-price="10">Downy Sachet · ₱10 each</option>
-            <option value="12" data-unit-price="12">Ariel Sachet · ₱12 each</option>
         </select>
     </label>
     <label class="field">
@@ -151,7 +137,7 @@
 <p class="kg-price-preview" data-kg-preview hidden>Load charge: <strong>—</strong></p>
 </div>
 </section>
-<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list"><div class="add-on" data-price="30"><div><strong>Softdrinks</strong><small>₱30 · bottle · 40 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="20"><div><strong>Water Big</strong><small>₱20 · bottle · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div><div class="add-on" data-price="10"><div><strong>Biscuit</strong><small>₱10 · pc · 30 stock</small></div><div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div></div></div></section></div><aside class="transaction-summary"><section class="summary-card">
+<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading snacks from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
 <div class="summary-top">
     <p data-summary-title>Summary</p>
     <p class="summary-empty" data-summary-empty>Nothing recorded yet. Add garments or snacks to see a summary.</p>

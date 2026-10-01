@@ -109,24 +109,102 @@ function setDefaultDates(app, fromStr, toStr) {
 function renderBusyHoursChart(app, data) {
     const hours = (data.analytics || {}).orders_by_hour || [];
     const busyEl = app.querySelector('[data-chart-busy-hours]');
+    const note = app.querySelector('[data-busy-peak-note]');
     if (!busyEl) return;
 
     if (!hours.length) {
         busyEl.innerHTML = '<p class="chart-empty">No order data yet. Complete transactions to see peak hours.</p>';
+        if (note) note.textContent = '';
         return;
     }
 
     const max = Math.max(...hours.map((h) => Number(h.count) || 0), 1);
-    // Always show full day (00:00–23:00) so peaks are clear
-    busyEl.innerHTML = hours
+    const peak = hours.reduce((a, b) => (Number(b.count) > Number(a.count) ? b : a), hours[0]);
+    const quiet = hours.filter((h) => Number(h.count) > 0);
+    const quietest = quiet.length
+        ? quiet.reduce((a, b) => (Number(b.count) < Number(a.count) ? b : a), quiet[0])
+        : null;
+
+    // Prefer business hours 6–21 if data exists there, else full day
+    let list = hours;
+    const biz = hours.filter((h) => {
+        const hr = parseInt(String(h.hour).slice(0, 2), 10);
+        return hr >= 6 && hr <= 21;
+    });
+    if (biz.some((h) => h.count > 0)) list = biz;
+
+    busyEl.innerHTML = list
         .map((h) => {
             const val = Number(h.count) || 0;
             const ht = val > 0 ? Math.max(6, Math.round((val / max) * 140)) : 4;
-            const barCls = val > 0 ? 'bar' : 'bar is-muted';
-            return `<div class="chart-bar"><span class="bar-value">${val > 0 ? val : ''}</span><div class="${barCls}" style="height:${ht}px" title="${h.hour}: ${val} order(s)"></div><span class="bar-label">${String(h.hour).replace(':00', '')}</span></div>`;
+            const isPeak = h.hour === peak.hour && val > 0;
+            const barCls = isPeak ? 'bar is-peak' : val > 0 ? 'bar' : 'bar is-muted';
+            const label = String(h.hour).replace(':00', '');
+            return `<div class="chart-bar"><span class="bar-value">${val > 0 ? val : ''}</span><div class="${barCls}" style="height:${ht}px" title="${h.hour}: ${val} order(s)"></div><span class="bar-label">${label}</span></div>`;
+        })
+        .join('');
+
+    if (note) {
+        if (max <= 0) {
+            note.textContent = 'No orders in this range.';
+        } else {
+            const peakLabel = String(peak.hour);
+            note.textContent = `Peak: ${peakLabel} with ${peak.count} order(s).${
+                quietest ? ` Quietest among active hours: ${quietest.hour}.` : ''
+            }`;
+        }
+    }
+}
+
+function renderServiceShare(container, mix, mode = 'orders') {
+    if (!container) return;
+    const list = mix || [];
+    if (!list.length) {
+        container.innerHTML = '<p class="dash-empty">No service data in this range.</p>';
+        return;
+    }
+    const total = list.reduce((s, x) => s + Number(mode === 'revenue' ? x.revenue : x.orders) || 0, 0) || 1;
+    container.innerHTML = list
+        .map((x) => {
+            const val = Number(mode === 'revenue' ? x.revenue : x.orders) || 0;
+            const pct = Math.round((val / total) * 100);
+            const right =
+                mode === 'revenue' ? `${pct}% · ${money(x.revenue)}` : `${pct}%`;
+            return `<div class="share-row"><span>${x.service}</span><span class="share-pct">${right}</span><div class="share-bar-track"><div class="share-bar-fill" style="width:${pct}%"></div></div></div>`;
         })
         .join('');
 }
+
+function renderUsers(app, data) {
+    const users = data.users || [];
+    const admins = users.filter((u) => u.role === 'admin').length;
+    const staff = users.filter((u) => u.role === 'staff').length;
+    const set = (sel, v) => {
+        const el = app.querySelector(sel);
+        if (el) el.textContent = String(v);
+    };
+    set('[data-users-total]', users.length);
+    set('[data-users-admins]', admins);
+    set('[data-users-staff]', staff);
+    const rows = app.querySelector('[data-admin-user-rows]');
+    if (rows) {
+        rows.innerHTML = users.length
+            ? users
+                  .map((u) => {
+                      const role = u.role === 'admin' ? 'Admin' : 'Staff';
+                      return `<div class="order-row"><strong>${u.name}</strong><span>${u.email}</span><span>${role}</span><em class="status ready">Active</em></div>`;
+                  })
+                  .join('')
+            : '<div class="order-row"><span style="grid-column:1/-1">No users yet.</span></div>';
+    }
+    const catSel = document.querySelector('[data-new-item-category]');
+    if (catSel && (data.categories || []).length) {
+        catSel.innerHTML = data.categories
+            .map((c) => `<option value="${c.id}">${c.name}</option>`)
+            .join('');
+    }
+}
+
 
 function renderDashboard(app, data) {
     const m = data.metrics || {};
@@ -151,7 +229,9 @@ function renderDashboard(app, data) {
         '[data-kpi-stock-sub]',
         (m.low_stock_count || 0) > 0 ? 'Action required' : 'All healthy'
     );
-    setText('[data-kpi-machines-value]', String(Number(m.machines_attention) || 0));
+    const machineTotal = (data.machines || []).length;
+    const attn = Number(m.machines_attention) || 0;
+    setText('[data-kpi-machines-value]', machineTotal ? `${attn} of ${machineTotal}` : String(attn));
     setText(
         '[data-kpi-machines-sub]',
         (m.machines_attention || 0) > 0 ? 'Need attention' : 'All available'
@@ -176,7 +256,14 @@ function renderDashboard(app, data) {
     renderFinanceTable(app, data);
     renderActivityModalList(app, data);
     renderBusyHoursChart(app, data);
+    renderBarChart(app.querySelector('[data-chart-dash-sales]'), (data.analytics || {}).sales_by_day || [], {
+        valueKey: 'amount',
+        labelKey: 'date',
+    });
+    renderServiceShare(app.querySelector('[data-dash-service-share]'), (data.analytics || {}).service_mix || [], 'orders');
 }
+
+
 
 function filterOrders(data, kpi) {
     const orders = data.recent_orders || [];
@@ -470,6 +557,7 @@ function openKpiDetailModal(title, hint, rowsHtml) {
     if (el) {
         el.hidden = false;
         el.removeAttribute('hidden');
+        el.style.display = 'grid';
     }
 }
 
@@ -478,6 +566,7 @@ function closeKpiDetailModal() {
     if (el) {
         el.hidden = true;
         el.setAttribute('hidden', '');
+        el.style.display = 'none';
     }
 }
 
@@ -538,6 +627,62 @@ function showSumKpiModal(app, kpi) {
     );
 }
 
+
+function showDashKpiModal(app, kpi) {
+    const data = app._adminBootstrap || {};
+    const m = data.metrics || {};
+    if (kpi === 'active') {
+        const list = (data.recent_orders || []).filter((o) =>
+            ['pending', 'processing', 'ready_for_pickup'].includes(o.status)
+        );
+        const rows = list
+            .map((tx) => {
+                const basket = tx.basket_tag?.code || '#' + tx.id;
+                return `<div class="activity-row"><strong>${basket}</strong><span>${tx.customer?.name || '—'}</span><span>${statusLabel(tx.status)}</span><span>${money(tx.total_amount || 0)}</span></div>`;
+            })
+            .join('');
+        openKpiDetailModal(
+            'Active laundry',
+            `${m.active_laundry || 0} order(s) in progress`,
+            rows || '<div class="activity-row"><span style="grid-column:1/-1">No active orders.</span></div>'
+        );
+        return;
+    }
+    if (kpi === 'stock') {
+        const items = data.low_stock || [];
+        const rows = items
+            .map(
+                (i) =>
+                    `<div class="activity-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit || ''}</span><span>threshold ${i.low_stock_threshold ?? '—'}</span></div>`
+            )
+            .join('');
+        openKpiDetailModal(
+            'Low stock',
+            `${m.low_stock_count || 0} item(s) need attention`,
+            rows || '<div class="activity-row"><span style="grid-column:1/-1">Stock levels look healthy.</span></div>'
+        );
+        return;
+    }
+    if (kpi === 'machines') {
+        const list = data.machines_attention || [];
+        const rows = list
+            .map(
+                (x) =>
+                    `<div class="activity-row"><strong>${x.name}</strong><span>${x.type || '—'}</span><span>${(x.status || '').replace(/_/g, ' ')}</span><span></span></div>`
+            )
+            .join('');
+        openKpiDetailModal(
+            'Machines needing attention',
+            `${m.machines_attention || 0} of ${(data.machines || []).length} machines`,
+            rows || '<div class="activity-row"><span style="grid-column:1/-1">All machines available.</span></div>'
+        );
+        return;
+    }
+    if (kpi === 'sales') {
+        showSumKpiModal(app, 'sales');
+    }
+}
+
 function openActivityDetail(app, txId) {
     const data = app._adminBootstrap || {};
     const local = (data.recent_orders || []).find((o) => String(o.id) === String(txId));
@@ -592,16 +737,19 @@ function renderSummaryAnalytics(app, data) {
     });
 
 
-    // Popular products table
+    // Service mix + popular products
+    renderServiceShare(app.querySelector('[data-sum-service-mix]'), an.service_mix || [], 'revenue');
+
     const pop = an.popular_products || [];
+    const maxRev = Math.max(...pop.map((p) => Number(p.revenue) || 0), 1);
     const popRows = app.querySelector('[data-popular-product-rows]');
     if (popRows) {
         popRows.innerHTML = pop.length
             ? pop
-                  .map(
-                      (p) =>
-                          `<div class="order-row"><strong>${p.name}</strong><span>${p.qty_sold} ${p.unit || ''}</span><span>${money(p.revenue)}</span><span></span></div>`
-                  )
+                  .map((p) => {
+                      const w = Math.max(8, Math.round(((Number(p.revenue) || 0) / maxRev) * 80));
+                      return `<div class="order-row"><strong>${p.name}</strong><span>${p.qty_sold}</span><span><i class="rev-bar" style="width:${w}px"></i>${money(p.revenue)}</span></div>`;
+                  })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No product sales in this range.</span></div>';
     }
@@ -770,6 +918,7 @@ export function loadAdminBootstrap(app) {
             renderDashboard(app, data);
             renderSummaryAnalytics(app, data);
             renderInventoryAnalytics(app, data);
+            renderUsers(app, data);
 
             // Receiving table
             const restocks = data.restocks || [];
@@ -825,12 +974,16 @@ export function handleAdminClick(t, e, ctx) {
     const kpiCard = t.closest('[data-kpi]');
     if (kpiCard && app.contains(kpiCard)) {
         e.preventDefault();
+        e.stopPropagation();
         const kpi = kpiCard.dataset.kpi;
         app._dashKpi = kpi;
         app.querySelectorAll('[data-kpi]').forEach((el) => {
             el.classList.toggle('is-active', el === kpiCard);
         });
-        if (app._adminBootstrap) renderDashboard(app, app._adminBootstrap);
+        if (app._adminBootstrap) {
+            renderDashboard(app, app._adminBootstrap);
+            showDashKpiModal(app, kpi);
+        }
         return true;
     }
 
@@ -858,11 +1011,32 @@ export function handleAdminClick(t, e, ctx) {
     const invKpi = t.closest('[data-inv-kpi]');
     if (invKpi) {
         e.preventDefault();
+        e.stopPropagation();
         app._invKpi = invKpi.dataset.invKpi;
         app.querySelectorAll('[data-inv-kpi]').forEach((el) => {
             el.classList.toggle('is-active', el === invKpi);
         });
-        if (app._adminBootstrap) renderInventoryAnalytics(app, app._adminBootstrap);
+        if (app._adminBootstrap) {
+            renderInventoryAnalytics(app, app._adminBootstrap);
+            const data = app._adminBootstrap;
+            if (app._invKpi === 'low') {
+                showDashKpiModal(app, 'stock');
+            } else {
+                const items = data.inventory || [];
+                const rows = items
+                    .slice(0, 30)
+                    .map(
+                        (i) =>
+                            `<div class="activity-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit || ''}</span><span>${money((i.unit_price || 0) * (i.quantity_on_hand || 0))}</span></div>`
+                    )
+                    .join('');
+                openKpiDetailModal(
+                    app._invKpi === 'value' ? 'Inventory value' : 'All inventory items',
+                    `${items.length} SKU(s) · ${money(data.metrics?.inventory_value || 0)} on hand`,
+                    rows || '<div class="activity-row"><span style="grid-column:1/-1">No items.</span></div>'
+                );
+            }
+        }
         return true;
     }
 
@@ -897,6 +1071,18 @@ export function handleAdminClick(t, e, ctx) {
         e.stopPropagation();
         exportDashboard(app);
         openNotice('Export started', 'CSV includes sales, expenses, and popular products.');
+        return true;
+    }
+
+    if (t.matches && t.matches('[data-sum-show-expenses]')) {
+        // handled on change below
+    }
+    const expToggle = t.closest('[data-sum-show-expenses]') || (t.matches?.('[data-sum-show-expenses]') ? t : null);
+    if (expToggle && expToggle.matches?.('[data-sum-show-expenses]')) {
+        e.stopPropagation();
+        const showExp = expToggle.checked;
+        app._sumKpi = showExp ? 'net' : 'sales';
+        if (app._adminBootstrap) renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
         return true;
     }
 
@@ -952,6 +1138,108 @@ export function handleAdminClick(t, e, ctx) {
     if (dashRow && app.querySelector('[data-panel="dashboard"]')?.contains(dashRow)) {
         e.preventDefault();
         openActivityDetail(app, dashRow.dataset.txId);
+        return true;
+    }
+
+
+    if (t.closest('[data-open-add-user]')) {
+        e.preventDefault();
+        const err = document.querySelector('[data-add-user-error]');
+        if (err) err.hidden = true;
+        ['[data-new-user-name]', '[data-new-user-email]', '[data-new-user-password]'].forEach((sel) => {
+            const el = document.querySelector(sel);
+            if (el) el.value = '';
+        });
+        showModal('[data-add-user-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-add-user]')) {
+        e.preventDefault();
+        hideModal('[data-add-user-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-add-user]')) {
+        e.preventDefault();
+        const name = (document.querySelector('[data-new-user-name]')?.value || '').trim();
+        const email = (document.querySelector('[data-new-user-email]')?.value || '').trim();
+        const password = document.querySelector('[data-new-user-password]')?.value || '';
+        const role = document.querySelector('[data-new-user-role]')?.value || 'staff';
+        const err = document.querySelector('[data-add-user-error]');
+        if (!name || !email || password.length < 8) {
+            if (err) {
+                err.hidden = false;
+                err.textContent = 'Name, email, and password (min 8) are required.';
+            }
+            return true;
+        }
+        api('/api/admin/users', {
+            method: 'POST',
+            body: JSON.stringify({ name, email, password, role }),
+        })
+            .then((r) => {
+                hideModal('[data-add-user-modal]');
+                openNotice('User created', r.user?.email || email);
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                if (err) {
+                    err.hidden = false;
+                    err.textContent = ex.message;
+                }
+            });
+        return true;
+    }
+
+    if (t.closest('[data-open-add-item]')) {
+        e.preventDefault();
+        const err = document.querySelector('[data-add-item-error]');
+        if (err) err.hidden = true;
+        showModal('[data-add-item-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-add-item]')) {
+        e.preventDefault();
+        hideModal('[data-add-item-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-add-item]')) {
+        e.preventDefault();
+        const name = (document.querySelector('[data-new-item-name]')?.value || '').trim();
+        const categoryId = Number(document.querySelector('[data-new-item-category]')?.value || 0);
+        const unit = (document.querySelector('[data-new-item-unit]')?.value || 'pc').trim();
+        const price = Number(document.querySelector('[data-new-item-price]')?.value || 0);
+        const qty = Number(document.querySelector('[data-new-item-qty]')?.value || 0);
+        const thr = Number(document.querySelector('[data-new-item-threshold]')?.value || 0);
+        const err = document.querySelector('[data-add-item-error]');
+        if (!name || !categoryId) {
+            if (err) {
+                err.hidden = false;
+                err.textContent = 'Name and category are required.';
+            }
+            return true;
+        }
+        api('/api/admin/inventory', {
+            method: 'POST',
+            body: JSON.stringify({
+                name,
+                inventory_category_id: categoryId,
+                unit,
+                unit_price: price,
+                quantity_on_hand: qty,
+                low_stock_threshold: thr,
+            }),
+        })
+            .then(() => {
+                hideModal('[data-add-item-modal]');
+                openNotice('Item added', name + ' is now in inventory.');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                if (err) {
+                    err.hidden = false;
+                    err.textContent = ex.message;
+                }
+            });
         return true;
     }
 

@@ -754,8 +754,18 @@
     text-align: left;
 }
 [data-panel="procurement"] .order-row {
-    grid-template-columns: 0.9fr 0.9fr 1.2fr 1fr 0.7fr 0.8fr;
-    gap: 10px 12px;
+    grid-template-columns: 0.85fr 0.85fr 1.3fr 1.1fr 0.7fr 0.75fr;
+    gap: 8px 10px;
+    align-items: center;
+}
+[data-panel="procurement"] .order-row > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+[data-panel="procurement"] .order-row.order-head {
+    white-space: nowrap;
 }
 
 
@@ -1037,4 +1047,138 @@
     transform-origin: top center;
     height: 28px;
     margin-top: 4px;
+}
+
+.busy-peak-note {
+    margin: 8px 16px 12px;
+    font-size: 12px;
+    color: var(--staff-muted);
+}
+.share-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    align-items: center;
+    padding: 8px 4px;
+    font-size: 13px;
+}
+.share-row .share-bar-track {
+    grid-column: 1 / -1;
+    height: 8px;
+    border-radius: 999px;
+    background: #e5eee9;
+    overflow: hidden;
+}
+.share-row .share-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--staff-primary, #1a4d3e);
+}
+.share-row .share-pct {
+    font-weight: 700;
+    color: var(--staff-muted);
+    font-size: 12px;
+}
+.popular-head {
+    grid-template-columns: 1.4fr 0.7fr 1fr !important;
+}
+[data-popular-product-rows] .order-row {
+    grid-template-columns: 1.4fr 0.7fr 1fr;
+}
+.rev-bar {
+    display: inline-block;
+    height: 6px;
+    border-radius: 999px;
+    background: #2d6a4f;
+    margin-right: 8px;
+    vertical-align: middle;
+    max-width: 80px;
+}
+.toggle-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--staff-primary, #1a4d3e);
+    font-weight: 600;
+    cursor: pointer;
+}
+.chart-bar .bar.is-peak {
+    background: linear-gradient(180deg, #e1b94b 0%, #c9a227 100%);
+}
+[data-add-user-modal][hidden],
+[data-add-item-modal][hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+}
+
+.staff-nav b[data-nav-badge][hidden] {
+    display: none !important;
+}
+.staff-nav b[data-nav-badge]:not([hidden]) {
+    display: inline-grid;
+}
+
+
+/* Uniform admin / staff action modals */
+.profile-modal.admin-modal,
+.profile-modal.action-modal {
+    width: min(440px, calc(100vw - 32px));
+    max-width: 440px;
+    max-height: min(88vh, 720px);
+    overflow-y: auto;
+    text-align: left;
+    box-sizing: border-box;
+    padding: 28px 24px 22px;
+}
+.profile-modal.admin-modal.activity-modal {
+    width: min(520px, calc(100vw - 32px));
+    max-width: 520px;
+}
+.profile-modal.admin-modal .modal-actions {
+    position: sticky;
+    bottom: 0;
+    background: var(--staff-card-bg, #fff);
+    padding-top: 12px;
+    margin-top: 8px;
+}
+.modal-backdrop:not([hidden]) {
+    display: grid !important;
+    place-items: center !important;
+    z-index: 100 !important;
+    padding: 16px !important;
+    overflow-y: auto !important;
+    background: rgba(15, 40, 32, 0.55) !important;
+}
+
+/* Date inputs — keep calendar icon visible */
+.dash-filter input[type="date"],
+input[type="date"].date-input,
+.modal-field input[type="date"] {
+    min-width: 148px;
+    padding: 8px 10px;
+    padding-right: 8px;
+    color-scheme: light;
+    position: relative;
+}
+.dash-filter input[type="date"]::-webkit-calendar-picker-indicator,
+.modal-field input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 1 !important;
+    display: block !important;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+}
+/* Fallback calendar affordance if browser hides indicator */
+.dash-filter {
+    position: relative;
+}
+.dash-filter input[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231a4d3e' stroke-width='2'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    padding-right: 34px;
 }

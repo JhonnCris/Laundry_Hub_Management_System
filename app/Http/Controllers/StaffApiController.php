@@ -84,6 +84,32 @@ class StaffApiController extends Controller
             ];
         });
 
+        $lowStockItems = $activeInventory->filter(fn ($i) => $i->isLowStock())->values();
+        $dbNotifications = \App\Models\Notification::query()
+            ->where('is_read', false)
+            ->latest()
+            ->limit(20)
+            ->get(['id', 'type', 'message', 'is_read', 'created_at']);
+
+        $notifications = $dbNotifications->map(fn ($n) => [
+            'id' => $n->id,
+            'type' => $n->type,
+            'message' => $n->message,
+            'created_at' => $n->created_at,
+            'source' => 'db',
+        ])->values();
+
+        // Always surface live low-stock as alerts (even if no notification row yet)
+        foreach ($lowStockItems as $item) {
+            $notifications->push([
+                'id' => 'stock-'.$item->id,
+                'type' => 'low_stock',
+                'message' => $item->name.' is low on stock ('.$item->quantity_on_hand.' '.$item->unit.' left).',
+                'created_at' => now(),
+                'source' => 'live',
+            ]);
+        }
+
         return response()->json([
             'user' => [
                 'name' => Auth::user()->name,
@@ -104,6 +130,9 @@ class StaffApiController extends Controller
             'active_laundry' => $activeLaundry,
             'attendance_today' => $attendance,
             'attendance_recent' => $recentAttendance,
+            'low_stock_count' => $lowStockItems->count(),
+            'active_laundry_count' => $activeLaundry->count(),
+            'notifications' => $notifications,
         ]);
     }
 

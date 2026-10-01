@@ -6,9 +6,15 @@ export function createModals() {
 
     const showModal = (sel) => {
         const el = document.querySelector(sel);
-        if (!el) return;
+        if (!el) {
+            console.warn('SSK modal not found:', sel);
+            return;
+        }
         el.hidden = false;
         el.removeAttribute('hidden');
+        el.style.display = 'grid';
+        el.style.pointerEvents = 'auto';
+        el.style.visibility = 'visible';
     };
 
     const hideModal = (sel) => {
@@ -16,6 +22,7 @@ export function createModals() {
         if (!el) return;
         el.hidden = true;
         el.setAttribute('hidden', '');
+        el.style.display = 'none';
     };
 
     const openNotice = (title, body) => {
