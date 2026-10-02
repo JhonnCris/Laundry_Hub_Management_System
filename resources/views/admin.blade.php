@@ -59,11 +59,11 @@
             <div class="dash-toolbar">
                 <label class="dash-filter">
                     <span>From</span>
-                    <input type="date" data-dash-from>
+                    <input type="date" data-dash-from aria-label="Filter from date">
                 </label>
                 <label class="dash-filter">
                     <span>To</span>
-                    <input type="date" data-dash-to>
+                    <input type="date" data-dash-to aria-label="Filter to date">
                 </label>
                 <button class="action-btn-primary" type="button" data-dash-apply-range>Filter</button>
                 <button class="outline-action" type="button" data-dash-export title="Download CSV">Export CSV →</button>
@@ -143,9 +143,23 @@
                 <p>Revenue, expenses, service mix, and product popularity for the selected range.</p>
             </div>
             <div class="dash-toolbar">
-                <label class="dash-filter"><span>From</span><input type="date" data-sum-from></label>
-                <label class="dash-filter"><span>To</span><input type="date" data-sum-to></label>
-                <button class="outline-action" type="button" data-sum-apply-range>Apply</button>
+                <label class="dash-filter">
+                    <span>From</span>
+                    <input type="date" data-sum-from aria-label="Summary from date">
+                </label>
+                <label class="dash-filter">
+                    <span>To</span>
+                    <input type="date" data-sum-to aria-label="Summary to date">
+                </label>
+                <label class="dash-filter">
+                    <span>Show</span>
+                    <select data-sum-type-filter aria-label="Filter by revenue or expenses">
+                        <option value="all">All activity</option>
+                        <option value="revenue">Revenue only</option>
+                        <option value="expenses">Expenses only</option>
+                    </select>
+                </label>
+                <button class="outline-action" type="button" data-sum-apply-range>Filter</button>
                 <button class="action-btn-primary" type="button" data-sum-export>Export CSV →</button>
             </div>
         </div>

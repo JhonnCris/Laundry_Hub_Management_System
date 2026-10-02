@@ -67,6 +67,48 @@ export function bootStaffApp() {
         if (tx.handleTransactionInput(t)) return;
     });
 
+    app.addEventListener('change', (e) => {
+        const t = e.target;
+        if (!(t instanceof Element)) return;
+        if (t.matches('[data-sum-type-filter]')) {
+            const v = t.value || 'all';
+            app._sumKpi = v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : 'net';
+            app.querySelectorAll('[data-sum-kpi]').forEach((el) => {
+                const k = el.dataset.sumKpi;
+                el.classList.toggle(
+                    'is-active',
+                    (v === 'revenue' && k === 'sales') ||
+                        (v === 'expenses' && k === 'expenses') ||
+                        (v === 'all' && k === 'net')
+                );
+            });
+            const body = app.querySelector('[data-admin-finance-rows]');
+            const data = app._adminBootstrap;
+            if (body && data) {
+                const rows = data.finance || [];
+                const filtered =
+                    v === 'revenue'
+                        ? rows.filter((f) => f.type === 'income')
+                        : v === 'expenses'
+                          ? rows.filter((f) => f.type === 'expense')
+                          : rows;
+                const moneyFn = (n) =>
+                    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(n) || 0);
+                body.innerHTML = filtered.length
+                    ? filtered
+                          .map((f) => {
+                              const type = f.type === 'expense' ? 'Expense' : 'Income';
+                              const who = f.staff?.name || '—';
+                              return `<div class="order-row"><strong>${type}</strong><span>${f.description || '—'}</span><span>${who}</span><span>${moneyFn(f.amount)}</span></div>`;
+                          })
+                          .join('')
+                    : '<div class="order-row"><span style="grid-column:1/-1">No data yet for this filter.</span></div>';
+            }
+            return;
+        }
+        if (tx.handleTransactionInput(t)) return;
+    });
+
     // also payment cash may be outside app root in some layouts
     document.addEventListener('input', (e) => {
         const t = e.target;

@@ -965,7 +965,19 @@ export function loadAdminBootstrap(app) {
                     .join('');
             }
         })
-        .catch((err) => console.warn('SSK admin bootstrap:', err.message));
+        .catch((err) => {
+            console.warn('SSK admin bootstrap:', err.message);
+            const empty = (sel, msg) => {
+                const el = app.querySelector(sel);
+                if (el) el.innerHTML = `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${msg}</span></div>`;
+            };
+            empty('[data-admin-inventory-rows]', 'Could not load inventory. ' + (err.message || 'Try refresh.'));
+            empty('[data-admin-restock-rows]', 'Could not load receipts. ' + (err.message || 'Try refresh.'));
+            empty('[data-admin-user-rows]', 'Could not load users. ' + (err.message || 'Try refresh.'));
+            empty('[data-dash-order-rows]', 'Could not load orders.');
+            empty('[data-admin-finance-rows]', 'Could not load finance.');
+            app._adminBootstrap = app._adminBootstrap || { metrics: {}, analytics: {}, inventory: [], restocks: [], users: [], recent_orders: [], finance: [], low_stock: [], machines: [] };
+        });
 }
 
 export function handleAdminClick(t, e, ctx) {
@@ -1046,7 +1058,13 @@ export function handleAdminClick(t, e, ctx) {
         const from = app.querySelector('[data-sum-from]')?.value;
         const to = app.querySelector('[data-sum-to]')?.value;
         if (from || to) setDefaultDates(app, from, to);
-        loadAdminBootstrap(app);
+        const typeSel = app.querySelector('[data-sum-type-filter]')?.value || 'all';
+        if (typeSel === 'revenue') app._sumKpi = 'sales';
+        else if (typeSel === 'expenses') app._sumKpi = 'expenses';
+        else app._sumKpi = 'net';
+        loadAdminBootstrap(app).then(() => {
+            if (app._adminBootstrap) renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
+        });
         return true;
     }
     const sumRange = t.closest('[data-sum-range]');

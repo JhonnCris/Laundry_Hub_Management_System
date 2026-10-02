@@ -1182,3 +1182,397 @@ input[type="date"].date-input,
     background-size: 16px 16px;
     padding-right: 34px;
 }
+
+/* ========== UI polish: tables, buttons, filters (Oct 2026) ========== */
+
+/* Customer table: single-line 6 cols, compact */
+[data-panel="customers"] .order-row {
+    grid-template-columns: minmax(120px, 1.3fr) minmax(100px, 1fr) minmax(110px, 1.1fr) minmax(56px, 0.5fr) minmax(80px, 0.7fr) minmax(160px, 1.2fr) !important;
+    gap: 8px 10px;
+    align-items: center;
+}
+[data-panel="customers"] .order-row.order-head {
+    white-space: nowrap;
+}
+[data-panel="customers"] .order-row > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+[data-panel="customers"] .order-row .customer-actions {
+    overflow: visible;
+    white-space: normal;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+[data-panel="customers"] .order-row .customer-actions .action-btn-primary,
+[data-panel="customers"] .order-row .customer-actions .action-btn-secondary {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+}
+
+/* Active Laundry: tight 5-col single line */
+[data-panel="queue"] .order-row {
+    grid-template-columns: minmax(70px, 0.55fr) minmax(110px, 1.2fr) minmax(100px, 1fr) minmax(100px, 0.95fr) minmax(140px, 1.2fr) !important;
+    gap: 8px 10px;
+    align-items: center;
+}
+[data-panel="queue"] .order-row.order-head {
+    white-space: nowrap;
+}
+[data-panel="queue"] .order-row > *:not(.queue-action-cell) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+[data-panel="queue"] .status {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: default;
+}
+[data-panel="queue"] .queue-action-btn,
+[data-panel="queue"] .queue-undo-btn {
+    text-decoration: none;
+}
+
+/* Inventory tables: compact single line */
+[data-panel="inventory"] .order-row {
+    grid-template-columns: 1.3fr 1fr 0.9fr 0.85fr !important;
+    gap: 8px 12px;
+    align-items: center;
+}
+[data-panel="inventory"] .order-row.order-head {
+    white-space: nowrap;
+}
+[data-panel="inventory"] .order-row > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* Basket sub-table */
+[data-panel="inventory"] [data-basket-rows] .order-row,
+[data-panel="inventory"] .table-card:last-of-type .order-head {
+    grid-template-columns: 0.8fr 0.9fr 1.2fr 0.6fr !important;
+}
+
+/* Attendance table */
+[data-panel="attendance"] .order-row {
+    grid-template-columns: 1fr 1fr 1fr 0.9fr !important;
+    gap: 8px 12px;
+    align-items: center;
+}
+[data-panel="attendance"] .order-row.order-head {
+    white-space: nowrap;
+}
+
+/* Clear primary / secondary action buttons on page intros */
+.page-intro .action-btn-primary,
+.page-intro .action-btn-secondary,
+.page-intro .outline-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 650;
+    cursor: pointer;
+    line-height: 1.2;
+    border: 2px solid var(--staff-primary, #1a4d3e);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: background 0.15s, transform 0.1s, filter 0.15s;
+}
+.page-intro .action-btn-primary {
+    background: var(--staff-primary, #1a4d3e);
+    color: #fff;
+}
+.page-intro .action-btn-primary:hover {
+    filter: brightness(1.08);
+}
+.page-intro .action-btn-secondary,
+.page-intro .outline-action {
+    background: #fff;
+    color: var(--staff-primary, #1a4d3e);
+}
+.page-intro .action-btn-secondary:hover,
+.page-intro .outline-action:hover {
+    background: #f0f7f3;
+}
+.page-intro .action-btn-primary:active,
+.page-intro .action-btn-secondary:active,
+.page-intro .outline-action:active {
+    transform: scale(0.97);
+}
+
+/* Date filter labels — space between label and field */
+.dash-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+.dash-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--staff-muted);
+    min-width: 0;
+}
+.dash-filter > span {
+    display: block;
+    margin-bottom: 0;
+    letter-spacing: 0.02em;
+}
+.dash-filter input[type="date"],
+.dash-filter select {
+    min-width: 148px;
+    height: 38px;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    padding: 0 12px;
+    font-size: 13px;
+    background: #fff;
+    color: var(--staff-input-text);
+}
+.dash-filter select {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--staff-primary, #1a4d3e);
+}
+.dash-toolbar .action-btn-primary,
+.dash-toolbar .outline-action {
+    height: 38px;
+    padding: 0 14px;
+    white-space: nowrap;
+}
+
+/* KPI cards remain clearly clickable */
+.dash-kpis .kpi-card {
+    cursor: pointer;
+    user-select: none;
+}
+.dash-kpis .kpi-card:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--staff-primary, #1a4d3e) 45%, white);
+    outline-offset: 2px;
+}
+
+/* Attendance intro buttons group */
+[data-panel="attendance"] .page-intro > div:last-child {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Inventory intro buttons */
+[data-panel="inventory"] .page-intro > div:last-child {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+
+/* ========== FORCE FIX: buttons + single-line tables (2026-10-02) ========== */
+
+/* Global action buttons — always look like buttons */
+button.action-btn-primary,
+.action-btn-primary {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 9px 16px !important;
+    border-radius: 999px !important;
+    border: 2px solid #1a4d3e !important;
+    background: #1a4d3e !important;
+    color: #fff !important;
+    font-size: 0.85rem !important;
+    font-weight: 650 !important;
+    cursor: pointer !important;
+    line-height: 1.2 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+}
+button.action-btn-primary:hover,
+.action-btn-primary:hover {
+    filter: brightness(1.1);
+    background: #0f3d30 !important;
+}
+button.action-btn-secondary,
+.action-btn-secondary,
+button.outline-action,
+.outline-action {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 9px 16px !important;
+    border-radius: 999px !important;
+    border: 2px solid #1a4d3e !important;
+    background: #ffffff !important;
+    color: #1a4d3e !important;
+    font-size: 0.85rem !important;
+    font-weight: 650 !important;
+    cursor: pointer !important;
+    line-height: 1.2 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+}
+button.action-btn-secondary:hover,
+.action-btn-secondary:hover,
+button.outline-action:hover,
+.outline-action:hover {
+    background: #e8f5ef !important;
+}
+
+/* Customer: 6 columns forced single line */
+[data-panel="customers"] .table-card .order-row,
+[data-panel="customers"] .order-row {
+    display: grid !important;
+    grid-template-columns: 1.35fr 1.05fr 1.15fr 0.55fr 0.75fr 1.35fr !important;
+    gap: 6px 8px !important;
+    align-items: center !important;
+}
+[data-panel="customers"] .order-row.order-head {
+    display: grid !important;
+    white-space: nowrap !important;
+}
+[data-panel="customers"] .order-row.order-head > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+[data-panel="customers"] .order-row > strong,
+[data-panel="customers"] .order-row > span:not(.customer-actions) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+[data-panel="customers"] .customer-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    justify-content: flex-end !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+}
+[data-panel="customers"] .customer-actions button {
+    padding: 5px 10px !important;
+    font-size: 0.72rem !important;
+}
+
+/* Active Laundry: 5 columns */
+[data-panel="queue"] .table-card .order-row,
+[data-panel="queue"] .order-row {
+    display: grid !important;
+    grid-template-columns: 0.55fr 1.2fr 1fr 0.95fr 1.25fr !important;
+    gap: 6px 8px !important;
+    align-items: center !important;
+}
+[data-panel="queue"] .order-row.order-head {
+    white-space: nowrap !important;
+}
+[data-panel="queue"] .order-row > *:not(.queue-action-cell) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+[data-panel="queue"] .queue-action-cell {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 4px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+}
+[data-panel="queue"] .status {
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+}
+
+/* Inventory staff */
+[data-panel="inventory"] .table-card .order-row,
+[data-panel="inventory"] .order-row {
+    display: grid !important;
+    grid-template-columns: 1.4fr 1fr 0.9fr 0.85fr !important;
+    gap: 6px 10px !important;
+    align-items: center !important;
+}
+[data-panel="inventory"] .order-row.order-head { white-space: nowrap !important; }
+
+/* Attendance */
+[data-panel="attendance"] .table-card .order-row,
+[data-panel="attendance"] .order-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr 0.9fr !important;
+    gap: 6px 10px !important;
+    align-items: center !important;
+}
+
+/* Admin: Stock receiving — 6 cols one line */
+[data-panel="procurement"] .table-card .order-row,
+[data-panel="procurement"] .order-row {
+    display: grid !important;
+    grid-template-columns: 0.9fr 0.85fr 1.2fr 1fr 0.7fr 0.75fr !important;
+    gap: 6px 8px !important;
+    align-items: center !important;
+}
+[data-panel="procurement"] .order-row.order-head {
+    white-space: nowrap !important;
+}
+[data-panel="procurement"] .order-row > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+}
+
+/* Admin: Manage inventory table */
+[data-panel="manage-inventory"] .table-card .order-row,
+[data-panel="manage-inventory"] .order-row {
+    display: grid !important;
+    grid-template-columns: 1.4fr 1fr 1fr 0.9fr !important;
+    gap: 6px 10px !important;
+    align-items: center !important;
+}
+[data-panel="manage-inventory"] .order-row.order-head { white-space: nowrap !important; }
+
+/* Admin: Manage users */
+[data-panel="manage-users"] .table-card .order-row,
+[data-panel="manage-users"] .order-row {
+    display: grid !important;
+    grid-template-columns: 1.2fr 1.4fr 0.8fr 0.8fr !important;
+    gap: 6px 10px !important;
+    align-items: center !important;
+}
+[data-panel="manage-users"] .order-row.order-head { white-space: nowrap !important; }
+
+/* Admin dashboard order activity */
+[data-panel="dashboard"] .table-card .order-row,
+[data-panel="dashboard"] .order-row {
+    display: grid !important;
+    grid-template-columns: 0.7fr 1.2fr 1.1fr 0.8fr 0.9fr !important;
+    gap: 6px 8px !important;
+    align-items: center !important;
+}
+
+/* KPI always pointer */
+.kpi-card,
+[data-kpi],
+[data-sum-kpi],
+[data-inv-kpi] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}

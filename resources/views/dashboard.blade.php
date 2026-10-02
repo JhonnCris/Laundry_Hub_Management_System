@@ -7,10 +7,10 @@
 <p class="nav-group-label">Staff operations</p>
 <button class="is-active" data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
 <button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
-<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
+<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
-<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory</span><b data-nav-badge="inventory" hidden>0</b></button>
-<button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Machines</span></button>
+<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory Tracking</span><b data-nav-badge="inventory" hidden>0</b></button>
+<button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Manage Machines</span></button>
 </nav>
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
 </aside>
@@ -326,7 +326,7 @@
         <h1>Manage Customer</h1>
         <p>Find a customer, update contact info, or start a laundry order.</p>
     </div>
-    <button class="outline-action" type="button" data-open-add-customer>Add New Customer</button>
+    <button class="action-btn-primary" type="button" data-open-add-customer>Add New Customer</button>
 </div>
 <section class="staff-card full-card table-card">
     <input class="search-input" data-customer-search placeholder="Search by name or phone number">
@@ -341,7 +341,7 @@
     <div data-customer-rows></div>
 </section>
 </section>
-<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory</h1><p>View stock levels and archive damaged, spoiled, or expired items. New stock is added by Admin through Procurement.</p></div>
+<section class="prototype-panel" data-panel="inventory"><div class="page-intro"><div><p class="eyebrow">Stock overview</p><h1>Inventory Tracking</h1><p>View stock levels and archive damaged, spoiled, or expired items. New stock is added by Admin through Procurement.</p></div>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
 <button class="action-btn-secondary" type="button" data-open-archive title="Mark stock as expired, spoiled, or damaged">Archive item →</button>
 </div></div>
@@ -361,14 +361,14 @@
 <div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span></span></div>
 <div data-basket-rows></div>
 </section></section>
-<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>
+<section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Manage Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>
 <div class="machine-grid" data-machine-grid></div>
 </section>
 <section class="prototype-panel" data-panel="attendance">
 <div class="page-intro">
     <div>
         <p class="eyebrow">Timekeeping</p>
-        <h1>Attendance</h1>
+        <h1>Attendance Tracking</h1>
         <p>Clock in and out for your shift. Today’s record is shown below.</p>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
