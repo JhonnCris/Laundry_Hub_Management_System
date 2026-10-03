@@ -1697,3 +1697,6 @@ button.outline-action:hover,
 }
 
 .qty-field input[data-consumable-qty] { cursor: text; }
+
+.receipt-notify { display: grid; justify-items: center; gap: 6px; margin-top: 12px; text-align: center; }
+.receipt-notify small { color: var(--staff-muted); max-width: 220px; }

@@ -24,3 +24,6 @@ yarn-error.log
 /.zed
 /.kilo
 /.claude
+
+*firebase*adminsdk*.json
+firebase-service-account*.json

@@ -318,6 +318,11 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                 <tr><td>Cash received</td><td>${money(s.cashReceived)}</td></tr>
                 <tr><td>Change</td><td>${money(s.change)}</td></tr>
             </table>
+            ${
+                s.notifyUrl && s.hasLaundry
+                    ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan to get a phone notification when your laundry is ready.</small></div>`
+                    : ''
+            }
             <p class="receipt-footer">Thank you for choosing SSK Laba Dami!</p>
         </div>`;
     };
@@ -397,6 +402,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             s.cashReceived = cash;
             s.change = result.change_given ?? cash - due;
             if (result.transaction?.id) s.receiptId = result.transaction.id;
+            s.notifyUrl = result.notify_url || null;
             hideModal('[data-payment-modal]');
             const body = document.querySelector('[data-receipt-body]');
             if (body) body.innerHTML = buildReceiptHtml(s);

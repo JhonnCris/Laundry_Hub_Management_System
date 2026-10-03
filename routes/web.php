@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminApiController;
+use App\Http\Controllers\NotifyController;
 use App\Http\Controllers\StaffApiController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -10,6 +11,13 @@ use Livewire\Volt\Volt;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+// Customer opt-in for the "ready for pickup" push (signed link per order, no login).
+Route::get('firebase-messaging-sw.js', [NotifyController::class, 'serviceWorker']);
+Route::middleware(['signed', 'throttle:30,1'])->group(function () {
+    Route::get('notify/{transaction}', [NotifyController::class, 'show'])->name('notify.show');
+    Route::post('notify/{transaction}', [NotifyController::class, 'subscribe'])->name('notify.subscribe');
+});
 
 Route::get('dashboard', function () {
     /** @var User|null $user */

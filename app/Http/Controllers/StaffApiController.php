@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\LaundryReadyMail;
 use App\Models\BasketTag;
 use App\Models\Customer;
 use App\Models\FinanceTransaction;
@@ -18,12 +19,17 @@ use App\Models\StaffAttendance;
 use App\Models\TransactionGarment;
 use App\Models\TransactionItem;
 use App\Models\TransactionStatusLog;
+use App\Services\FcmService;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -332,7 +338,12 @@ class StaffApiController extends Controller
 
         $this->audit('order.created', ['order_id' => $tx->id, 'total' => (float) $tx->total_amount, 'type' => $tx->transaction_type]);
 
+        $notifyUrl = app(FcmService::class)->webConfig() !== null
+            ? URL::temporarySignedRoute('notify.show', now()->addDays(14), ['transaction' => $tx->id])
+            : null;
+
         return response()->json([
+            'notify_url' => $notifyUrl,
             'message' => 'Transaction saved',
             'transaction' => $tx,
             'change_given' => (float) $tx->change_given,
@@ -384,7 +395,66 @@ class StaffApiController extends Controller
 
         $this->audit('order.status_changed', ['order_id' => $transaction->id, 'from' => $previousStatus, 'to' => $data['status']]);
 
-        return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh()]);
+        $notify = $data['status'] === 'ready_for_pickup'
+            ? $this->notifyCustomerReady($transaction->fresh(['customer', 'basketTag']))
+            : null;
+
+        return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh(), 'notify' => $notify]);
+    }
+
+    /**
+     * Tell the customer their laundry is ready (email + SMS). A failure here never blocks the
+     * status change; each channel reports sent | logged | skipped | failed.
+     *
+     * @return array{email: string, sms: string, push: string}
+     */
+    protected function notifyCustomerReady(LaundryTransaction $transaction): array
+    {
+        $customer = $transaction->customer;
+        $result = ['email' => 'skipped', 'sms' => 'skipped', 'push' => 'skipped'];
+
+        if ($customer?->email && ! $transaction->email_sent_at) {
+            try {
+                Mail::to($customer->email)->send(new LaundryReadyMail($transaction));
+                $live = ! in_array(config('mail.default'), ['log', 'array'], true);
+                $result['email'] = $live ? 'sent' : 'logged';
+                if ($live) {
+                    $transaction->update(['email_sent_at' => now()]);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Ready-for-pickup email failed', ['order_id' => $transaction->id, 'error' => $e->getMessage()]);
+                $result['email'] = 'failed';
+            }
+        }
+
+        if ($customer?->contact_number && ! $transaction->sms_sent_at) {
+            $sms = app(SmsService::class);
+            $code = $transaction->basketTag?->code ?? '#'.$transaction->id;
+            $ok = $sms->send($customer->contact_number, "SSK Laba Dami: Hi {$customer->name}, your laundry (basket {$code}) is ready for pickup.");
+            $result['sms'] = ! $ok ? 'failed' : ($sms->isLive() ? 'sent' : 'logged');
+            if ($ok && $sms->isLive()) {
+                $transaction->update(['sms_sent_at' => now()]);
+            }
+        }
+
+        $pushToken = Cache::get("fcm:order:{$transaction->id}");
+        if ($pushToken) {
+            $fcm = app(FcmService::class);
+            if (! $fcm->isConfigured()) {
+                $result['push'] = 'logged';
+            } else {
+                $code = $transaction->basketTag?->code ?? '#'.$transaction->id;
+                $outcome = $fcm->send($pushToken, 'Your laundry is ready', "Order {$code} is ready for pickup at SSK Laba Dami.", url('/'));
+                $result['push'] = $outcome === 'sent' ? 'sent' : 'failed';
+                if ($outcome !== 'failed') {
+                    Cache::forget("fcm:order:{$transaction->id}");
+                }
+            }
+        }
+
+        $this->audit('order.customer_notified', ['order_id' => $transaction->id, ...$result]);
+
+        return $result;
     }
 
     public function reassignBasket(Request $request): JsonResponse

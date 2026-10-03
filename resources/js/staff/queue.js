@@ -39,6 +39,14 @@ function renderHistory(orders) {
         : '<div class="history-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No completed orders yet.</span></div>';
 }
 
+/** One short sentence describing what happened to the customer notification. */
+function notifyText(n) {
+    if (!n) return '';
+    const word = { sent: 'sent', logged: 'not sent (no email/SMS provider set up yet)', skipped: 'skipped (no contact on file)', failed: 'failed' };
+    const push = n.push && n.push !== 'skipped' ? `; app push: ${word[n.push] || n.push}` : '';
+    return ` Customer notice — email: ${word[n.email] || n.email}; SMS: ${word[n.sms] || n.sms}${push}.`;
+}
+
 export function handleHistorySearch(t) {
     if (!t.matches('[data-history-search]')) return false;
     const q = (t.value || '').toLowerCase().trim();
@@ -79,11 +87,11 @@ export function handleQueueClick(t, e, ctx) {
             method: 'PATCH',
             body: JSON.stringify({ status: next }),
         })
-            .then(() => {
+            .then((r) => {
                 ctx.loadStaffBootstrap?.();
                 openNotice(
                     isUndo ? 'Status undone' : 'Status updated',
-                    isUndo ? `Order moved back to ${label}.` : `Order marked as ${label}.`
+                    (isUndo ? `Order moved back to ${label}.` : `Order marked as ${label}.`) + notifyText(r?.notify)
                 );
             })
             .catch((err) => openNotice('Status', err.message));

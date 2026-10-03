@@ -2,6 +2,28 @@
 
 return [
 
+    // Firebase Cloud Messaging (web push). Credentials JSON stays out of git (storage/app is ignored).
+    'fcm' => [
+        'project_id' => env('FCM_PROJECT_ID'),
+        'credentials' => env('FCM_CREDENTIALS', 'storage/app/firebase-service-account.json'),
+        'web' => [
+            'apiKey' => env('FCM_WEB_API_KEY'),
+            'authDomain' => env('FCM_WEB_AUTH_DOMAIN'),
+            'messagingSenderId' => env('FCM_WEB_SENDER_ID'),
+            'appId' => env('FCM_WEB_APP_ID'),
+            'vapidKey' => env('FCM_WEB_VAPID_KEY'),
+        ],
+    ],
+
+    // Free SMS options (see App\Services\SmsService): log | android | textbelt
+    'sms' => [
+        'driver' => env('SMS_DRIVER', 'log'),
+        'android_url' => env('SMS_ANDROID_URL'),
+        'android_user' => env('SMS_ANDROID_USER'),
+        'android_password' => env('SMS_ANDROID_PASSWORD'),
+        'textbelt_key' => env('SMS_TEXTBELT_KEY', 'textbelt'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
