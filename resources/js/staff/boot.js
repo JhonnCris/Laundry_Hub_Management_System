@@ -10,6 +10,7 @@ import { handleAdminClick, loadAdminBootstrap, renderFinanceFiltered } from './a
 import { handleNavigationClick } from './navigation.js';
 import { loadStaffBootstrap } from './bootstrap.js';
 import { createTransaction } from './transaction.js';
+import { handleSalesClick, handleSalesInput, loadSales } from './sales.js';
 
 export function bootStaffApp() {
     const app = document.querySelector('[data-staff-app]');
@@ -39,7 +40,7 @@ export function bootStaffApp() {
     });
     ctx.update = tx.update;
     ctx.resetTransactionForm = tx.resetTransactionForm;
-    ctx.loadStaffBootstrap = () => loadStaffBootstrap(app, tx.update);
+    ctx.loadStaffBootstrap = () => loadStaffBootstrap(app, tx.update).then(() => loadSales(app));
 
     // Hide overlays on load
     document.querySelectorAll('.modal-backdrop[hidden]').forEach((el) => {
@@ -57,6 +58,7 @@ export function bootStaffApp() {
         if (handleAdminClick(t, e, ctx)) return;
         if (handleInventoryClick(t, e, ctx)) return;
         if (handleQueueClick(t, e, ctx)) return;
+        if (handleSalesClick(t, e, app, showModal)) return;
         if (tx.handleTransactionClick(t, e)) return;
     });
 
@@ -78,6 +80,7 @@ export function bootStaffApp() {
             }
             return;
         }
+        if (handleSalesInput(t, app)) return;
         if (tx.handleTransactionInput(t)) return;
     });
 

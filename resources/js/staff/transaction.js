@@ -284,8 +284,12 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
 
     const buildReceiptHtml = (s) => {
         const plain = (t) => String(t || '').split('·')[0].trim();
-        const when = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+        const createdAt = new Date(s.createdAt || Date.now());
+        const when = createdAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
         const servedBy = app._bootstrap?.user?.name || '—';
+        const readyAt = new Date(createdAt);
+        readyAt.setDate(readyAt.getDate() + 1);
+        readyAt.setHours(17, 0, 0, 0);
         const rows = [];
         const line = (label, amount) => rows.push(`<tr><td>${esc(label)}</td><td>${amount == null ? '' : money(amount)}</td></tr>`);
         const detail = (text) => rows.push(`<tr class="receipt-detail"><td colspan="2">${esc(text)}</td></tr>`);
@@ -302,28 +306,22 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         s.addOns.forEach((i) => line(`${i.name} × ${i.qty}`, i.qty * i.price));
 
         return `<div class="receipt">
-            <div class="receipt-brand"><strong>SSK Laba Dami</strong><small>Laundry Hub · Official receipt</small></div>
+            <div class="receipt-brand"><strong>Fresh Wash Laundry</strong><small>Matina, Davao City</small></div>
             <hr>
-            <dl class="receipt-meta-grid">
-                <dt>Receipt no.</dt><dd>${s.receiptId ? '#' + esc(s.receiptId) : '—'}</dd>
-                <dt>Date</dt><dd>${esc(when)}</dd>
-                <dt>Customer</dt><dd>${esc(s.customer || '—')}</dd>
-                <dt>Served by</dt><dd>${esc(servedBy)}</dd>
-            </dl>
+            <div class="receipt-order"><strong>Order #${s.receiptId ? esc(s.receiptId) : '—'}</strong><span>${esc(when)}</span></div>
+            <div class="receipt-meta-grid"><span>Customer</span><strong>${esc(s.customer || '—')}</strong><span>Cashier</span><strong>${esc(servedBy)}</strong></div>
             <hr>
             <table class="receipt-lines">${rows.join('')}</table>
             <hr>
             <table class="receipt-totals">
                 <tr class="receipt-grand"><td>Total</td><td>${money(s.total)}</td></tr>
-                <tr><td>Cash received</td><td>${money(s.cashReceived)}</td></tr>
+                <tr><td>Cash</td><td>${money(s.cashReceived)}</td></tr>
                 <tr><td>Change</td><td>${money(s.change)}</td></tr>
             </table>
-            ${
-                s.notifyUrl && s.hasLaundry
-                    ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan to get a phone notification when your laundry is ready.</small></div>`
-                    : ''
-            }
-            <p class="receipt-footer">Thank you for choosing SSK Laba Dami!</p>
+            <div class="receipt-paid">PAID</div>
+            ${s.hasLaundry ? `<div class="receipt-ready"><strong>Ready: ${esc(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within 7 days.</span></div>` : ''}
+            <p class="receipt-footer">Thank you for choosing us</p>
+            ${s.notifyUrl && s.hasLaundry ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
         </div>`;
     };
 
@@ -402,10 +400,19 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             s.cashReceived = cash;
             s.change = result.change_given ?? cash - due;
             if (result.transaction?.id) s.receiptId = result.transaction.id;
+            s.createdAt = result.transaction?.created_at || new Date().toISOString();
+            s.customerPhone = result.transaction?.customer?.contact_number || '';
+            app._receiptTransactionId = s.receiptId;
+            app._receiptTotal = s.total;
+            app._receiptCustomerPhone = s.customerPhone;
             s.notifyUrl = result.notify_url || null;
             hideModal('[data-payment-modal]');
             const body = document.querySelector('[data-receipt-body]');
             if (body) body.innerHTML = buildReceiptHtml(s);
+            const smsButton = app.querySelector('[data-send-receipt-sms]');
+            if (smsButton) smsButton.hidden = !s.customerPhone;
+            const smsNotice = app.querySelector('[data-receipt-sms-notice]');
+            if (smsNotice) smsNotice.textContent = '';
             showModal('[data-receipt-modal]');
             const notice = app.querySelector('[data-save-notice]');
             if (notice) {
@@ -610,6 +617,21 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             confirmPayment();
             return true;
         }
+        if (t.closest('[data-send-receipt-sms]')) {
+            e.preventDefault();
+            const smsNotice = app.querySelector('[data-receipt-sms-notice]');
+            const phone = String(app._receiptCustomerPhone || '').replace(/[^+\d]/g, '');
+            if (!phone) {
+                if (smsNotice) smsNotice.textContent = 'No customer phone number is available.';
+                return true;
+            }
+            const total = app._receiptTotal;
+            const message = `Fresh Wash Laundry receipt #${app._receiptTransactionId}: ${money(total)}. Thank you!`;
+            if (smsNotice) smsNotice.textContent = 'Opening your messaging app with the receipt details.';
+            window.location.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+            return true;
+        }
+
         if (t.closest('[data-close-receipt]')) {
             e.preventDefault();
             hideModal('[data-receipt-modal]');

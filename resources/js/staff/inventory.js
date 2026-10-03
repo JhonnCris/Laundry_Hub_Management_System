@@ -6,6 +6,16 @@ import { api } from './core.js';
 export function handleInventoryClick(t, e, ctx) {
     const { showModal, hideModal, openConfirm, openNotice } = ctx;
 
+    const stockToggle = t.closest('[data-stock-toggle]');
+    if (stockToggle) {
+        e.preventDefault();
+        const submenu = ctx.app.querySelector('[data-stock-subnav]');
+        const isExpanded = stockToggle.getAttribute('aria-expanded') === 'true';
+        stockToggle.setAttribute('aria-expanded', String(!isExpanded));
+        if (submenu) submenu.hidden = isExpanded;
+        return true;
+    }
+
     const notifyBtn = t.closest('[data-notify-low]');
     if (notifyBtn) {
         e.preventDefault();

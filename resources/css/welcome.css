@@ -1,7 +1,24 @@
+/* ==========================================================================
+   FILE: resources/css/welcome.css
+   LANDING PAGE ONLY (before login)
+   ========================================================================== */
+
+
 /* ========================================
-   Welcome Page
+   PAGE BACKGROUND (landing page)
+   Change the landing page background color here
 ======================================== */
 
+body {
+    background-color: #F3F0D4;
+}
+
+
+/* ========================================
+   NAVIGATION BAR (top of page)
+======================================== */
+
+/* Navigation: header container (holds Log in + Register, aligned right) */
 .welcome-header {
     width: 100%;
     padding: 24px 40px;
@@ -10,24 +27,45 @@
     align-items: center;
 }
 
+/* Navigation: wrapper around the Log in + Register buttons */
 .welcome-nav {
     display: flex;
     align-items: center;
     gap: 12px;
 }
 
+
+/* ========================================
+   LOG IN BUTTON (top right, text link)
+======================================== */
+
+/* Log in button: default look */
 .nav-link {
     padding: 10px 18px;
+    border-radius: 7px;
     color: var(--primary-color);
     font-size: 15px;
     font-weight: 500;
     transition: 0.2s ease;
 }
 
+/* Log in button: hover color */
 .nav-link:hover {
-    color: var(--primary-hover);
+    background-color: #E4FAFB;
+    color: var(--primary-color);
 }
 
+/* Log in button: click color */
+.nav-link:active {
+    background-color: #A7EFF1;
+}
+
+
+/* ========================================
+   REGISTER BUTTON (top right, green button)
+======================================== */
+
+/* Register button: default look */
 .nav-button {
     padding: 10px 20px;
     background-color: var(--primary-color);
@@ -38,15 +76,17 @@
     transition: 0.2s ease;
 }
 
+/* Register button: hover color */
 .nav-button:hover {
     background-color: var(--primary-hover);
 }
 
 
 /* ========================================
-   Main Content
+   MAIN CONTENT (center of page)
 ======================================== */
 
+/* Main content: centers everything vertically and horizontally */
 .welcome-main {
     min-height: calc(100vh - 90px);
     display: flex;
@@ -55,12 +95,14 @@
     padding: 40px 20px 100px;
 }
 
+/* Main content: width and alignment of the text block */
 .welcome-content {
     width: 100%;
     max-width: 720px;
     text-align: center;
 }
 
+/* Small label: "LAUNDRY MANAGEMENT SYSTEM" */
 .welcome-label {
     margin-bottom: 18px;
     color: var(--primary-color);
@@ -69,6 +111,7 @@
     letter-spacing: 2px;
 }
 
+/* Big heading: "Manage your laundry business with ease." */
 .welcome-content h1 {
     margin: 0;
     color: var(--text-color);
@@ -77,20 +120,27 @@
     font-weight: 700;
 }
 
+/* Big heading: the part on its own line ("with ease.") */
 .welcome-content h1 span {
     display: block;
     color: var(--primary-color);
 }
 
+/* Description text under the heading */
 .welcome-description {
     max-width: 580px;
     margin: 24px auto 0;
-    /* Soft blue-slate — readable on white, not washed out */
     color: #3d5a6c;
     font-size: 17px;
     line-height: 1.7;
 }
 
+
+/* ========================================
+   CENTER BUTTONS (Get Started + Create Account)
+======================================== */
+
+/* Center buttons: row that holds both buttons */
 .welcome-actions {
     margin-top: 32px;
     display: flex;
@@ -99,6 +149,7 @@
     gap: 12px;
 }
 
+/* Center buttons: size and shape shared by both buttons */
 .primary-button,
 .secondary-button {
     padding: 12px 24px;
@@ -108,52 +159,77 @@
     transition: 0.2s ease;
 }
 
+
+/* ========================================
+   GET STARTED BUTTON (green)
+======================================== */
+
+/* Get Started button: default look */
 .primary-button {
     background-color: var(--primary-color);
     color: white;
 }
 
+/* Get Started button: hover color */
 .primary-button:hover {
     background-color: var(--primary-hover);
 }
 
+
+/* ========================================
+   CREATE ACCOUNT BUTTON (white with border)
+======================================== */
+
+/* Create Account button: default look */
 .secondary-button {
     border: 1px solid var(--border-color);
     background-color: white;
     color: var(--primary-color);
 }
 
+/* Create Account button: hover color */
 .secondary-button:hover {
-    background-color: var(--primary-light);
+    background-color: #E4FAFB;
+}
+
+/* Create Account button: click color */
+.secondary-button:active {
+    background-color: #A7EFF1;
 }
 
 
 /* ========================================
-   Mobile
+   MOBILE (screens 600px wide or smaller)
 ======================================== */
 
 @media (max-width: 600px) {
 
+    /* Mobile: navigation bar spacing */
     .welcome-header {
         padding: 20px;
     }
 
+    /* Mobile: main content spacing */
     .welcome-main {
         padding: 30px 20px 80px;
     }
 
+    /* Mobile: smaller heading */
     .welcome-content h1 {
         font-size: 38px;
     }
 
+    /* Mobile: smaller description */
     .welcome-description {
         font-size: 15px;
     }
 
+    /* Mobile: stack Get Started and Create Account vertically */
     .welcome-actions {
         flex-direction: column;
     }
 
+    /* Mobile: make both center buttons full width */
     .primary-button,
     .secondary-button {
         width: 100%;

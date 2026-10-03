@@ -1,3 +1,15 @@
+/* ==========================================================================
+   FILE: resources/css/auth.css
+   WHAT GOES HERE: Login and Register pages only
+   - .auth-brand (left green panel), .auth-form-section (right form panel)
+   - .auth-heading, .auth-field, .auth-button
+   - "SSK staff portal authentication refresh" block near the bottom overrides
+     the older rules above it (uses !important for Flux inputs/buttons)
+   - "REMEMBER ME CHECKBOX" block at the very bottom styles the checkbox
+   CHANGE LOGIN/REGISTER BUTTON HOVER -> .auth-form-container button[type='submit']:hover
+   NOT for the landing page (see welcome.css)
+   ========================================================================== */
+
 /* ========================================
    AUTH PAGE
 ======================================== */
@@ -334,4 +346,47 @@
 
 @media (max-width: 800px) {
     .auth-mobile-brand { display: flex; }
+}
+
+
+/* ========================================
+   REMEMBER ME CHECKBOX (login page)
+   Overrides the general ".auth-form-container input" rule above.
+   Must stay at the bottom of the file so it wins.
+======================================== */
+
+/* Remember me: unchecked box */
+.auth-form-container [data-flux-checkbox] {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.auth-form-container [data-flux-checkbox-indicator] {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #064331 !important;
+    border-radius: 5px;
+    background: #ffffff !important;
+    transition: background-color 0.15s ease;
+}
+
+/* Remember me: hover */
+.auth-form-container [data-flux-checkbox]:hover [data-flux-checkbox-indicator] {
+    background: #E4FAFB !important;
+}
+
+/* Remember me: checked (green box) */
+.auth-form-container [data-flux-checkbox][data-checked] [data-flux-checkbox-indicator] {
+    --color-accent: #1677ff;
+    --color-accent-foreground: #ffffff;
+    border-color: #1677ff !important;
+    background: #1677ff !important;
+}
+
+/* Remember me: white check mark */
+.auth-form-container [data-flux-checkbox]:focus-visible [data-flux-checkbox-indicator] {
+    outline: 2px solid #064331;
+    outline-offset: 2px;
 }
