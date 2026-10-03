@@ -1,7 +1,7 @@
     /**
  * Transaction module: load details, pricing, payment, receipt
  */
-import { api, money } from './core.js';
+import { api, esc, money } from './core.js';
 import { getSelectedCustomer, customerFullName } from './customers.js';
 
 export function createTransaction(app, { showModal, hideModal, openNotice, loadStaffBootstrap }) {
@@ -83,7 +83,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (selfService || pricing === 'per_kg') {
             const kg = getLoadKg(workflow);
             const billable = Math.max(kg, kg > 0 ? MIN_BILLABLE_KG : 0);
-            const durationSel = workflow.querySelector('[data-cycle-minutes]');
+            const durationSel = workflow.querySelector('[data-cycle-duration]');
             const duration = durationSel ? Number(durationSel.value || 0) : suggestDuration(kg);
             return {
                 amount: rate * billable,
@@ -139,39 +139,57 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             title.textContent = s.hasLaundry ? 'Service Summary' : s.hasAddOns ? 'Purchase Summary' : 'Summary';
         }
 
-        const empty = app.querySelector('[data-summary-empty]');
-        const body = app.querySelector('[data-summary-body]');
-        if (empty && body) {
-            const show = s.hasLaundry || s.hasAddOns;
-            empty.hidden = show;
-            body.hidden = !show;
-        }
-
+        const show = s.hasLaundry || s.hasAddOns;
+        const toggle = (sel, visible) => {
+            const el = app.querySelector(sel);
+            if (el) el.hidden = !visible;
+        };
         const set = (sel, val) => {
             app.querySelectorAll(sel).forEach((el) => {
                 el.textContent = val;
             });
         };
+
+        toggle('[data-summary-empty]', !show);
+        toggle('[data-summary-service-block]', s.hasLaundry);
+        toggle('[data-summary-items-block]', s.hasAddOns);
+        toggle('[data-summary-total-block]', show);
+
+        toggle('[data-row-basket]', !s.selfService);
+        toggle('[data-row-garments]', !s.selfService);
+        toggle('[data-row-kg]', s.kg > 0);
+        toggle('[data-row-duration]', s.selfService && !!s.duration);
+        toggle('[data-row-service-type]', true);
+        toggle('[data-row-consumable]', s.consumable.qty > 0);
+
         set('[data-summary-tag]', app.querySelector('[data-basket-tag]')?.value || '—');
         set('[data-summary-service]', s.selfService ? 'Self Service' : 'Drop Off');
-        set('[data-summary-load]', s.kg ? `${s.kg} kg` : '—');
+        set('[data-summary-kg]', s.kg ? `${s.kg} kg` : '—');
+        set('[data-summary-duration]', s.duration ? `${s.duration} min` : '—');
         set('[data-summary-service-type]', s.service.label || '—');
-        set('[data-summary-total]', money(s.total));
+        set('[data-summary-consumable]', s.consumable.qty > 0 ? `${s.consumable.label} × ${s.consumable.qty}` : '—');
+        set('[data-total]', money(s.total));
 
-        const consRow = app.querySelector('[data-summary-consumable]');
-        if (consRow) {
-            consRow.hidden = !(s.consumable.qty > 0);
-            const dd = consRow.querySelector('dd');
-            if (dd) dd.textContent = s.consumable.qty > 0 ? `${s.consumable.label} × ${s.consumable.qty}` : '—';
+        const itemsEl = app.querySelector('[data-summary-items]');
+        if (itemsEl) {
+            itemsEl.innerHTML = s.addOns
+                .map((i) => `<div><dt>${esc(i.name)} × ${i.qty}</dt><dd>${money(i.qty * i.price)}</dd></div>`)
+                .join('');
         }
 
-        const addOnRow = app.querySelector('[data-summary-addons]');
-        if (addOnRow) {
-            addOnRow.hidden = !s.hasAddOns;
-            const dd = addOnRow.querySelector('dd');
-            if (dd) {
-                dd.textContent = s.addOns.map((i) => `${i.name} × ${i.qty} ${money(i.qty * i.price)}`).join(', ');
+        const preview = app.querySelector('[data-kg-preview]');
+        if (preview) {
+            preview.hidden = !(s.selfService && s.kg > 0);
+            const strong = preview.querySelector('strong');
+            if (strong) {
+                const billable = Math.max(s.kg, MIN_BILLABLE_KG);
+                strong.textContent = `${money(s.service.amount)} (${billable} kg × ${money(s.service.rate)})`;
             }
+        }
+        const hint = app.querySelector('[data-duration-hint]');
+        if (hint) {
+            const sel = app.querySelector('[data-workflow="self_service"] [data-cycle-duration]');
+            hint.textContent = sel?.dataset.userSet ? 'Duration set manually.' : 'Suggested from weight when you enter kg.';
         }
 
         const saveBtn = app.querySelector('[data-save]');
@@ -201,6 +219,17 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         });
         const notes = app.querySelector('.notes-card textarea');
         if (notes) notes.value = '';
+        app.querySelectorAll('[data-cycle-duration]').forEach((el) => {
+            delete el.dataset.userSet;
+            el.value = '45';
+        });
+        const basketTag = app.querySelector('[data-basket-tag]');
+        if (basketTag) {
+            const used = basketTag.value;
+            const next = (app._bootstrap?.available_baskets || []).find((b) => b.code !== used);
+            basketTag.value = next ? next.code : '';
+        }
+        app._pendingBasket = null;
         const grid = app.querySelector('[data-garment-grid]');
         if (grid) {
             grid.querySelectorAll('.garment-counter').forEach((card, idx) => {
@@ -249,26 +278,48 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             notes: (app.querySelector('.notes-card textarea')?.value || '').trim(),
             cash_tendered: cash,
             total_amount: s.total,
+            client_token: app._payToken || null,
         };
     };
 
     const buildReceiptHtml = (s) => {
-        const lines = [];
-        lines.push(`<h2>Receipt</h2>`);
-        lines.push(`<p><strong>${s.customer || 'Customer'}</strong></p>`);
+        const plain = (t) => String(t || '').split('·')[0].trim();
+        const when = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+        const servedBy = app._bootstrap?.user?.name || '—';
+        const rows = [];
+        const line = (label, amount) => rows.push(`<tr><td>${esc(label)}</td><td>${amount == null ? '' : money(amount)}</td></tr>`);
+        const detail = (text) => rows.push(`<tr class="receipt-detail"><td colspan="2">${esc(text)}</td></tr>`);
+
         if (s.hasLaundry) {
-            lines.push(`<p>${s.selfService ? 'Self Service' : 'Drop Off'} · ${s.service.label}</p>`);
-            if (s.kg) lines.push(`<p>Load: ${s.kg} kg</p>`);
-            if (s.garments) lines.push(`<p>Garments: ${s.garments} pcs</p>`);
+            line(`${s.selfService ? 'Self Service' : 'Drop Off'} – ${plain(s.service.label)}`, s.serviceAmount);
+            if (s.kg) detail(`Load: ${s.kg} kg`);
+            if (!s.selfService && s.garments) detail(`Garments: ${s.garments} pcs`);
+            if (s.selfService && s.duration) detail(`Cycle: ${s.duration} min`);
         }
-        s.addOns.forEach((i) => lines.push(`<p>${i.name} × ${i.qty} — ${money(i.qty * i.price)}</p>`));
         if (s.consumable.qty > 0) {
-            lines.push(`<p>${s.consumable.label} × ${s.consumable.qty} — ${money(s.consumable.amount)}</p>`);
+            line(`${plain(s.consumable.label)} × ${s.consumable.qty}`, s.consumable.amount);
         }
-        lines.push(`<p><strong>Total ${money(s.total)}</strong></p>`);
-        lines.push(`<p>Cash ${money(s.cashReceived)} · Change ${money(s.change)}</p>`);
-        if (s.receiptId) lines.push(`<p>Ref #${s.receiptId}</p>`);
-        return lines.join('');
+        s.addOns.forEach((i) => line(`${i.name} × ${i.qty}`, i.qty * i.price));
+
+        return `<div class="receipt">
+            <div class="receipt-brand"><strong>SSK Laba Dami</strong><small>Laundry Hub · Official receipt</small></div>
+            <hr>
+            <dl class="receipt-meta-grid">
+                <dt>Receipt no.</dt><dd>${s.receiptId ? '#' + esc(s.receiptId) : '—'}</dd>
+                <dt>Date</dt><dd>${esc(when)}</dd>
+                <dt>Customer</dt><dd>${esc(s.customer || '—')}</dd>
+                <dt>Served by</dt><dd>${esc(servedBy)}</dd>
+            </dl>
+            <hr>
+            <table class="receipt-lines">${rows.join('')}</table>
+            <hr>
+            <table class="receipt-totals">
+                <tr class="receipt-grand"><td>Total</td><td>${money(s.total)}</td></tr>
+                <tr><td>Cash received</td><td>${money(s.cashReceived)}</td></tr>
+                <tr><td>Change</td><td>${money(s.change)}</td></tr>
+            </table>
+            <p class="receipt-footer">Thank you for choosing SSK Laba Dami!</p>
+        </div>`;
     };
 
     const recalcPaymentChange = () => {
@@ -282,6 +333,8 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const due = Number(s.total);
         const ok = !Number.isNaN(cash) && cash + 1e-9 >= due;
         if (changeEl) changeEl.textContent = ok ? money(cash - due) : '—';
+        const changeRow = document.querySelector('[data-payment-change-row]');
+        if (changeRow) changeRow.hidden = !ok;
         if (err) {
             err.hidden = ok || cashInput.value === '';
             err.textContent = ok || cashInput.value === '' ? '' : 'Cash is less than total due.';
@@ -293,13 +346,31 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const s = app._lastSummary;
         if (!s) return;
         const due = document.querySelector('[data-payment-due]');
-        if (due) due.textContent = money(s.total);
+        if (due) due.value = money(s.total);
+        const summaryEl = document.querySelector('[data-payment-summary]');
+        if (summaryEl) {
+            const rows = [];
+            if (s.customer) rows.push(`<div><strong>Customer</strong><span>${esc(s.customer)}</span></div>`);
+            if (s.hasLaundry) {
+                rows.push(`<div><strong>Service</strong><span>${s.selfService ? 'Self Service' : 'Drop Off'} · ${esc(s.service.label)}</span></div>`);
+            }
+            if (s.consumable.qty > 0) {
+                rows.push(`<div><strong>${esc(s.consumable.label)} × ${s.consumable.qty}</strong><span>${money(s.consumable.amount)}</span></div>`);
+            }
+            s.addOns.forEach((i) => {
+                rows.push(`<div><strong>${esc(i.name)} × ${i.qty}</strong><span>${money(i.qty * i.price)}</span></div>`);
+            });
+            summaryEl.innerHTML = rows.join('');
+        }
+        const changeRow = document.querySelector('[data-payment-change-row]');
+        if (changeRow) changeRow.hidden = true;
         const cash = document.querySelector('[data-payment-cash]');
         if (cash) cash.value = '';
         const err = document.querySelector('[data-payment-error]');
         if (err) err.hidden = true;
         const btn = document.querySelector('[data-confirm-payment]');
         if (btn) btn.disabled = true;
+        app._payToken = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
         const changeEl = document.querySelector('[data-payment-change]');
         if (changeEl) changeEl.textContent = '—';
         showModal('[data-payment-modal]');
@@ -439,7 +510,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             if (grid) {
                 const card = document.createElement('div');
                 card.className = 'garment-counter';
-                card.innerHTML = `<span>${name}</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>${qty}</output><button data-garment-increase type="button">+</button></div>`;
+                card.innerHTML = `<span>${esc(name)}</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>${qty}</output><button data-garment-increase type="button">+</button></div>`;
                 const addBtn = grid.querySelector('.add-garment, [data-add-garment]');
                 if (addBtn) grid.insertBefore(card, addBtn);
                 else grid.appendChild(card);
@@ -511,6 +582,13 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             return true;
         }
 
+        if (t.closest('[data-clear-items]')) {
+            e.preventDefault();
+            app.querySelectorAll('.add-on output').forEach((o) => setOutputValue(o, 0));
+            update();
+            return true;
+        }
+
         if (t.closest('[data-save]')) {
             e.preventDefault();
             handleSaveClick();
@@ -540,13 +618,25 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
     };
 
     const handleTransactionInput = (t) => {
+        if (t.matches('[data-consumable-qty]') && t.value !== '') {
+            const n = Math.floor(Number(t.value));
+            t.value = String(Number.isFinite(n) ? Math.min(99, Math.max(0, n)) : 0);
+        }
         if (
             t.matches('[data-load-kg]') ||
             t.matches('[data-consumable]') ||
             t.matches('[data-consumable-qty]') ||
             t.matches('[data-service-price]') ||
-            t.matches('[data-cycle-minutes]')
+            t.matches('[data-cycle-duration]')
         ) {
+            const workflow = t.closest('[data-workflow]');
+            const durationSel = workflow?.querySelector('[data-cycle-duration]');
+            if (t.matches('[data-cycle-duration]')) {
+                t.dataset.userSet = '1';
+            } else if (t.matches('[data-load-kg]') && durationSel && !durationSel.dataset.userSet) {
+                const suggested = suggestDuration(getLoadKg(workflow));
+                if (suggested) durationSel.value = String(suggested);
+            }
             update();
             return true;
         }

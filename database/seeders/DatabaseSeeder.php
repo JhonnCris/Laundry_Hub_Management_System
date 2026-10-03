@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,12 +14,19 @@ class DatabaseSeeder extends Seeder
     {
         $now = now();
 
+        // No well-known passwords: use SEED_*_PASSWORD from the environment, or a random one shown once.
+        $staffPassword = env('SEED_STAFF_PASSWORD') ?: Str::password(16);
+        $adminPassword = env('SEED_ADMIN_PASSWORD') ?: Str::password(16);
+        if (! env('SEED_STAFF_PASSWORD') || ! env('SEED_ADMIN_PASSWORD')) {
+            $this->command?->warn('Generated seed passwords (shown once): staff='.$staffPassword.' admin='.$adminPassword);
+        }
+
         // ── Login accounts (users.role drives Admin vs Staff UI) ──────────────
         // Staff → /dashboard (operations)
         User::factory()->create([
             'name' => 'SSK Staff',
             'email' => 'staff@ssklabadami.test',
-            'password' => 'password',
+            'password' => $staffPassword,
             'role' => 'staff',
             'email_verified_at' => $now,
         ]);
@@ -27,7 +35,7 @@ class DatabaseSeeder extends Seeder
         User::factory()->create([
             'name' => 'SSK Admin',
             'email' => 'admin@ssklabadami.test',
-            'password' => 'password',
+            'password' => $adminPassword,
             'role' => 'admin',
             'email_verified_at' => $now,
         ]);
@@ -36,7 +44,7 @@ class DatabaseSeeder extends Seeder
         $staffId = DB::table('staff')->insertGetId([
             'name' => 'SSK Staff',
             'email' => 'staff@ssklabadami.test',
-            'password' => Hash::make('password'),
+            'password' => Hash::make($staffPassword),
             'role' => 'staff',
             'created_at' => $now,
             'updated_at' => $now,

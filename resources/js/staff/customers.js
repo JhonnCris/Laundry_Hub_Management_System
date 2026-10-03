@@ -225,9 +225,26 @@ export function handleCustomerClick(t, e, ctx) {
 export function handleCustomerSearch(t, app) {
     if (!t.matches('[data-customer-search]')) return false;
     const q = (t.value || '').toLowerCase().trim();
+    let visible = 0;
     app.querySelectorAll('[data-customer-row]').forEach((row) => {
         const hay = [row.dataset.name, row.dataset.contact, row.dataset.email].filter(Boolean).join(' ');
-        row.style.display = !q || hay.includes(q) ? '' : 'none';
+        const match = !q || hay.includes(q);
+        row.hidden = !match;
+        if (match) visible++;
     });
+    const box = app.querySelector('[data-customer-rows]');
+    const total = app.querySelectorAll('[data-customer-row]').length;
+    let none = box?.querySelector('[data-no-match]');
+    if (box && total && !visible) {
+        if (!none) {
+            none = document.createElement('div');
+            none.className = 'order-row';
+            none.dataset.noMatch = '';
+            none.innerHTML = '<span style="grid-column:1/-1;color:var(--staff-muted)">No customers match your search.</span>';
+            box.appendChild(none);
+        }
+    } else if (none) {
+        none.remove();
+    }
     return true;
 }

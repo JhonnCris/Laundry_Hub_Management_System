@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\EnsureStaffAccess;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -11,7 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        $middleware->web(append: [
+            SecurityHeaders::class,
+        ]);
+        $middleware->alias([
+            'staff.access' => EnsureStaffAccess::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

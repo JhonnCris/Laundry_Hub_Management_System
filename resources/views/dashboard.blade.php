@@ -79,7 +79,7 @@
         <span class="field-label">Quantity used</span>
         <div class="qty-field">
             <button type="button" data-consumable-decrease>−</button>
-            <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
+            <input type="number" data-consumable-qty value="0" min="0" max="99" step="1" inputmode="numeric">
             <button type="button" data-consumable-increase>+</button>
         </div>
     </label>
@@ -113,9 +113,9 @@
     <label class="field">
         <span class="field-label">Machine service (per kg)</span>
         <select data-service-price data-pricing="per_kg">
-            <option value="40" data-rate="40">Wash with Dry · ₱40 / kg</option>
-            <option value="25" data-rate="25">Wash Only · ₱25 / kg</option>
-            <option value="20" data-rate="20">Dry Only · ₱20 / kg</option>
+            <option value="40" data-rate="40" data-service-name="Wash with Dry">Wash with Dry · ₱40 / kg</option>
+            <option value="25" data-rate="25" data-service-name="Wash Only">Wash Only · ₱25 / kg</option>
+            <option value="20" data-rate="20" data-service-name="Dry Only">Dry Only · ₱20 / kg</option>
         </select>
         <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
@@ -129,7 +129,7 @@
         <span class="field-label">Quantity used</span>
         <div class="qty-field">
             <button type="button" data-consumable-decrease>−</button>
-            <input type="number" data-consumable-qty value="0" min="0" max="99" readonly>
+            <input type="number" data-consumable-qty value="0" min="0" max="99" step="1" inputmode="numeric">
             <button type="button" data-consumable-increase>+</button>
         </div>
     </label>
@@ -150,9 +150,7 @@
         <div data-row-service-type hidden><dt>Service type</dt><dd data-summary-service-type>—</dd></div>
         <div data-row-consumable hidden><dt>Consumable</dt><dd data-summary-consumable>—</dd></div>
     </dl>
-    <dl data-summary-items-block hidden>
-        <div data-summary-items></div>
-    </dl>
+    <dl data-summary-items-block data-summary-items hidden></dl>
 </div>
 <div class="summary-total" data-summary-total-block hidden><span>Total</span><strong data-total>₱0.00</strong></div>
 <button class="save-button" data-save type="button" disabled>Save Transaction</button>
@@ -161,6 +159,20 @@
 <p class="save-notice" data-save-notice></p>
 </aside></div></section>
 <!-- Add garment type modal -->
+<div class="modal-backdrop" data-history-modal hidden>
+<section class="profile-modal action-modal history-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-history type="button">×</button>
+<h2>Laundry history</h2>
+<p class="modal-hint">Every order already marked as claimed, newest first.</p>
+<input class="search-input" data-history-search placeholder="Search by customer, order or service">
+<div class="history-table">
+<div class="history-row history-head"><span>Claimed</span><span>Order</span><span>Customer</span><span>Service</span><span class="num">Total</span></div>
+<div data-history-rows><div class="history-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading history…</span></div></div>
+</div>
+<div class="modal-actions"><button type="button" class="save-button" data-close-history>Close</button></div>
+</section>
+</div>
+
 <div class="modal-backdrop" data-garment-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-garment-modal type="button">×</button>
@@ -314,7 +326,7 @@
 </div>
 </section>
 </div>
-<section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div></div>
+<section class="prototype-panel" data-panel="queue"><div class="page-intro"><div><p class="eyebrow">Laundry workflow</p><h1>Active Laundry</h1><p>Track every current order through release.</p></div><button class="action-btn-secondary" type="button" data-open-history title="Orders already marked claimed">History →</button></div>
 <section class="staff-card full-card table-card">
 <div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span><span>Action</span></div>
 <div data-queue-rows></div>
@@ -346,12 +358,12 @@
 <button class="action-btn-secondary" type="button" data-open-archive title="Mark stock as expired, spoiled, or damaged">Archive item →</button>
 </div></div>
 <section class="staff-card full-card table-card"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Supplies & consumables</h2></div>
-<div class="order-row order-head"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
+<div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Alert admin</span></div>
 <div data-inventory-rows></div>
 </section>
 <section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Archived (expired / spoiled / damaged)</h2></div>
 <div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>Quantity</span></div>
-<div data-archived-rows><div class="order-row"><span colspan="4" style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
+<div data-archived-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
 </section>
 <section class="staff-card full-card table-card" style="margin-top:18px">
 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
@@ -379,7 +391,7 @@
 <div class="metric-grid">
     <article><span>Status today</span><strong data-att-status>—</strong><small data-att-status-sub>Not clocked in</small></article>
     <article><span>Hours so far</span><strong data-att-hours>—</strong><small>Updates on clock out</small></article>
-    <article><span>Records</span><strong data-att-count>0</strong><small>Loaded from database</small></article>
+    <article><span>Records</span><strong data-att-count>0</strong><small>Most recent 10 shown</small></article>
 </div>
 <section class="staff-card full-card table-card">
     <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Recent attendance</h2></div>

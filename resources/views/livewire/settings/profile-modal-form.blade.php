@@ -28,6 +28,7 @@ new class extends Component {
                 'email',
                 'max:255',
                 Rule::unique(User::class)->ignore($user->id),
+                Rule::unique('staff', 'email')->ignore($user->email, 'email'),
             ],
         ]);
 

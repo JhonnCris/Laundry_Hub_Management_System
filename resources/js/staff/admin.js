@@ -1,7 +1,7 @@
 /**
  * Admin: dashboard KPIs, filters, export + stock receiving
  */
-import { api, money } from './core.js';
+import { api, esc, money } from './core.js';
 
 function statusLabel(st) {
     const map = {
@@ -22,12 +22,16 @@ function statusClass(st) {
     return 'pending';
 }
 
+const H = (cells) => Object.assign(cells, { isHeader: true });
+
 function downloadCsv(filename, rows) {
     const csv = rows
         .map((r) =>
             r
                 .map((c) => {
-                    const s = String(c ?? '');
+                    let s = String(c ?? '');
+                    // Neutralise spreadsheet formulas (CSV injection)
+                    if (/^[=+\-@\t\r]/.test(s) && Number.isNaN(Number(s))) s = "'" + s;
                     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
                 })
                 .join(',')
@@ -58,7 +62,7 @@ function renderBarChart(container, items, { valueKey = 'amount', labelKey = 'dat
                 ? String(i[labelKey]).slice(5) // MM-DD
                 : String(i[labelKey] || '');
             const cls = expense ? 'bar is-expense' : 'bar';
-            return `<div class="chart-bar"><span class="bar-value">${val ? money(val).replace('₱', '₱') : '—'}</span><div class="${cls}" style="height:${h}px"></div><span class="bar-label" title="${i[labelKey] || ''}">${label}</span></div>`;
+            return `<div class="chart-bar"><span class="bar-value">${val ? money(val).replace('₱', '₱') : '—'}</span><div class="${cls}" style="height:${h}px"></div><span class="bar-label" title="${esc(i[labelKey] || '')}">${esc(label)}</span></div>`;
         })
         .join('');
 }
@@ -75,7 +79,7 @@ function renderNamedBars(container, items, { nameKey = 'name', valueKey = 'qty_s
             const val = Number(i[valueKey]) || 0;
             const h = Math.max(4, Math.round((val / max) * 120));
             const name = i[nameKey] || '—';
-            return `<div class="chart-bar"><span class="bar-value">${val}</span><div class="bar" style="height:${h}px"></div><span class="bar-label" title="${name}">${name}</span></div>`;
+            return `<div class="chart-bar"><span class="bar-value">${val}</span><div class="bar" style="height:${h}px"></div><span class="bar-label" title="${esc(name)}">${esc(name)}</span></div>`;
         })
         .join('');
 }
@@ -140,7 +144,7 @@ function renderBusyHoursChart(app, data) {
             const isPeak = h.hour === peak.hour && val > 0;
             const barCls = isPeak ? 'bar is-peak' : val > 0 ? 'bar' : 'bar is-muted';
             const label = String(h.hour).replace(':00', '');
-            return `<div class="chart-bar"><span class="bar-value">${val > 0 ? val : ''}</span><div class="${barCls}" style="height:${ht}px" title="${h.hour}: ${val} order(s)"></div><span class="bar-label">${label}</span></div>`;
+            return `<div class="chart-bar"><span class="bar-value">${val > 0 ? val : ''}</span><div class="${barCls}" style="height:${ht}px" title="${h.hour}: ${val} order(s)"></div><span class="bar-label">${esc(label)}</span></div>`;
         })
         .join('');
 
@@ -170,7 +174,7 @@ function renderServiceShare(container, mix, mode = 'orders') {
             const pct = Math.round((val / total) * 100);
             const right =
                 mode === 'revenue' ? `${pct}% · ${money(x.revenue)}` : `${pct}%`;
-            return `<div class="share-row"><span>${x.service}</span><span class="share-pct">${right}</span><div class="share-bar-track"><div class="share-bar-fill" style="width:${pct}%"></div></div></div>`;
+            return `<div class="share-row"><span>${esc(x.service)}</span><span class="share-pct">${right}</span><div class="share-bar-track"><div class="share-bar-fill" style="width:${pct}%"></div></div></div>`;
         })
         .join('');
 }
@@ -185,14 +189,20 @@ function renderUsers(app, data) {
     };
     set('[data-users-total]', users.length);
     set('[data-users-admins]', admins);
+    const pending = users.filter((u) => u.role === 'pending').length;
     set('[data-users-staff]', staff);
+    set('[data-users-pending]', pending ? `${pending} pending approval` : 'Accounts');
     const rows = app.querySelector('[data-admin-user-rows]');
     if (rows) {
         rows.innerHTML = users.length
             ? users
                   .map((u) => {
-                      const role = u.role === 'admin' ? 'Admin' : 'Staff';
-                      return `<div class="order-row"><strong>${u.name}</strong><span>${u.email}</span><span>${role}</span><em class="status ready">Active</em></div>`;
+                      const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : 'Staff';
+                      const isPending = u.role === 'pending';
+                      const approve = isPending
+                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button>`
+                          : '';
+                      return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${isPending ? 'pending' : 'ready'}">${isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button></span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No users yet.</span></div>';
@@ -200,7 +210,7 @@ function renderUsers(app, data) {
     const catSel = document.querySelector('[data-new-item-category]');
     if (catSel && (data.categories || []).length) {
         catSel.innerHTML = data.categories
-            .map((c) => `<option value="${c.id}">${c.name}</option>`)
+            .map((c) => `<option value="${c.id}">${esc(c.name)}</option>`)
             .join('');
     }
 }
@@ -218,11 +228,6 @@ function renderDashboard(app, data) {
     setText(
         '[data-kpi-active-sub]',
         `${bd.processing || 0} processing · ${bd.ready_for_pickup || 0} ready · ${bd.pending || 0} pending`
-    );
-    setText('[data-kpi-sales-value]', money(m.period_sales ?? m.today_sales ?? 0));
-    setText(
-        '[data-kpi-sales-sub]',
-        `${m.paid_orders || 0} paid · ${m.completed_orders || 0} claimed`
     );
     setText('[data-kpi-stock-value]', String(m.low_stock_count ?? 0));
     setText(
@@ -266,14 +271,11 @@ function renderDashboard(app, data) {
 
 
 function filterOrders(data, kpi) {
-    const orders = data.recent_orders || [];
+    const orders = (kpi === 'active' ? data.active_orders : data.recent_orders) || [];
     if (kpi === 'active') {
         return orders.filter((o) =>
             ['pending', 'processing', 'ready_for_pickup'].includes(o.status)
         );
-    }
-    if (kpi === 'sales') {
-        return orders.filter((o) => o.payment_status === 'paid');
     }
     if (kpi === 'stock') return [];
     if (kpi === 'machines') return [];
@@ -298,7 +300,7 @@ function renderActivityTable(app, data, kpi) {
             ? items
                   .map(
                       (i) =>
-                          `<div class="order-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit || ''}</span><span>${i.low_stock_threshold ?? '—'}</span><em class="status pending">Low stock</em></div>`
+                          `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>${i.low_stock_threshold ?? '—'}</span><em class="status pending">Low stock</em></div>`
                   )
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No low-stock items.</span></div>';
@@ -317,7 +319,7 @@ function renderActivityTable(app, data, kpi) {
             ? list
                   .map(
                       (m) =>
-                          `<div class="order-row"><strong>${m.name}</strong><span>${m.type || '—'}</span><em class="status pending">${(m.status || '').replace(/_/g, ' ')}</em><span></span><span></span></div>`
+                          `<div class="order-row"><strong>${esc(m.name)}</strong><span>${esc(m.type || '—')}</span><em class="status pending">${(m.status || '').replace(/_/g, ' ')}</em><span></span><span></span></div>`
                   )
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">All machines available.</span></div>';
@@ -326,12 +328,12 @@ function renderActivityTable(app, data, kpi) {
 
     if (title) {
         title.textContent =
-            kpi === 'sales' ? 'Paid orders (period)' : 'Active laundry orders';
+            'Active laundry orders';
     }
     const head = rows.parentElement?.querySelector('.order-head');
     if (head) {
         head.innerHTML =
-            '<span>Basket</span><span>Customer</span><span>Service</span><span>Amount</span><span>Status</span>';
+            '<span>Basket</span><span>Customer</span><span>Service</span><span class="num">Amount</span><span>Status</span>';
     }
     const list = filterOrders(data, kpi);
     rows.innerHTML = list.length
@@ -343,7 +345,7 @@ function renderActivityTable(app, data, kpi) {
                       tx.service?.name ||
                       (tx.transaction_type === 'self_service' ? 'Self Service' : 'Drop Off');
                   const amt = money(tx.total_amount || 0);
-                  return `<div class="order-row" data-tx-id="${tx.id}" title="View transaction details"><strong>${basket}</strong><span>${cust}</span><span>${svc}</span><span>${amt}</span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></div>`;
+                  return `<div class="order-row" data-tx-id="${tx.id}" title="View transaction details"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${esc(svc)}</span><span class="num">${amt}</span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></div>`;
               })
               .join('')
         : '<div class="order-row"><span style="grid-column:1/-1">No orders for this view.</span></div>';
@@ -354,6 +356,9 @@ function renderAlerts(app, data) {
     const countEl = app.querySelector('[data-dash-alert-count]');
     if (!box) return;
     const alerts = [];
+    (data.staff_reports || []).forEach((r) => {
+        alerts.push({ title: 'Staff report: low stock', body: r.message, dismissId: r.id });
+    });
     (data.low_stock || []).forEach((i) => {
         alerts.push({
             title: `Low stock: ${i.name}`,
@@ -378,7 +383,9 @@ function renderAlerts(app, data) {
         ? alerts
               .map(
                   (a) =>
-                      `<div class="dash-alert"><strong>${a.title}</strong><small>${a.body}</small></div>`
+                      a.dismissId
+                          ? `<div class="dash-alert has-action"><div><strong>${esc(a.title)}</strong><small>${esc(a.body)}</small></div><button type="button" class="outline-action alert-dismiss" data-dismiss-alert="${a.dismissId}">Dismiss</button></div>`
+                          : `<div class="dash-alert"><strong>${esc(a.title)}</strong><small>${esc(a.body)}</small></div>`
               )
               .join('')
         : '<p class="dash-empty">No alerts right now.</p>';
@@ -414,7 +421,7 @@ function renderFinanceTable(app, data) {
               .map((f) => {
                   const type = f.type === 'expense' ? 'Expense' : 'Income';
                   const who = f.staff?.name || '—';
-                  return `<div class="order-row"><strong>${type}</strong><span>${f.description || '—'}</span><span>${who}</span><span>${money(f.amount)}</span></div>`;
+                  return `<div class="order-row"><strong>${type}</strong><span>${esc(f.description || '—')}</span><span>${esc(who)}</span><span class="num">${money(f.amount)}</span></div>`;
               })
               .join('')
         : '<div class="order-row"><span style="grid-column:1/-1">No finance rows in this range.</span></div>';
@@ -459,9 +466,9 @@ function renderActivityModalList(app, data) {
                             ? 'Purchase'
                             : 'Laundry';
                   return `<div class="activity-row" data-activity-tx="${tx.id}" title="View full details">
-                    <strong>${basket}</strong>
-                    <span>${cust}</span>
-                    <span>${svc || kind}</span>
+                    <strong>${esc(basket)}</strong>
+                    <span>${esc(cust)}</span>
+                    <span>${esc(svc || kind)}</span>
                     <span>${money(tx.total_amount || 0)} · ${statusLabel(tx.status)}</span>
                   </div>`;
               })
@@ -483,7 +490,7 @@ function buildActivityDetailHtml(tx) {
     const garments = (tx.garment_types || [])
         .map((g) => {
             const qty = g.pivot?.quantity ?? g.quantity ?? 0;
-            return `<div class="ad-line"><span>${g.name}</span><span>× ${qty}</span></div>`;
+            return `<div class="ad-line"><span>${esc(g.name)}</span><span>× ${qty}</span></div>`;
         })
         .join('');
 
@@ -491,13 +498,13 @@ function buildActivityDetailHtml(tx) {
         .map((i) => {
             const qty = i.pivot?.quantity ?? 0;
             const line = i.pivot?.line_total ?? qty * (i.pivot?.unit_price || 0);
-            return `<div class="ad-line"><span>${i.name} × ${qty}</span><span>${money(line)}</span></div>`;
+            return `<div class="ad-line"><span>${esc(i.name)} × ${qty}</span><span>${money(line)}</span></div>`;
         })
         .join('');
 
     const detergent =
         tx.detergent || tx.detergent_item
-            ? `<div class="ad-line"><span>${(tx.detergent || tx.detergent_item).name}</span><span>× ${tx.detergent_quantity ?? 0}</span></div>`
+            ? `<div class="ad-line"><span>${esc((tx.detergent || tx.detergent_item).name)}</span><span>× ${tx.detergent_quantity ?? 0}</span></div>`
             : '';
 
     const created = tx.created_at ? String(tx.created_at).replace('T', ' ').slice(0, 16) : '—';
@@ -505,21 +512,21 @@ function buildActivityDetailHtml(tx) {
     return `
       <div class="ad-head">
         <div>
-          <h3>${cust.name || 'Walk-in / unknown'}</h3>
-          <small>${cust.contact_number || ''}${cust.email ? ' · ' + cust.email : ''}</small>
+          <h3>${esc(cust.name || 'Walk-in / unknown')}</h3>
+          <small>${esc(cust.contact_number || '')}${esc(cust.email ? ' · ' + cust.email : '')}</small>
         </div>
         <em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em>
       </div>
       <dl>
-        <dt>Reference</dt><dd>${basket}</dd>
+        <dt>Reference</dt><dd>${esc(basket)}</dd>
         <dt>Type</dt><dd>${isPurchaseOnly ? 'Purchase only' : tx.transaction_type === 'self_service' ? 'Self Service' : 'Drop Off laundry'}</dd>
-        <dt>Service</dt><dd>${svc}</dd>
+        <dt>Service</dt><dd>${esc(svc)}</dd>
         <dt>Date</dt><dd>${created}</dd>
-        <dt>Staff</dt><dd>${tx.handled_by?.name || tx.handledBy?.name || '—'}</dd>
-        <dt>Basket</dt><dd>${tx.basket_tag?.code || '—'}</dd>
-        <dt>Machine</dt><dd>${tx.machine?.name || '—'}</dd>
+        <dt>Staff</dt><dd>${esc(tx.handled_by?.name || tx.handledBy?.name || '—')}</dd>
+        <dt>Basket</dt><dd>${esc(tx.basket_tag?.code || '—')}</dd>
+        <dt>Machine</dt><dd>${esc(tx.machine?.name || '—')}</dd>
         <dt>Load (kg)</dt><dd>${tx.load_weight_kg != null ? tx.load_weight_kg : '—'}</dd>
-        <dt>Payment</dt><dd>${tx.payment_status || '—'} · Cash ${money(tx.cash_tendered || 0)} · Change ${money(tx.change_given || 0)}</dd>
+        <dt>Payment</dt><dd>${esc(tx.payment_status || '—')} · Cash ${money(tx.cash_tendered || 0)} · Change ${money(tx.change_given || 0)}</dd>
       </dl>
       ${
           garments
@@ -538,7 +545,12 @@ function buildActivityDetailHtml(tx) {
       }
       ${
           tx.notes
-              ? `<div class="ad-section"><h4>Notes</h4><p style="margin:0">${tx.notes}</p></div>`
+              ? `<div class="ad-section"><h4>Notes</h4><p style="margin:0">${esc(tx.notes)}</p></div>`
+              : ''
+      }
+      ${
+          tx.status !== 'claimed' && tx.status !== 'cancelled'
+              ? `<div class="ad-section"><button type="button" class="outline-action" data-cancel-order="${tx.id}">Cancel order…</button></div>`
               : ''
       }
       <div class="ad-total"><span>Total</span><span>${money(tx.total_amount || 0)}</span></div>
@@ -576,19 +588,24 @@ function showSumKpiModal(app, kpi) {
     const finance = data.finance || [];
     if (kpi === 'sales') {
         const income = finance.filter((f) => f.type === 'income');
-        const orders = (data.recent_orders || []).filter((o) => o.payment_status === 'paid');
+        const rangeFrom = data.range?.from || '';
+        const rangeTo = data.range?.to || '';
+        const orders = (data.recent_orders || []).filter((o) => {
+            const day = String(o.created_at || '').slice(0, 10);
+            return o.payment_status === 'paid' && day >= rangeFrom && day <= rangeTo;
+        });
         const rows =
             orders
                 .map((tx) => {
                     const basket = tx.basket_tag?.code || '#' + tx.id;
                     const cust = tx.customer?.name || '—';
-                    return `<div class="activity-row"><strong>${basket}</strong><span>${cust}</span><span>${statusLabel(tx.status)}</span><span>${money(tx.total_amount || 0)}</span></div>`;
+                    return `<div class="activity-row"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${statusLabel(tx.status)}</span><span>${money(tx.total_amount || 0)}</span></div>`;
                 })
                 .join('') ||
             income
                 .map(
                     (f) =>
-                        `<div class="activity-row"><strong>Income</strong><span>${f.description || '—'}</span><span>${f.staff?.name || '—'}</span><span>${money(f.amount)}</span></div>`
+                        `<div class="activity-row"><strong>Income</strong><span>${esc(f.description || '—')}</span><span>${esc(f.staff?.name || '—')}</span><span>${money(f.amount)}</span></div>`
                 )
                 .join('');
         openKpiDetailModal(
@@ -603,7 +620,7 @@ function showSumKpiModal(app, kpi) {
         const rows = expense
             .map(
                 (f) =>
-                    `<div class="activity-row"><strong>Expense</strong><span>${f.description || '—'}</span><span>${f.staff?.name || '—'}</span><span>${money(f.amount)}</span></div>`
+                    `<div class="activity-row"><strong>Expense</strong><span>${esc(f.description || '—')}</span><span>${esc(f.staff?.name || '—')}</span><span>${money(f.amount)}</span></div>`
             )
             .join('');
         openKpiDetailModal(
@@ -617,7 +634,7 @@ function showSumKpiModal(app, kpi) {
     const rows = finance
         .map((f) => {
             const type = f.type === 'expense' ? 'Expense' : 'Income';
-            return `<div class="activity-row"><strong>${type}</strong><span>${f.description || '—'}</span><span>${f.staff?.name || '—'}</span><span>${money(f.amount)}</span></div>`;
+            return `<div class="activity-row"><strong>${type}</strong><span>${esc(f.description || '—')}</span><span>${esc(f.staff?.name || '—')}</span><span>${money(f.amount)}</span></div>`;
         })
         .join('');
     openKpiDetailModal(
@@ -632,13 +649,11 @@ function showDashKpiModal(app, kpi) {
     const data = app._adminBootstrap || {};
     const m = data.metrics || {};
     if (kpi === 'active') {
-        const list = (data.recent_orders || []).filter((o) =>
-            ['pending', 'processing', 'ready_for_pickup'].includes(o.status)
-        );
+        const list = data.active_orders || [];
         const rows = list
             .map((tx) => {
                 const basket = tx.basket_tag?.code || '#' + tx.id;
-                return `<div class="activity-row"><strong>${basket}</strong><span>${tx.customer?.name || '—'}</span><span>${statusLabel(tx.status)}</span><span>${money(tx.total_amount || 0)}</span></div>`;
+                return `<div class="activity-row"><strong>${esc(basket)}</strong><span>${esc(tx.customer?.name || '—')}</span><span>${statusLabel(tx.status)}</span><span>${money(tx.total_amount || 0)}</span></div>`;
             })
             .join('');
         openKpiDetailModal(
@@ -653,7 +668,7 @@ function showDashKpiModal(app, kpi) {
         const rows = items
             .map(
                 (i) =>
-                    `<div class="activity-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit || ''}</span><span>threshold ${i.low_stock_threshold ?? '—'}</span></div>`
+                    `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>threshold ${i.low_stock_threshold ?? '—'}</span></div>`
             )
             .join('');
         openKpiDetailModal(
@@ -668,7 +683,7 @@ function showDashKpiModal(app, kpi) {
         const rows = list
             .map(
                 (x) =>
-                    `<div class="activity-row"><strong>${x.name}</strong><span>${x.type || '—'}</span><span>${(x.status || '').replace(/_/g, ' ')}</span><span></span></div>`
+                    `<div class="activity-row"><strong>${esc(x.name)}</strong><span>${esc(x.type || '—')}</span><span>${(x.status || '').replace(/_/g, ' ')}</span><span></span></div>`
             )
             .join('');
         openKpiDetailModal(
@@ -678,14 +693,11 @@ function showDashKpiModal(app, kpi) {
         );
         return;
     }
-    if (kpi === 'sales') {
-        showSumKpiModal(app, 'sales');
-    }
 }
 
 function openActivityDetail(app, txId) {
     const data = app._adminBootstrap || {};
-    const local = (data.recent_orders || []).find((o) => String(o.id) === String(txId));
+    const local = [...(data.recent_orders || []), ...(data.active_orders || []), ...(data.cancelled_orders || [])].find((o) => String(o.id) === String(txId));
     const paint = (tx) => {
         const box = document.querySelector('[data-activity-detail]');
         const title = document.querySelector('[data-activity-title]');
@@ -748,7 +760,7 @@ function renderSummaryAnalytics(app, data) {
             ? pop
                   .map((p) => {
                       const w = Math.max(8, Math.round(((Number(p.revenue) || 0) / maxRev) * 80));
-                      return `<div class="order-row"><strong>${p.name}</strong><span>${p.qty_sold}</span><span><i class="rev-bar" style="width:${w}px"></i>${money(p.revenue)}</span></div>`;
+                      return `<div class="order-row"><strong>${esc(p.name)}</strong><span class="num">${p.qty_sold}</span><span class="num"><i class="rev-bar" style="width:${w}px"></i>${money(p.revenue)}</span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No product sales in this range.</span></div>';
@@ -759,6 +771,8 @@ function renderSummaryAnalytics(app, data) {
         valueKey: 'qty_sold',
     });
 
+    renderCancelledArchive(app, data);
+
     // Sync summary date inputs from range
     const sf = app.querySelector('[data-sum-from]');
     const st = app.querySelector('[data-sum-to]');
@@ -766,11 +780,38 @@ function renderSummaryAnalytics(app, data) {
     if (st && data.range?.to) st.value = data.range.to;
 
     // Finance filter by KPI
-    const sumKpi = app._sumKpi || 'sales';
+    const sumKpi = app._sumKpi || 'net';
     renderFinanceFiltered(app, data, sumKpi);
 }
 
-function renderFinanceFiltered(app, data, kpi) {
+export function renderCancelledArchive(app, data) {
+    const rows = app.querySelector('[data-cancelled-rows]');
+    const countEl = app.querySelector('[data-cancelled-count]');
+    const list = data.cancelled_orders || [];
+    const total = data.metrics?.cancelled_orders ?? list.length;
+    if (countEl) countEl.textContent = `${total} cancelled`;
+    if (!rows) return;
+    rows.innerHTML = list.length
+        ? list
+              .map((tx) => {
+                  const basket = tx.basket_tag?.code || '#' + tx.id;
+                  const when = tx.updated_at ? String(tx.updated_at).replace('T', ' ').slice(0, 10) : '—';
+                  const reason = (String(tx.notes || '').match(/\[Cancelled: ([^\]]*)\]/) || [])[1] || '—';
+                  return `<div class="order-row" data-activity-tx="${tx.id}" title="View details"><span>${esc(when)}</span><strong>${esc(basket)}</strong><span>${esc(tx.customer?.name || '—')}</span><span class="num">${money(tx.total_amount || 0)}</span><span>${esc(reason)}</span></div>`;
+              })
+              .join('')
+        : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No cancelled orders.</span></div>';
+}
+
+export function renderFinanceFiltered(app, data, kpi) {
+    app._sumKpi = kpi;
+    app.querySelectorAll('[data-sum-kpi]').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.sumKpi === kpi);
+    });
+    const typeSelect = app.querySelector('[data-sum-type-filter]');
+    if (typeSelect) typeSelect.value = kpi === 'sales' ? 'revenue' : kpi === 'expenses' ? 'expenses' : 'all';
+    const expBox = app.querySelector('[data-sum-show-expenses]');
+    if (expBox) expBox.checked = kpi === 'net';
     const body = app.querySelector('[data-admin-finance-rows]');
     const title = app.querySelector('[data-sum-finance-title]');
     if (!body) return;
@@ -786,10 +827,13 @@ function renderFinanceFiltered(app, data, kpi) {
               .map((f) => {
                   const type = f.type === 'expense' ? 'Expense' : 'Income';
                   const who = f.staff?.name || '—';
-                  return `<div class="order-row"><strong>${type}</strong><span>${f.description || '—'}</span><span>${who}</span><span>${money(f.amount)}</span></div>`;
+                  return `<div class="order-row"><strong>${type}</strong><span>${esc(f.description || '—')}</span><span>${esc(who)}</span><span class="num">${money(f.amount)}</span></div>`;
               })
               .join('')
         : '<div class="order-row"><span style="grid-column:1/-1">No rows for this view.</span></div>';
+    if (body && (data.metrics?.finance_total || 0) > (data.finance || []).length) {
+        body.insertAdjacentHTML('beforeend', `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Showing latest ${(data.finance || []).length} of ${data.metrics.finance_total} rows in this range.</span></div>`);
+    }
 }
 
 function renderInventoryAnalytics(app, data) {
@@ -827,7 +871,7 @@ function renderInventoryAnalytics(app, data) {
                           mode === 'value'
                               ? `${i.quantity_on_hand} ${i.unit || ''} · ${money((i.unit_price || 0) * (i.quantity_on_hand || 0))}`
                               : `${i.quantity_on_hand} ${i.unit || ''}`;
-                      return `<div class="order-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${qtyLabel}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em></div>`;
+                      return `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyLabel)}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
@@ -841,7 +885,7 @@ function renderInventoryAnalytics(app, data) {
                   .slice(0, 5)
                   .map(
                       (p, idx) =>
-                          `<div class="dash-alert"><strong>#${idx + 1} ${p.name}</strong><small>${p.qty_sold} sold · ${money(p.revenue)}</small></div>`
+                          `<div class="dash-alert"><strong>#${idx + 1} ${esc(p.name)}</strong><small>${p.qty_sold} sold · ${money(p.revenue)}</small></div>`
                   )
                   .join('')
             : '<p class="dash-empty">No product sales yet in this range.</p>';
@@ -852,11 +896,142 @@ function renderInventoryAnalytics(app, data) {
     });
 }
 
-function exportDashboard(app) {
+const REPORT_LABELS = {
+    sales: 'Sales (revenue) report',
+    expenses: 'Expenses report',
+    full: 'Full summary',
+};
+
+function exportMeta(app, report) {
+    const data = app._adminBootstrap || {};
+    return [
+        ['Report', REPORT_LABELS[report]],
+        ['Exported by', `${app.dataset.userName || ''} <${app.dataset.userEmail || ''}>`],
+        ['Exported at', new Date().toLocaleString('en-PH')],
+        ['Date range', `${data.range?.from || ''} to ${data.range?.to || ''}`],
+        [],
+    ];
+}
+
+function buildSalesReport(app) {
+    const data = app._adminBootstrap || {};
+    const m = data.metrics || {};
+    const from = data.range?.from || '';
+    const to = data.range?.to || '';
+    const paid = (data.recent_orders || []).filter((o) => {
+        const day = String(o.created_at || '').slice(0, 10);
+        return o.payment_status === 'paid' && day >= from && day <= to;
+    });
+    const rows = [
+        ...exportMeta(app, 'sales'),
+        ['Total sales', m.period_sales ?? 0],
+        ['Paid orders', m.paid_orders ?? 0],
+        [],
+        H(['Order', 'Date', 'Customer', 'Service', 'Amount', 'Status']),
+        ...paid.map((tx) => [
+            tx.basket_tag?.code || '#' + tx.id,
+            String(tx.created_at || '').slice(0, 10),
+            tx.customer?.name || '',
+            tx.service?.name || tx.transaction_type || '',
+            tx.total_amount ?? 0,
+            tx.status || '',
+        ]),
+        [],
+        H(['Income records', 'Description', 'Recorded by', 'Amount']),
+        ...(data.finance || [])
+            .filter((f) => f.type === 'income')
+            .map((f) => ['Income', f.description || '', f.staff?.name || '', f.amount ?? 0]),
+        [],
+        H(['Sales by day', 'Amount']),
+        ...((data.analytics || {}).sales_by_day || []).map((d) => [d.date, d.amount]),
+        [],
+        H(['Popular products', 'Qty sold', 'Revenue']),
+        ...((data.analytics || {}).popular_products || []).map((p) => [p.name, p.qty_sold, p.revenue]),
+    ];
+    return { rows, name: `ssk-sales-report-${from}_to_${to}` };
+}
+
+function buildExpensesReport(app) {
     const data = app._adminBootstrap || {};
     const m = data.metrics || {};
     const rows = [
-        ['Section', 'Field', 'Value'],
+        ...exportMeta(app, 'expenses'),
+        ['Total expenses', m.period_expenses ?? 0],
+        [],
+        H(['Expense records', 'Description', 'Recorded by', 'Amount']),
+        ...(data.finance || [])
+            .filter((f) => f.type === 'expense')
+            .map((f) => ['Expense', f.description || '', f.staff?.name || '', f.amount ?? 0]),
+        [],
+        H(['Expenses by day', 'Amount']),
+        ...((data.analytics || {}).expenses_by_day || []).map((d) => [d.date, d.amount]),
+    ];
+    return { rows, name: `ssk-expenses-report-${data.range?.from || ''}_to_${data.range?.to || ''}` };
+}
+
+/** PDF without a library: render the report in a hidden frame and open the print dialog (Save as PDF). */
+function printReportPdf(title, name, rows) {
+    const body = rows
+        .map((r, i) => {
+            if (!r.length) return '<tr class="gap"><td colspan="9"></td></tr>';
+            const cells = r.map((c) => `<td>${esc(c ?? '')}</td>`).join('');
+            const cls = r.isHeader ? 'head' : i < 4 && r.length === 2 ? 'meta' : '';
+            return `<tr class="${cls}">${cells}</tr>`;
+        })
+        .join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(name)}</title><style>
+        @page { size: A4; margin: 14mm; }
+        body { font: 12px/1.4 Arial, sans-serif; color: #143529; }
+        h1 { font-size: 20px; margin: 0 0 4px; } .brand { color: #6b7d74; margin-bottom: 14px; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 4px 6px; border-bottom: 1px solid #e3e8e4; vertical-align: top; }
+        tr.head td { background: #e8f1ec; font-weight: 700; border-top: 1px solid #b9cfc4; }
+        tr.meta td:first-child { font-weight: 700; width: 120px; }
+        tr.gap td { border: 0; padding: 6px; }
+    </style></head><body><h1>${esc(title)}</h1><div class="brand">SSK Laba Dami · Laundry Hub</div><table>${body}</table></body></html>`;
+
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(frame);
+    frame.srcdoc = html;
+    frame.onload = () => {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+        setTimeout(() => frame.remove(), 60000);
+    };
+}
+
+function deliverReport(app, report, format) {
+    const built =
+        report === 'sales'
+            ? buildSalesReport(app)
+            : report === 'expenses'
+              ? buildExpensesReport(app)
+              : buildFullReport(app, exportMeta(app, 'full'));
+    if (format === 'pdf') printReportPdf(REPORT_LABELS[report], built.name, built.rows);
+    else downloadCsv(`${built.name}.csv`, built.rows);
+}
+
+function openExportModal(app, preset) {
+    const data = app._adminBootstrap || {};
+    const set = (sel, v) => {
+        const el = document.querySelector(sel);
+        if (el) el.textContent = v;
+    };
+    set('[data-export-who]', `${app.dataset.userName || 'Admin'} (${app.dataset.userEmail || ''})`);
+    set('[data-export-range]', `${data.range?.from || '—'} → ${data.range?.to || '—'}`);
+    const sel = document.querySelector('[data-export-report]');
+    if (sel) sel.value = preset;
+    const err = document.querySelector('[data-export-error]');
+    if (err) err.hidden = true;
+}
+
+function buildFullReport(app, meta = []) {
+    const data = app._adminBootstrap || {};
+    const m = data.metrics || {};
+    const rows = [
+        ...meta,
+        H(['Section', 'Field', 'Value']),
         ['Metrics', 'Active laundry', m.active_laundry ?? 0],
         ['Metrics', 'Period sales', m.period_sales ?? 0],
         ['Metrics', 'Period expenses', m.period_expenses ?? 0],
@@ -866,7 +1041,7 @@ function exportDashboard(app) {
         ['Metrics', 'Claimed orders', m.completed_orders ?? 0],
         ['Metrics', 'Machines attention', m.machines_attention ?? 0],
         [],
-        ['Orders', 'Basket', 'Customer', 'Service', 'Amount', 'Status', 'Payment'],
+        H(['Orders', 'Basket', 'Customer', 'Service', 'Amount', 'Status', 'Payment']),
         ...(data.recent_orders || []).map((tx) => [
             'Order',
             tx.basket_tag?.code || '#' + tx.id,
@@ -877,7 +1052,7 @@ function exportDashboard(app) {
             tx.payment_status || '',
         ]),
         [],
-        ['Low stock', 'Item', 'On hand', 'Threshold'],
+        H(['Low stock', 'Item', 'On hand', 'Threshold']),
         ...(data.low_stock || []).map((i) => [
             'Stock',
             i.name,
@@ -885,10 +1060,10 @@ function exportDashboard(app) {
             i.low_stock_threshold,
         ]),
         [],
-        ['Machines', 'Name', 'Type', 'Status'],
+        H(['Machines', 'Name', 'Type', 'Status']),
         ...(data.machines || []).map((x) => ['Machine', x.name, x.type, x.status]),
         [],
-        ['Popular products', 'Name', 'Qty', 'Revenue'],
+        H(['Popular products', 'Name', 'Qty', 'Revenue']),
         ...((data.analytics || {}).popular_products || []).map((p) => [
             'Product',
             p.name,
@@ -896,12 +1071,12 @@ function exportDashboard(app) {
             p.revenue,
         ]),
         [],
-        ['Sales by day', 'Date', 'Amount'],
+        H(['Sales by day', 'Date', 'Amount']),
         ...((data.analytics || {}).sales_by_day || []).map((d) => ['Sales', d.date, d.amount]),
     ];
     const from = data.range?.from || 'range';
     const to = data.range?.to || '';
-    downloadCsv(`ssk-dashboard-${from}_to_${to}.csv`, rows);
+    return { rows, name: `ssk-full-summary-${from}_to_${to}` };
 }
 
 export function loadAdminBootstrap(app) {
@@ -913,7 +1088,7 @@ export function loadAdminBootstrap(app) {
                 setDefaultDates(app, data.range.from, data.range.to);
             }
             if (!app._dashKpi) app._dashKpi = 'active';
-            if (!app._sumKpi) app._sumKpi = 'sales';
+            if (!app._sumKpi) app._sumKpi = 'net';
             if (!app._invKpi) app._invKpi = 'all';
             renderDashboard(app, data);
             renderSummaryAnalytics(app, data);
@@ -933,13 +1108,13 @@ export function loadAdminBootstrap(app) {
                               const supplier = r.supplier || '—';
                               const invQty = r.quantity_invoiced ?? '—';
                               const qty = r.quantity_received ?? '—';
-                              return `<div class="order-row"><strong>${date}</strong><span>${inv}</span><span>${item}</span><span>${supplier}</span><span>${invQty}</span><span>${qty}</span></div>`;
+                              return `<div class="order-row"><strong>${date}</strong><span>${esc(inv)}</span><span>${esc(item)}</span><span>${esc(supplier)}</span><span class="num">${invQty}</span><span class="num">${qty}</span></div>`;
                           })
                           .join('')
                     : '<div class="order-row"><span style="grid-column:1/-1">No stock receipts yet. Click Record receipt to confirm deliveries from an invoice.</span></div>';
             }
             const countEl = app.querySelector('[data-admin-restock-count]');
-            if (countEl) countEl.textContent = String(restocks.length);
+            if (countEl) countEl.textContent = String(data.metrics?.receipts_count ?? restocks.length);
             if (restocks[0]) {
                 const last = app.querySelector('[data-admin-last-restock]');
                 const sub = app.querySelector('[data-admin-last-restock-sub]');
@@ -953,14 +1128,14 @@ export function loadAdminBootstrap(app) {
             }
             const spendEl = app.querySelector('[data-admin-month-spend]');
             if (spendEl && data.metrics) {
-                spendEl.textContent = money(data.metrics.period_expenses ?? data.metrics.today_expenses ?? 0);
+                spendEl.textContent = money(data.metrics.receipts_spend ?? 0);
             }
             const poSelect = document.querySelector('[data-po-item]');
             if (poSelect && (data.inventory || []).length) {
                 poSelect.innerHTML = data.inventory
                     .map(
                         (i) =>
-                            `<option value="${i.id}">${i.name} (${i.quantity_on_hand} ${i.unit})</option>`
+                            `<option value="${esc(i.id)}">${esc(i.name)} (${i.quantity_on_hand} ${esc(i.unit)})</option>`
                     )
                     .join('');
             }
@@ -969,7 +1144,7 @@ export function loadAdminBootstrap(app) {
             console.warn('SSK admin bootstrap:', err.message);
             const empty = (sel, msg) => {
                 const el = app.querySelector(sel);
-                if (el) el.innerHTML = `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${msg}</span></div>`;
+                if (el) el.innerHTML = `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${esc(msg)}</span></div>`;
             };
             empty('[data-admin-inventory-rows]', 'Could not load inventory. ' + (err.message || 'Try refresh.'));
             empty('[data-admin-restock-rows]', 'Could not load receipts. ' + (err.message || 'Try refresh.'));
@@ -1004,9 +1179,6 @@ export function handleAdminClick(t, e, ctx) {
         e.preventDefault();
         e.stopPropagation();
         app._sumKpi = sumKpi.dataset.sumKpi;
-        app.querySelectorAll('[data-sum-kpi]').forEach((el) => {
-            el.classList.toggle('is-active', el === sumKpi);
-        });
         if (app._adminBootstrap) {
             renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
             showSumKpiModal(app, app._sumKpi);
@@ -1036,10 +1208,9 @@ export function handleAdminClick(t, e, ctx) {
             } else {
                 const items = data.inventory || [];
                 const rows = items
-                    .slice(0, 30)
                     .map(
                         (i) =>
-                            `<div class="activity-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit || ''}</span><span>${money((i.unit_price || 0) * (i.quantity_on_hand || 0))}</span></div>`
+                            `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>${app._invKpi === 'value' ? money((i.unit_price || 0) * (i.quantity_on_hand || 0)) : (Number(i.quantity_on_hand) <= Number(i.low_stock_threshold) ? 'Low stock' : 'In stock')}</span></div>`
                     )
                     .join('');
                 openKpiDetailModal(
@@ -1067,28 +1238,51 @@ export function handleAdminClick(t, e, ctx) {
         });
         return true;
     }
-    const sumRange = t.closest('[data-sum-range]');
-    if (sumRange) {
-        e.preventDefault();
-        const mode = sumRange.dataset.sumRange;
-        const to = new Date();
-        const from = new Date();
-        if (mode === '7') from.setDate(from.getDate() - 6);
-        else if (mode === '30') from.setDate(from.getDate() - 29);
-        const iso = (d) => d.toISOString().slice(0, 10);
-        setDefaultDates(app, iso(from), iso(to));
-        const sf = app.querySelector('[data-sum-from]');
-        const st = app.querySelector('[data-sum-to]');
-        if (sf) sf.value = iso(from);
-        if (st) st.value = iso(to);
-        loadAdminBootstrap(app);
-        return true;
-    }
     if (t.closest('[data-sum-export]')) {
         e.preventDefault();
         e.stopPropagation();
-        exportDashboard(app);
-        openNotice('Export started', 'CSV includes sales, expenses, and popular products.');
+        openExportModal(app, app._sumKpi === 'expenses' ? 'expenses' : app._sumKpi === 'sales' ? 'sales' : 'full');
+        showModal('[data-export-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-export]')) {
+        e.preventDefault();
+        hideModal('[data-export-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-export]')) {
+        e.preventDefault();
+        const report = document.querySelector('[data-export-report]')?.value || 'full';
+        const format = document.querySelector('[data-export-format]')?.value === 'csv' ? 'csv' : 'pdf';
+        const data = app._adminBootstrap || {};
+        const err = document.querySelector('[data-export-error]');
+        api('/api/admin/exports', {
+            method: 'POST',
+            body: JSON.stringify({ report, format, from: data.range?.from || null, to: data.range?.to || null }),
+        })
+            .then(() => {
+                deliverReport(app, report, format);
+                hideModal('[data-export-modal]');
+                if (format === 'csv') openNotice('Export started', `${REPORT_LABELS[report]} downloaded as CSV.`);
+            })
+            .catch((ex) => {
+                if (err) {
+                    err.hidden = false;
+                    err.textContent = ex.message;
+                }
+            });
+        return true;
+    }
+    const dismissBtn = t.closest('[data-dismiss-alert]');
+    if (dismissBtn) {
+        e.preventDefault();
+        dismissBtn.disabled = true;
+        api(`/api/admin/notifications/${dismissBtn.dataset.dismissAlert}/read`, { method: 'POST', body: '{}' })
+            .then(() => loadAdminBootstrap(app))
+            .catch((ex) => {
+                dismissBtn.disabled = false;
+                openNotice('Alert', ex.message);
+            });
         return true;
     }
 
@@ -1106,26 +1300,16 @@ export function handleAdminClick(t, e, ctx) {
 
     if (t.closest('[data-dash-apply-range]')) {
         e.preventDefault();
-        loadAdminBootstrap(app);
-        return true;
-    }
-    const rangeBtn = t.closest('[data-dash-range]');
-    if (rangeBtn) {
-        e.preventDefault();
-        const mode = rangeBtn.dataset.dashRange;
-        const to = new Date();
-        const from = new Date();
-        if (mode === '7') from.setDate(from.getDate() - 6);
-        else if (mode === '30') from.setDate(from.getDate() - 29);
-        const iso = (d) => d.toISOString().slice(0, 10);
-        setDefaultDates(app, iso(from), iso(to));
+        const from = app.querySelector('[data-dash-from]')?.value;
+        const to = app.querySelector('[data-dash-to]')?.value;
+        if (from || to) setDefaultDates(app, from, to);
         loadAdminBootstrap(app);
         return true;
     }
     if (t.closest('[data-dash-export]')) {
         e.preventDefault();
-        exportDashboard(app);
-        openNotice('Export started', 'CSV download of the current dashboard view.');
+        openExportModal(app, 'full');
+        showModal('[data-export-modal]');
         return true;
     }
 
@@ -1159,6 +1343,116 @@ export function handleAdminClick(t, e, ctx) {
         return true;
     }
 
+
+    const cancelOpen = t.closest('[data-cancel-order]');
+    if (cancelOpen) {
+        e.preventDefault();
+        const idEl = document.querySelector('[data-cancel-order-id]');
+        const reasonEl = document.querySelector('[data-cancel-order-reason]');
+        const errEl = document.querySelector('[data-cancel-order-error]');
+        if (idEl) idEl.value = cancelOpen.dataset.cancelOrder;
+        if (reasonEl) reasonEl.value = '';
+        if (errEl) errEl.hidden = true;
+        showModal('[data-cancel-order-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-cancel-order]')) {
+        e.preventDefault();
+        hideModal('[data-cancel-order-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-cancel-order]')) {
+        e.preventDefault();
+        const id = document.querySelector('[data-cancel-order-id]')?.value;
+        const reason = (document.querySelector('[data-cancel-order-reason]')?.value || '').trim();
+        const errEl = document.querySelector('[data-cancel-order-error]');
+        if (reason.length < 3) {
+            if (errEl) {
+                errEl.hidden = false;
+                errEl.textContent = 'Please give a short reason.';
+            }
+            return true;
+        }
+        api(`/api/admin/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
+            .then((r) => {
+                hideModal('[data-cancel-order-modal]');
+                hideModal('[data-activity-modal]');
+                showActivityList();
+                openNotice('Order cancelled', r.message || 'The order is now in Archive records.');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                if (errEl) {
+                    errEl.hidden = false;
+                    errEl.textContent = ex.message;
+                }
+            });
+        return true;
+    }
+
+    const approveBtn = t.closest('[data-approve-user]');
+    if (approveBtn) {
+        e.preventDefault();
+        api(`/api/admin/users/${approveBtn.dataset.approveUser}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ role: 'staff' }),
+        })
+            .then(() => {
+                openNotice('User approved', 'The account can now sign in as staff.');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => openNotice('Approve user', ex.message));
+        return true;
+    }
+    const editUserBtn = t.closest('[data-edit-user]');
+    if (editUserBtn) {
+        e.preventDefault();
+        const u = ((app._adminBootstrap || {}).users || []).find((x) => String(x.id) === editUserBtn.dataset.editUser);
+        if (!u) return true;
+        const setVal = (sel, v) => {
+            const el = document.querySelector(sel);
+            if (el) el.value = v;
+        };
+        setVal('[data-edit-user-id]', u.id);
+        setVal('[data-edit-user-name]', u.name);
+        setVal('[data-edit-user-email]', u.email);
+        setVal('[data-edit-user-role]', u.role);
+        setVal('[data-edit-user-password]', '');
+        const editErr = document.querySelector('[data-edit-user-error]');
+        if (editErr) editErr.hidden = true;
+        showModal('[data-edit-user-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-edit-user]')) {
+        e.preventDefault();
+        hideModal('[data-edit-user-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-edit-user]')) {
+        e.preventDefault();
+        const editErr = document.querySelector('[data-edit-user-error]');
+        const val = (sel) => document.querySelector(sel)?.value || '';
+        const body = {
+            name: val('[data-edit-user-name]').trim(),
+            email: val('[data-edit-user-email]').trim(),
+            role: val('[data-edit-user-role]'),
+        };
+        const pw = val('[data-edit-user-password]');
+        if (pw) body.password = pw;
+        api(`/api/admin/users/${val('[data-edit-user-id]')}`, { method: 'PATCH', body: JSON.stringify(body) })
+            .then(() => {
+                hideModal('[data-edit-user-modal]');
+                openNotice('User updated', body.email);
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                if (editErr) {
+                    editErr.hidden = false;
+                    editErr.textContent = ex.message;
+                }
+            });
+        return true;
+    }
 
     if (t.closest('[data-open-add-user]')) {
         e.preventDefault();

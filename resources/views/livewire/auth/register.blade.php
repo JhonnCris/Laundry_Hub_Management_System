@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Auth;
@@ -21,17 +22,28 @@ new #[Layout('components.layouts.auth')] class extends Component {
     {
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255'],
             'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
 
-        event(new Registered(($user = User::create($validated))));
+        // Same response whether or not the email is already in use, so the form
+        // cannot be used to discover which emails have accounts.
+        $taken = User::where('email', $validated['email'])->exists()
+            || Staff::where('email', $validated['email'])->exists();
 
-        Auth::login($user);
+        if (! $taken) {
+            $user = new User($validated);
+            // Self-registered accounts stay inactive until an admin approves them.
+            $user->forceFill(['role' => 'pending'])->save();
 
-        $this->redirect(route('dashboard', absolute: false), navigate: true);
+            event(new Registered($user));
+        }
+
+        session()->flash('status', 'Registration received. Verify your email using the link we sent, then ask the owner or an admin to approve your account.');
+
+        $this->redirect(route('login', absolute: false), navigate: true);
     }
 }; ?>
 

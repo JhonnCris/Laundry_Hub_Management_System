@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Livewire\Volt\Volt;
 
 test('registration screen can be rendered', function () {
@@ -18,7 +19,9 @@ test('new users can register', function () {
 
     $response
         ->assertHasNoErrors()
-        ->assertRedirect(route('dashboard', absolute: false));
+        ->assertRedirect(route('login', absolute: false));
 
-    $this->assertAuthenticated();
+    // Registration no longer signs the user in: the account is pending admin approval.
+    $this->assertGuest();
+    expect(User::where('email', 'test@example.com')->value('role'))->toBe('pending');
 });

@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>@include('partials.head', ['title' => 'SSK Laba Dami | Admin'])</head>
 <body class="staff-body">
-<main class="staff-app" data-staff-app data-role="admin">
+<main class="staff-app" data-staff-app data-role="admin" data-user-name="{{ auth()->user()->name }}" data-user-email="{{ auth()->user()->email }}">
 
 <aside class="staff-sidebar">
     <a class="brand" href="{{ route('admin.dashboard') }}">
@@ -66,22 +66,22 @@
                     <input type="date" data-dash-to aria-label="Filter to date">
                 </label>
                 <button class="action-btn-primary" type="button" data-dash-apply-range>Filter</button>
-                <button class="outline-action" type="button" data-dash-export title="Download CSV">Export CSV →</button>
+                <button class="outline-action" type="button" data-dash-export title="Export a report">Export →</button>
             </div>
         </div>
 
         <div class="metric-grid dash-kpis">
-            <article class="kpi-card is-active" data-kpi="active" title="Click to show active laundry orders">
+            <article class="kpi-card is-active" data-kpi="active" tabindex="0" role="button" title="Click to show active laundry orders">
                 <span>Active laundry</span>
                 <strong data-kpi-active-value>—</strong>
                 <small data-kpi-active-sub>Click to filter activity</small>
             </article>
-            <article class="kpi-card" data-kpi="stock" title="Click to show low-stock items">
+            <article class="kpi-card" data-kpi="stock" tabindex="0" role="button" title="Click to show low-stock items">
                 <span>Low stock</span>
                 <strong data-kpi-stock-value>—</strong>
                 <small data-kpi-stock-sub>Action required</small>
             </article>
-            <article class="kpi-card" data-kpi="machines" title="Click to show machines needing attention">
+            <article class="kpi-card" data-kpi="machines" tabindex="0" role="button" title="Click to show machines needing attention">
                 <span>Machines</span>
                 <strong data-kpi-machines-value>—</strong>
                 <small data-kpi-machines-sub>Maintenance / offline</small>
@@ -160,22 +160,22 @@
                     </select>
                 </label>
                 <button class="outline-action" type="button" data-sum-apply-range>Filter</button>
-                <button class="action-btn-primary" type="button" data-sum-export>Export CSV →</button>
+                <button class="action-btn-primary" type="button" data-sum-export title="Export a report">Export →</button>
             </div>
         </div>
 
         <div class="metric-grid dash-kpis">
-            <article class="kpi-card is-active" data-sum-kpi="sales" title="Show income rows">
+            <article class="kpi-card" data-sum-kpi="sales" tabindex="0" role="button" title="Show income rows">
                 <span>Total sales</span>
                 <strong data-sum-sales>—</strong>
                 <small data-sum-sales-sub>Paid laundry in range</small>
             </article>
-            <article class="kpi-card" data-sum-kpi="expenses" title="Show expense rows">
+            <article class="kpi-card" data-sum-kpi="expenses" tabindex="0" role="button" title="Show expense rows">
                 <span>Total expenses</span>
                 <strong data-sum-expenses>—</strong>
                 <small data-sum-expenses-sub>Includes stock receipts</small>
             </article>
-            <article class="kpi-card" data-sum-kpi="net" title="Show all finance rows">
+            <article class="kpi-card is-active" data-sum-kpi="net" tabindex="0" role="button" title="Show all finance rows">
                 <span>Net amount</span>
                 <strong data-sum-net>—</strong>
                 <small data-sum-net-sub>Sales − expenses</small>
@@ -194,7 +194,7 @@
             </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Popular products</h2><small style="color:var(--staff-muted)">Snacks, drinks & extras sold</small></div>
-                <div class="order-row order-head popular-head"><span>Product</span><span>Qty sold</span><span>Revenue</span></div>
+                <div class="order-row order-head popular-head"><span>Product</span><span class="num">Qty sold</span><span class="num">Revenue</span></div>
                 <div data-popular-product-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading products…</span></div></div>
             </section>
         </div>
@@ -202,10 +202,20 @@
         <section class="staff-card full-card table-card" style="margin-top:18px">
             <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
                 <h2 data-sum-finance-title style="margin:0">Finance activity</h2>
-                <label class="toggle-inline"><input type="checkbox" data-sum-show-expenses> Show expense rows</label>
+                <label class="toggle-inline"><input type="checkbox" data-sum-show-expenses checked> Show expense rows</label>
             </div>
-            <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span>Amount</span></div>
+            <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span class="num">Amount</span></div>
             <div data-admin-finance-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading finance…</span></div></div>
+        </section>
+
+        <section class="staff-card full-card table-card archive-table" style="margin-top:18px">
+            <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
+                <h2 style="margin:0">Archive records · Cancelled orders</h2>
+                <small data-cancelled-count style="color:var(--staff-muted)">0 cancelled</small>
+            </div>
+            <p class="modal-hint" style="padding:6px 20px 0;margin:0">Cancelled orders are kept here for reference and are not counted in sales, orders or charts.</p>
+            <div class="order-row order-head"><span>Cancelled</span><span>Order</span><span>Customer</span><span class="num">Amount</span><span>Reason</span></div>
+            <div data-cancelled-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading archive…</span></div></div>
         </section>
     </section>
 
@@ -220,17 +230,17 @@
             <button class="action-btn-primary" type="button" data-open-add-item>Add item →</button>
         </div>
         <div class="metric-grid dash-kpis">
-            <article class="kpi-card is-active" data-inv-kpi="all" title="Show all items">
+            <article class="kpi-card is-active" data-inv-kpi="all" tabindex="0" role="button" title="Show all items">
                 <span>SKUs tracked</span>
                 <strong data-inv-sku>—</strong>
                 <small>All inventory items</small>
             </article>
-            <article class="kpi-card" data-inv-kpi="low" title="Show low stock only">
+            <article class="kpi-card" data-inv-kpi="low" tabindex="0" role="button" title="Show low stock only">
                 <span>Low stock</span>
                 <strong data-inv-low>—</strong>
                 <small>Below threshold</small>
             </article>
-            <article class="kpi-card" data-inv-kpi="value" title="Show all with values">
+            <article class="kpi-card" data-inv-kpi="value" tabindex="0" role="button" title="Show all with values">
                 <span>On-hand value</span>
                 <strong data-inv-value>—</strong>
                 <small>Qty × unit price</small>
@@ -261,12 +271,12 @@
             <button class="action-btn-primary" type="button" data-open-procurement title="Record goods received from an invoice">Record receipt →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small>Confirmed deliveries</small></article>
-            <article><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Logged as expenses</small></article>
+            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small>In selected range</small></article>
+            <article><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Receipt costs in range</small></article>
             <article><span>Last receipt</span><strong data-admin-last-restock>—</strong><small data-admin-last-restock-sub>No records yet</small></article>
         </div>
         <section class="staff-card full-card table-card">
-            <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span>Invoiced</span><span>Received qty</span></div>
+            <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span class="num">Invoiced</span><span class="num">Received qty</span></div>
             <div data-admin-restock-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading receipts…</span></div></div>
         </section>
     </section>
@@ -282,12 +292,12 @@
             <button class="action-btn-primary" type="button" data-open-add-user>Add user →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Total users</span><strong data-users-total>0</strong><small>Accounts</small></article>
+            <article><span>Total users</span><strong data-users-total>0</strong><small data-users-pending>Accounts</small></article>
             <article><span>Admins</span><strong data-users-admins>0</strong><small>Full access</small></article>
             <article><span>Staff</span><strong data-users-staff>0</strong><small>Operations</small></article>
         </div>
         <section class="staff-card full-card table-card">
-            <div class="order-row order-head"><span>Name</span><span>Email</span><span>Role</span><span>Status</span></div>
+            <div class="order-row order-head"><span>Name</span><span>Email</span><span>Role</span><span>Status</span><span>Action</span></div>
             <div data-admin-user-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading users…</span></div></div>
         </section>
     </section>
@@ -315,6 +325,62 @@
         <div class="modal-actions">
             <button type="button" class="text-button" data-close-add-user>Cancel</button>
             <button type="button" class="save-button" data-confirm-add-user>Create user</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-edit-user-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-edit-user type="button">×</button>
+        <h2>Edit user</h2>
+        <p class="modal-hint">Set the role to Staff or Admin to approve an account. "Pending" blocks access until approved.</p>
+        <input type="hidden" data-edit-user-id>
+        <label class="modal-field">Name<input type="text" data-edit-user-name maxlength="120"></label>
+        <label class="modal-field">Email<input type="email" data-edit-user-email maxlength="190"></label>
+        <label class="modal-field">Role
+            <select data-edit-user-role>
+                <option value="pending">Pending (no access)</option>
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+            </select>
+        </label>
+        <label class="modal-field">New password <small>(optional)</small><input type="password" data-edit-user-password placeholder="Leave blank to keep current"></label>
+        <p class="modal-error" data-edit-user-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-edit-user>Cancel</button>
+            <button type="button" class="save-button" data-confirm-edit-user>Save changes</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-export-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-export type="button">×</button>
+        <h2>Export report</h2>
+        <p class="modal-hint">Confirm the details below. The file is only created after you click Export.</p>
+        <dl class="export-summary">
+            <dt>Exported by</dt><dd data-export-who>—</dd>
+            <dt>Report</dt>
+            <dd>
+                <select data-export-report>
+                    <option value="sales">Sales (revenue) report</option>
+                    <option value="expenses">Expenses report</option>
+                    <option value="full">Full summary (sales, expenses, stock, machines)</option>
+                </select>
+            </dd>
+            <dt>File type</dt>
+            <dd>
+                <select data-export-format>
+                    <option value="pdf">PDF (print / save as PDF)</option>
+                    <option value="csv">CSV (spreadsheet)</option>
+                </select>
+            </dd>
+            <dt>Date range</dt><dd data-export-range>—</dd>
+        </dl>
+        <p class="modal-error" data-export-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-export>Cancel</button>
+            <button type="button" class="save-button" data-confirm-export>Export</button>
         </div>
     </section>
 </div>
@@ -406,6 +472,21 @@
         <div class="modal-actions">
             <button type="button" class="text-button" data-close-procurement>Cancel</button>
             <button type="button" class="save-button" data-confirm-procurement>Confirm receipt &amp; update stock</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-cancel-order-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-cancel-order type="button">×</button>
+        <h2>Cancel order</h2>
+        <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Archive records. This cannot be undone.</p>
+        <input type="hidden" data-cancel-order-id>
+        <label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
+        <p class="modal-error" data-cancel-order-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-cancel-order>Keep order</button>
+            <button type="button" class="save-button" data-confirm-cancel-order>Cancel order</button>
         </div>
     </section>
 </div>

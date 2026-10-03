@@ -6,6 +6,22 @@ import { api } from './core.js';
 export function handleInventoryClick(t, e, ctx) {
     const { showModal, hideModal, openConfirm, openNotice } = ctx;
 
+    const notifyBtn = t.closest('[data-notify-low]');
+    if (notifyBtn) {
+        e.preventDefault();
+        notifyBtn.disabled = true;
+        api(`/api/staff/inventory/${notifyBtn.dataset.notifyLow}/notify-low`, { method: 'POST', body: '{}' })
+            .then((r) => {
+                notifyBtn.textContent = 'Admin notified ✓';
+                openNotice('Admin notified', r.message || 'The admin will see this in their alerts.');
+            })
+            .catch((ex) => {
+                notifyBtn.disabled = false;
+                openNotice('Notify admin', ex.message);
+            });
+        return true;
+    }
+
     if (t.closest('[data-open-add-basket]')) {
         e.preventDefault();
         const err = document.querySelector('[data-add-basket-error]');

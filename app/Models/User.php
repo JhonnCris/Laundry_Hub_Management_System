@@ -13,11 +13,25 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    /**
+     * The staff record (attendance, "handled by") is linked by email, so keep the two in step
+     * and never let the link drift when a user edits their own profile.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (User $user) {
+            if ($user->isDirty(['email', 'name'])) {
+                Staff::query()
+                    ->where('email', $user->getOriginal('email'))
+                    ->update(['email' => $user->email, 'name' => $user->name]);
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role',
     ];
 
     protected $hidden = [

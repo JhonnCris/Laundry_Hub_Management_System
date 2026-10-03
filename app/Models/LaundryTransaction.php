@@ -10,7 +10,28 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class LaundryTransaction extends Model
 {
-    protected $guarded = [];
+    protected $fillable = [
+        'customer_id',
+        'basket_tag_id',
+        'machine_id',
+        'machine_time_slot_id',
+        'service_id',
+        'detergent_item_id',
+        'detergent_quantity',
+        'handled_by',
+        'transaction_type',
+        'status',
+        'payment_status',
+        'subtotal',
+        'total_amount',
+        'cash_tendered',
+        'change_given',
+        'notes',
+        'load_weight_kg',
+        'cycle_minutes',
+        'email_sent_at',
+        'sms_sent_at',
+    ];
 
     protected function casts(): array
     {

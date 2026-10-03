@@ -9,7 +9,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class InventoryItem extends Model
 {
-    protected $guarded = [];
+    protected $fillable = [
+        'inventory_category_id',
+        'name',
+        'unit',
+        'unit_price',
+        'quantity_on_hand',
+        'low_stock_threshold',
+        'status',
+    ];
 
     protected function casts(): array
     {

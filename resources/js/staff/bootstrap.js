@@ -1,7 +1,7 @@
 /**
  * Staff bootstrap: load DB data + render module tables
  */
-import { api, fmtDate, fmtTime } from './core.js';
+import { api, esc, fmtDate, fmtTime } from './core.js';
 import { statusLabel, statusClass } from './queue.js';
 
 export function renderAttendance(app, data) {
@@ -30,6 +30,18 @@ export function renderAttendance(app, data) {
         if (sub) sub.textContent = 'Not clocked in';
         if (hours) hours.textContent = '—';
     }
+    const clockedIn = !!(today && today.clock_in);
+    const clockedOut = !!(today && today.clock_out);
+    const inBtn = app.querySelector('[data-clock-in]');
+    const outBtn = app.querySelector('[data-clock-out]');
+    if (inBtn) {
+        inBtn.disabled = clockedIn;
+        inBtn.title = clockedIn ? 'Already clocked in today' : 'Start your shift';
+    }
+    if (outBtn) {
+        outBtn.disabled = !clockedIn || clockedOut;
+        outBtn.title = !clockedIn ? 'Clock in first' : clockedOut ? 'Already clocked out today' : 'End your shift';
+    }
     const rows = app.querySelector('[data-attendance-rows]');
     if (rows) {
         if (!recent.length) {
@@ -55,7 +67,7 @@ export function renderStaffLists(app, data, updateFn) {
                       const basket = tx.basket_tag?.code || '#' + tx.id;
                       const cust = tx.customer?.name || '—';
                       const svc = tx.service?.name || tx.transaction_type || '—';
-                      const machine = tx.machine?.name ? `<br><small>${tx.machine.name}</small>` : '';
+                      const machine = tx.machine?.name ? `<br><small>${esc(tx.machine.name)}</small>` : '';
                       const next =
                           tx.status === 'pending'
                               ? 'processing'
@@ -80,7 +92,7 @@ export function renderStaffLists(app, data, updateFn) {
                           forwardBtn || undoBtn
                               ? `${forwardBtn}${undoBtn}`
                               : '<span class="queue-action-empty">—</span>';
-                      return `<div class="order-row"><strong>${basket}</strong><span>${cust}</span><span>${svc}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
+                      return `<div class="order-row"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${esc(svc)}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No active laundry orders.</span></div>';
@@ -97,15 +109,15 @@ export function renderStaffLists(app, data, updateFn) {
                       const email = c.email || '—';
                       const orders = c.orders_count ?? 0;
                       const last = c.last_service ? fmtDate(c.last_service) : '—';
-                      return `<div class="order-row" data-customer-row data-name="${name.toLowerCase()}" data-contact="${(c.contact_number || '').toLowerCase()}" data-email="${(c.email || '').toLowerCase()}">
-                        <strong>${name}</strong>
-                        <span>${phone}</span>
-                        <span>${email}</span>
+                      return `<div class="order-row" data-customer-row data-name="${esc(name.toLowerCase())}" data-contact="${esc((c.contact_number || '').toLowerCase())}" data-email="${esc((c.email || '').toLowerCase())}">
+                        <strong>${esc(name)}</strong>
+                        <span>${esc(phone)}</span>
+                        <span>${esc(email)}</span>
                         <span>${orders}</span>
                         <span>${last}</span>
                         <span class="customer-actions">
-                          <button type="button" class="action-btn-primary" data-do-laundry="${c.id}" data-customer-name="${name.replace(/"/g, '&quot;')}" data-customer-phone="${(c.contact_number || '').replace(/"/g, '&quot;')}" title="Start a laundry order">Do Laundry →</button>
-                          <button type="button" class="action-btn-secondary" data-edit-customer="${c.id}" data-customer-name="${name.replace(/"/g, '&quot;')}" data-customer-phone="${(c.contact_number || '').replace(/"/g, '&quot;')}" data-customer-email="${(c.email || '').replace(/"/g, '&quot;')}" title="Edit phone or email">Edit</button>
+                          <button type="button" class="action-btn-primary" data-do-laundry="${c.id}" data-customer-name="${esc(name)}" data-customer-phone="${esc(c.contact_number || '')}" title="Start a laundry order">Do Laundry →</button>
+                          <button type="button" class="action-btn-secondary" data-edit-customer="${c.id}" data-customer-name="${esc(name)}" data-customer-phone="${esc(c.contact_number || '')}" data-customer-email="${esc(c.email || '')}" title="Edit phone or email">Edit</button>
                         </span>
                       </div>`;
                   })
@@ -120,7 +132,11 @@ export function renderStaffLists(app, data, updateFn) {
             ? list
                   .map((i) => {
                       const low = i.quantity_on_hand <= i.low_stock_threshold;
-                      return `<div class="order-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${i.quantity_on_hand} ${i.unit}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em></div>`;
+                      const reported = (data.reported_low_stock_ids || []).includes(i.id);
+                      const alertCell = low
+                          ? `<button type="button" class="outline-action notify-low-btn" data-notify-low="${i.id}" ${reported ? 'disabled' : ''} title="Tell the admin this item is running low">${reported ? 'Admin notified ✓' : 'Notify admin'}</button>`
+                          : '<span></span>';
+                      return `<div class="order-row inv5${low ? ' is-low' : ''}"><strong>${low ? '<i class="low-dot" title="Low stock"></i>' : ''}${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit)}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em>${alertCell}</div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
@@ -132,7 +148,7 @@ export function renderStaffLists(app, data, updateFn) {
             ? list
                   .map((i) => {
                       const reason = (i.status || '').replace('archived_', '') || 'archived';
-                      return `<div class="order-row"><strong>${i.name}</strong><span>${i.category?.name || '—'}</span><span>${reason}</span><span>${i.quantity_on_hand}</span></div>`;
+                      return `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(reason)}</span><span>${i.quantity_on_hand}</span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div>';
@@ -141,10 +157,12 @@ export function renderStaffLists(app, data, updateFn) {
     const br = app.querySelector('[data-basket-rows]');
     if (br) {
         const list = data.baskets || [];
-        br.innerHTML = list
+        br.innerHTML = !list.length
+            ? '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No baskets yet. Click Add basket to register one.</span></div>'
+            : list
             .map((b) => {
                 const cls = b.status === 'available' ? 'ready' : 'processing';
-                return `<div class="order-row"><strong>${b.code}</strong><span><em class="status ${cls}">${b.status}</em></span><span>—</span><span></span></div>`;
+                return `<div class="order-row"><strong>${esc(b.code)}</strong><span><em class="status ${cls}">${esc(b.status)}</em></span><span>—</span><span></span></div>`;
             })
             .join('');
     }
@@ -155,7 +173,7 @@ export function renderStaffLists(app, data, updateFn) {
         mg.innerHTML = list
             .map((m) => {
                 const avail = m.status === 'available';
-                return `<article class="staff-card" data-machine-id="${m.id}"><span>${m.name}</span><strong class="${avail ? 'available' : ''}">${m.status.replace(/_/g, ' ')}</strong><small>${m.type}</small>
+                return `<article class="staff-card" data-machine-id="${m.id}"><span>${esc(m.name)}</span><strong class="${avail ? 'available' : ''}">${esc(m.status.replace(/_/g, ' '))}</strong><small>${esc(m.type)}</small>
                 <button type="button" class="action-btn-secondary" data-machine-status="${m.id}" data-set-machine="${avail ? 'maintenance' : 'available'}" title="Click to change machine status">${avail ? 'Set maintenance →' : 'Set available →'}</button></article>`;
             })
             .join('');
@@ -164,7 +182,7 @@ export function renderStaffLists(app, data, updateFn) {
     const fillSelect = (sel, items) => {
         if (!sel) return;
         sel.innerHTML = (items || [])
-            .map((i) => `<option value="${i.id}">${i.name} (${i.quantity_on_hand} ${i.unit})</option>`)
+            .map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${i.quantity_on_hand} ${esc(i.unit)})</option>`)
             .join('');
     };
     fillSelect(document.querySelector('[data-archive-item]'), data.inventory);
@@ -184,7 +202,7 @@ export function loadStaffBootstrap(app, updateFn) {
                           .map(
                               (snack) =>
                                   `<div class="add-on" data-item-id="${snack.id}" data-price="${snack.unit_price}">
-                                    <div><strong>${snack.name}</strong><small>₱${snack.unit_price} · ${snack.unit} · ${snack.quantity_on_hand} stock</small></div>
+                                    <div><strong>${esc(snack.name)}</strong><small>₱${snack.unit_price} · ${esc(snack.unit)} · ${snack.quantity_on_hand} stock</small></div>
                                     <div class="quantity-control"><button data-decrease type="button">−</button><output>0</output><button data-increase type="button">+</button></div>
                                   </div>`
                           )
@@ -213,6 +231,10 @@ export function loadStaffBootstrap(app, updateFn) {
                     select.appendChild(o);
                 });
             });
+            app.querySelectorAll('[data-service-price][data-pricing="per_kg"] option[data-service-name]').forEach((o) => {
+                const match = (data.services || []).find((svc) => svc.name === o.dataset.serviceName);
+                if (match) o.dataset.serviceId = String(match.id);
+            });
             const machineSelect = app.querySelector('[data-machine]');
             if (machineSelect && (data.machines || []).length) {
                 machineSelect.innerHTML = '';
@@ -231,7 +253,7 @@ export function loadStaffBootstrap(app, updateFn) {
                     ? avail
                           .map(
                               (b) =>
-                                  `<li><button type="button" data-basket-option="${b.code}">${b.code} <small>${b.status}</small></button></li>`
+                                  `<li><button type="button" data-basket-option="${esc(b.code)}">${esc(b.code)} <small>${esc(b.status)}</small></button></li>`
                           )
                           .join('')
                     : '<li><span style="padding:8px;color:var(--staff-muted);font-size:13px">No available baskets. Add one in Inventory.</span></li>';
@@ -270,7 +292,7 @@ export function loadStaffBootstrap(app, updateFn) {
                     ? notes
                           .map(
                               (n) =>
-                                  `<div class="dash-alert"><strong>${(n.type || 'alert').replace(/_/g, ' ')}</strong><small>${n.message}</small></div>`
+                                  `<div class="dash-alert"><strong>${(n.type || 'alert').replace(/_/g, ' ')}</strong><small>${esc(n.message)}</small></div>`
                           )
                           .join('')
                     : '<p class="dash-empty">No notifications.</p>';
@@ -302,7 +324,7 @@ export function loadStaffBootstrap(app, updateFn) {
                     if (existing.has(String(g.name).toLowerCase())) return;
                     const div = document.createElement('div');
                     div.className = 'garment-counter';
-                    div.innerHTML = `<span>${g.name}</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div>`;
+                    div.innerHTML = `<span>${esc(g.name)}</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div>`;
                     if (addBtn) gGrid.insertBefore(div, addBtn);
                     else gGrid.appendChild(div);
                 });

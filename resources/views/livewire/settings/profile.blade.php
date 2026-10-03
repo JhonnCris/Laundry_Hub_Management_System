@@ -36,7 +36,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                 'lowercase',
                 'email',
                 'max:255',
-                Rule::unique(User::class)->ignore($user->id)
+                Rule::unique(User::class)->ignore($user->id),
+                Rule::unique('staff', 'email')->ignore($user->email, 'email'),
             ],
         ]);
 

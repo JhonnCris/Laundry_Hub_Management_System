@@ -6,9 +6,12 @@ use App\Models\BasketTag;
 use App\Models\Customer;
 use App\Models\FinanceTransaction;
 use App\Models\GarmentType;
+use App\Models\InventoryAdjustment;
 use App\Models\InventoryItem;
+use App\Models\InventoryRestock;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
+use App\Models\Notification;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
@@ -18,8 +21,11 @@ use App\Models\TransactionStatusLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StaffApiController extends Controller
 {
@@ -45,7 +51,7 @@ class StaffApiController extends Controller
         $inventory = InventoryItem::query()->with('category:id,name')->orderBy('name')->get();
         $activeInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') === 'active')->values();
         $archivedInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') !== 'active')->values();
-        $customers = Customer::query()->orderBy('name')->get(['id', 'name', 'contact_number', 'email', 'address']);
+        $customers = Customer::query()->orderBy('name')->get(['id', 'name', 'contact_number', 'email']);
 
         $activeLaundry = LaundryTransaction::query()
             ->with(['customer:id,name', 'basketTag:id,code', 'service:id,name', 'machine:id,name'])
@@ -72,20 +78,20 @@ class StaffApiController extends Controller
         $detergents = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Detergent', 'Consumable'], true))->values();
 
         $customersWithStats = $customers->map(function ($c) {
-            $tx = \App\Models\LaundryTransaction::query()->where('customer_id', $c->id);
+            $tx = LaundryTransaction::query()->where('customer_id', $c->id);
+
             return [
                 'id' => $c->id,
                 'name' => $c->name,
                 'contact_number' => $c->contact_number,
                 'email' => $c->email,
-                'address' => $c->address,
                 'orders_count' => (clone $tx)->count(),
                 'last_service' => optional((clone $tx)->latest('created_at')->first())->created_at,
             ];
         });
 
         $lowStockItems = $activeInventory->filter(fn ($i) => $i->isLowStock())->values();
-        $dbNotifications = \App\Models\Notification::query()
+        $dbNotifications = Notification::query()
             ->where('is_read', false)
             ->latest()
             ->limit(20)
@@ -131,7 +137,11 @@ class StaffApiController extends Controller
             'attendance_today' => $attendance,
             'attendance_recent' => $recentAttendance,
             'low_stock_count' => $lowStockItems->count(),
-            'active_laundry_count' => $activeLaundry->count(),
+            'reported_low_stock_ids' => Notification::query()
+                ->where('type', 'low_stock')->where('is_read', false)
+                ->where('notifiable_type', InventoryItem::class)
+                ->pluck('notifiable_id')->values(),
+            'active_laundry_count' => LaundryTransaction::query()->whereIn('status', ['pending', 'processing', 'ready_for_pickup'])->count(),
             'notifications' => $notifications,
         ]);
     }
@@ -143,21 +153,22 @@ class StaffApiController extends Controller
             'transaction_type' => ['required', Rule::in(['drop_off', 'self_service'])],
             'basket_code' => ['nullable', 'string', 'max:20'],
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
-            'service_amount' => ['required', 'numeric', 'min:0'],
+            'service_amount' => ['required', 'numeric', 'min:0', 'max:100000'],
             'machine_id' => ['nullable', 'integer', 'exists:machines,id'],
-            'load_weight_kg' => ['nullable', 'numeric', 'min:0'],
-            'cycle_minutes' => ['nullable', 'integer', 'min:0'],
+            'load_weight_kg' => ['nullable', 'numeric', 'min:0', 'max:50'],
+            'cycle_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
             'detergent_item_id' => ['nullable', 'integer', 'exists:inventory_items,id'],
-            'detergent_quantity' => ['nullable', 'integer', 'min:0'],
+            'detergent_quantity' => ['nullable', 'integer', 'min:0', 'max:99'],
             'garments' => ['nullable', 'array'],
             'garments.*.name' => ['required_with:garments', 'string', 'max:80'],
-            'garments.*.quantity' => ['required_with:garments', 'integer', 'min:1'],
+            'garments.*.quantity' => ['required_with:garments', 'integer', 'min:1', 'max:999'],
             'items' => ['nullable', 'array'],
             'items.*.inventory_item_id' => ['required_with:items', 'integer', 'exists:inventory_items,id'],
-            'items.*.quantity' => ['required_with:items', 'integer', 'min:1'],
-            'notes' => ['nullable', 'string'],
-            'cash_tendered' => ['required', 'numeric', 'min:0'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
+            'items.*.quantity' => ['required_with:items', 'integer', 'min:1', 'max:99'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'cash_tendered' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'total_amount' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'client_token' => ['nullable', 'string', 'max:64'],
         ]);
 
         if ($data['transaction_type'] === 'self_service' && (float) ($data['load_weight_kg'] ?? 0) <= 0) {
@@ -172,6 +183,11 @@ class StaffApiController extends Controller
 
         $staffId = $this->staffId();
         $customer = Customer::query()->findOrFail($data['customer_id']);
+
+        // Same payment submitted twice (double click / replay) is rejected.
+        if (! empty($data['client_token']) && ! Cache::add('tx-token:'.Auth::id().':'.$data['client_token'], true, 30)) {
+            return response()->json(['message' => 'This payment was already submitted. Check Active Laundry before trying again.'], 409);
+        }
 
         $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId) {
             $basketId = null;
@@ -189,7 +205,22 @@ class StaffApiController extends Controller
                 $detergentId = null;
             }
 
+            // Never trust client-side prices: flat services use the stored price,
+            // per-kg self-service must match a known rate × billable kg.
             $subtotal = (float) $data['service_amount'];
+            if ($data['transaction_type'] === 'drop_off' && ! empty($data['service_id'])) {
+                $subtotal = (float) Service::query()->whereKey($data['service_id'])->value('base_price');
+            } elseif ($data['transaction_type'] === 'self_service') {
+                $billableKg = max((float) $data['load_weight_kg'], 3);
+                $validRate = collect([20, 25, 40])->contains(
+                    fn ($rate) => abs($rate * $billableKg - $subtotal) < 0.01
+                );
+                if (! $validRate) {
+                    throw ValidationException::withMessages([
+                        'service_amount' => 'Service charge does not match the load weight. Please refresh and try again.',
+                    ]);
+                }
+            }
             foreach ($data['items'] ?? [] as $line) {
                 $item = InventoryItem::query()->find($line['inventory_item_id']);
                 if ($item) {
@@ -201,6 +232,11 @@ class StaffApiController extends Controller
                 if ($det) {
                     $subtotal += (float) $det->unit_price * $detergentQty;
                 }
+            }
+            if (abs($subtotal - $total) > 0.01) {
+                throw ValidationException::withMessages([
+                    'total_amount' => 'Total does not match current prices. Please refresh and try again.',
+                ]);
             }
 
             $txn = LaundryTransaction::query()->create([
@@ -247,6 +283,11 @@ class StaffApiController extends Controller
                     continue;
                 }
                 $qty = (int) $line['quantity'];
+                if ($item->quantity_on_hand < $qty) {
+                    throw ValidationException::withMessages([
+                        'items' => "Not enough stock for {$item->name} ({$item->quantity_on_hand} left).",
+                    ]);
+                }
                 $unit = (float) $item->unit_price;
                 TransactionItem::query()->create([
                     'laundry_transaction_id' => $txn->id,
@@ -261,6 +302,11 @@ class StaffApiController extends Controller
             if ($detergentId && $detergentQty > 0) {
                 $det = InventoryItem::query()->lockForUpdate()->find($detergentId);
                 if ($det) {
+                    if ($det->quantity_on_hand < $detergentQty) {
+                        throw ValidationException::withMessages([
+                            'detergent_quantity' => "Not enough stock for {$det->name} ({$det->quantity_on_hand} left).",
+                        ]);
+                    }
                     $det->decrement('quantity_on_hand', $detergentQty);
                 }
             }
@@ -284,6 +330,8 @@ class StaffApiController extends Controller
             return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes']);
         });
 
+        $this->audit('order.created', ['order_id' => $tx->id, 'total' => (float) $tx->total_amount, 'type' => $tx->transaction_type]);
+
         return response()->json([
             'message' => 'Transaction saved',
             'transaction' => $tx,
@@ -301,6 +349,23 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'This order is already claimed and cannot be changed.'], 422);
         }
 
+        if ($data['status'] === 'cancelled') {
+            abort_unless(Gate::allows('cancel', $transaction), 403, 'Only an admin can cancel an order.');
+
+            return response()->json(['message' => 'Use Cancel order in the admin console so stock and sales are corrected.'], 422);
+        }
+
+        $allowed = [
+            'pending' => ['processing'],
+            'processing' => ['pending', 'ready_for_pickup'],
+            'ready_for_pickup' => ['processing', 'claimed'],
+            'cancelled' => [],
+        ];
+        if (! in_array($data['status'], $allowed[$transaction->status] ?? [], true)) {
+            return response()->json(['message' => "An order cannot move from {$transaction->status} to {$data['status']}."], 422);
+        }
+        $previousStatus = $transaction->status;
+
         $staffId = $this->staffId();
 
         DB::transaction(function () use ($transaction, $data, $staffId) {
@@ -316,6 +381,8 @@ class StaffApiController extends Controller
                 BasketTag::query()->where('id', $transaction->basket_tag_id)->update(['status' => 'available']);
             }
         });
+
+        $this->audit('order.status_changed', ['order_id' => $transaction->id, 'from' => $previousStatus, 'to' => $data['status']]);
 
         return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh()]);
     }
@@ -417,7 +484,7 @@ class StaffApiController extends Controller
                 $item->update(['status' => 'active']);
             }
 
-            \App\Models\InventoryRestock::query()->create([
+            InventoryRestock::query()->create([
                 'inventory_item_id' => $item->id,
                 'staff_id' => $staffId,
                 'quantity_received' => $data['quantity_received'],
@@ -445,7 +512,7 @@ class StaffApiController extends Controller
             $qty = $data['quantity'] ?? $item->quantity_on_hand;
             if ($qty > 0 && $qty <= $item->quantity_on_hand) {
                 $item->decrement('quantity_on_hand', $qty);
-                \App\Models\InventoryAdjustment::query()->create([
+                InventoryAdjustment::query()->create([
                     'inventory_item_id' => $item->id,
                     'staff_id' => $staffId,
                     'quantity_change' => -$qty,
@@ -460,7 +527,55 @@ class StaffApiController extends Controller
             }
         });
 
+        $this->audit('inventory.archived', ['item_id' => $item->id, 'reason' => $data['reason'], 'quantity' => $data['quantity'] ?? null]);
+
         return response()->json(['message' => 'Item archived', 'item' => $item->fresh('category')]);
+    }
+
+    /** Staff flags a low-stock item so it shows in the admin alerts panel. */
+    public function notifyLowStock(InventoryItem $item): JsonResponse
+    {
+        if ($item->status !== 'active' || ! $item->isLowStock()) {
+            return response()->json(['message' => 'This item is not low on stock.'], 422);
+        }
+
+        $alreadyReported = Notification::query()
+            ->where('type', 'low_stock')
+            ->where('is_read', false)
+            ->where('notifiable_type', InventoryItem::class)
+            ->where('notifiable_id', $item->id)
+            ->exists();
+
+        if (! $alreadyReported) {
+            Notification::query()->create([
+                'type' => 'low_stock',
+                'message' => "{$item->name} is low: {$item->quantity_on_hand} {$item->unit} left (reported by ".Auth::user()->name.')',
+                'notifiable_type' => InventoryItem::class,
+                'notifiable_id' => $item->id,
+                'is_read' => false,
+            ]);
+            $this->audit('inventory.low_stock_reported', ['item_id' => $item->id]);
+        }
+
+        return response()->json(['message' => $alreadyReported ? 'Admin was already notified about this item.' : 'Admin notified.']);
+    }
+
+    /** Completed (claimed) orders, newest first. */
+    public function history(): JsonResponse
+    {
+        $orders = LaundryTransaction::query()
+            ->with([
+                'customer:id,name,contact_number',
+                'basketTag:id,code',
+                'service:id,name',
+                'statusLogs' => fn ($q) => $q->where('status', 'claimed'),
+            ])
+            ->where('status', 'claimed')
+            ->latest('updated_at')
+            ->limit(200)
+            ->get();
+
+        return response()->json(['orders' => $orders]);
     }
 
     public function updateMachineStatus(Request $request, Machine $machine): JsonResponse
@@ -468,7 +583,10 @@ class StaffApiController extends Controller
         $data = $request->validate([
             'status' => ['required', 'in:available,in_use,reserved,maintenance,out_of_service'],
         ]);
+        $before = $machine->status;
         $machine->update(['status' => $data['status']]);
+        $this->audit('machine.status_changed', ['machine_id' => $machine->id, 'from' => $before, 'to' => $data['status']]);
+
         return response()->json(['message' => 'Machine updated', 'machine' => $machine]);
     }
 

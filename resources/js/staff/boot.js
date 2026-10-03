@@ -5,8 +5,8 @@ import { createModals } from './modals.js';
 import { handleCustomerClick, handleCustomerSearch, renderCustomerContext } from './customers.js';
 import { handleAttendanceClick } from './attendance.js';
 import { handleInventoryClick } from './inventory.js';
-import { handleQueueClick } from './queue.js';
-import { handleAdminClick, loadAdminBootstrap } from './admin.js';
+import { handleHistorySearch, handleQueueClick } from './queue.js';
+import { handleAdminClick, loadAdminBootstrap, renderFinanceFiltered } from './admin.js';
 import { handleNavigationClick } from './navigation.js';
 import { loadStaffBootstrap } from './bootstrap.js';
 import { createTransaction } from './transaction.js';
@@ -64,6 +64,7 @@ export function bootStaffApp() {
         const t = e.target;
         if (!(t instanceof Element)) return;
         if (handleCustomerSearch(t, app)) return;
+        if (handleHistorySearch(t)) return;
         if (tx.handleTransactionInput(t)) return;
     });
 
@@ -72,41 +73,30 @@ export function bootStaffApp() {
         if (!(t instanceof Element)) return;
         if (t.matches('[data-sum-type-filter]')) {
             const v = t.value || 'all';
-            app._sumKpi = v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : 'net';
-            app.querySelectorAll('[data-sum-kpi]').forEach((el) => {
-                const k = el.dataset.sumKpi;
-                el.classList.toggle(
-                    'is-active',
-                    (v === 'revenue' && k === 'sales') ||
-                        (v === 'expenses' && k === 'expenses') ||
-                        (v === 'all' && k === 'net')
-                );
-            });
-            const body = app.querySelector('[data-admin-finance-rows]');
-            const data = app._adminBootstrap;
-            if (body && data) {
-                const rows = data.finance || [];
-                const filtered =
-                    v === 'revenue'
-                        ? rows.filter((f) => f.type === 'income')
-                        : v === 'expenses'
-                          ? rows.filter((f) => f.type === 'expense')
-                          : rows;
-                const moneyFn = (n) =>
-                    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(n) || 0);
-                body.innerHTML = filtered.length
-                    ? filtered
-                          .map((f) => {
-                              const type = f.type === 'expense' ? 'Expense' : 'Income';
-                              const who = f.staff?.name || '—';
-                              return `<div class="order-row"><strong>${type}</strong><span>${f.description || '—'}</span><span>${who}</span><span>${moneyFn(f.amount)}</span></div>`;
-                          })
-                          .join('')
-                    : '<div class="order-row"><span style="grid-column:1/-1">No data yet for this filter.</span></div>';
+            if (app._adminBootstrap) {
+                renderFinanceFiltered(app, app._adminBootstrap, v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : 'net');
             }
             return;
         }
         if (tx.handleTransactionInput(t)) return;
+    });
+
+    // Keyboard: KPI cards act as buttons; Esc closes the top-most open modal
+    app.addEventListener('keydown', (e) => {
+        const card = e.target instanceof Element ? e.target.closest('[role="button"][data-kpi], [role="button"][data-sum-kpi], [role="button"][data-inv-kpi]') : null;
+        if (card && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            card.click();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        const open = [...document.querySelectorAll('.modal-backdrop')].filter((el) => !el.hidden && el.style.display !== 'none');
+        const top = open[open.length - 1];
+        if (top) {
+            top.hidden = true;
+            top.style.display = 'none';
+        }
     });
 
     // also payment cash may be outside app root in some layouts
