@@ -13,12 +13,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('customers', function (Blueprint $table) {
-            $table->string('first_name', 80)->nullable()->after('id');
-            $table->string('middle_name', 80)->nullable()->after('first_name');
-            $table->string('last_name', 80)->nullable()->after('middle_name');
-            $table->index('last_name', 'customers_last_name_index');
-        });
+        // One column per statement: TiDB cannot place a column "after" another one added in the same ALTER.
+        Schema::table('customers', fn (Blueprint $table) => $table->string('first_name', 80)->nullable()->after('id'));
+        Schema::table('customers', fn (Blueprint $table) => $table->string('middle_name', 80)->nullable()->after('first_name'));
+        Schema::table('customers', fn (Blueprint $table) => $table->string('last_name', 80)->nullable()->after('middle_name'));
+        Schema::table('customers', fn (Blueprint $table) => $table->index('last_name', 'customers_last_name_index'));
 
         // Best-effort split of existing names: first word = first name, last word = last name,
         // anything in between = middle name. The display `name` is left exactly as it was.
