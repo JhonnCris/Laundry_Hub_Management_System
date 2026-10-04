@@ -112,8 +112,10 @@ missing `APP_KEY`, wrong `DB_*`, or the TLS certificate path (set `MYSQL_ATTR_SS
 
 ## Not working yet / limits
 
-- **Android SMS gateway**: your phone is on your home Wi-Fi and Vercel cannot reach it, so SMS stays on `log`
-  (nothing sent). Email and Firebase push work. The gateway app's "Cloud" mode gives a public address we can add later.
+- **SMS** uses a spare Android phone as the gateway. Vercel cannot reach a phone on your Wi-Fi, so use the app's **Cloud Server**:
+  install *SMS Gateway for Android*, switch on **Cloud Server** (tap Offline until it says Online), copy the username and password it shows,
+  then in Vercel set `SMS_DRIVER=android`, `SMS_ANDROID_URL=https://api.sms-gate.app/3rdparty/v1/messages`,
+  `SMS_ANDROID_USER`, `SMS_ANDROID_PASSWORD`, and redeploy. The phone must stay on, with signal and the app running.
 - **Audit log** goes to Vercel's logs (kept for a limited time), not to a file.
 - **First request after idle** is slow (serverless cold start).
 - Vercel's free **Hobby plan is for non-commercial use**. Check their terms before running a real business on it.

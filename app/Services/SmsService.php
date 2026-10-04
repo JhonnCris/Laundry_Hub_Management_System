@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 /**
  * Sends SMS through a free option, chosen with SMS_DRIVER in .env:
  *  - android  : your own Android phone as the gateway (free open-source "SMS Gateway for Android"
- *               app, uses your SIM); recommended for Philippine numbers.
+ *               app, uses your SIM); recommended for Philippine numbers. Works on the phone's local
+ *               server (same Wi-Fi) or the app's free Cloud Server (https://api.sms-gate.app/3rdparty/v1/messages),
+ *               which is what a hosted site such as Vercel needs.
  *  - textbelt : Textbelt's free tier (1 text/day, mostly US/Canada numbers).
  *  - log      : default; only writes the message to storage/logs (nothing is sent).
  */
@@ -60,9 +62,14 @@ class SmsService
             return false;
         }
 
+        // The app's Cloud Server (…/3rdparty/v1/messages) takes {textMessage:{text}}; its local server (…/message) takes {message}.
+        $body = str_ends_with(rtrim($url, '/'), '/messages')
+            ? ['textMessage' => ['text' => $message], 'phoneNumbers' => [$number]]
+            : ['message' => $message, 'phoneNumbers' => [$number]];
+
         return Http::withBasicAuth((string) config('services.sms.android_user'), (string) config('services.sms.android_password'))
             ->timeout(8)
-            ->post($url, ['message' => $message, 'phoneNumbers' => [$number]])
+            ->post($url, $body)
             ->successful();
     }
 

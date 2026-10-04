@@ -74,3 +74,15 @@ it('treats a repeated status request as a harmless no-op', function () {
         ->assertOk()
         ->assertJsonPath('message', 'Already up to date.');
 });
+
+it('uses the SMS Gateway cloud message format when the URL is the cloud endpoint', function () {
+    config(['services.sms.driver' => 'android', 'services.sms.android_url' => 'https://api.sms-gate.app/3rdparty/v1/messages', 'services.sms.android_user' => 'u', 'services.sms.android_password' => 'p']);
+    Http::fake(['api.sms-gate.app/*' => Http::response(['id' => 'abc'], 202)]);
+
+    expect(app(SmsService::class)->send('09602457559', 'Your laundry is ready'))->toBeTrue();
+
+    Http::assertSent(fn ($r) => $r->url() === 'https://api.sms-gate.app/3rdparty/v1/messages'
+        && $r['textMessage']['text'] === 'Your laundry is ready'
+        && $r['phoneNumbers'] === ['+639602457559']
+        && $r->hasHeader('Authorization'));
+});
