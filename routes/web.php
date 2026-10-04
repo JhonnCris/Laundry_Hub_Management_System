@@ -52,7 +52,7 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->group(function () {
 /*
 | JSON API — staff operations
 */
-Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefix('api/staff')->group(function () {
+Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefix('ajax/staff')->group(function () {
     Route::get('bootstrap', [StaffApiController::class, 'bootstrap']);
     Route::post('transactions', [StaffApiController::class, 'saveTransaction']);
     Route::patch('transactions/{transaction}/status', [StaffApiController::class, 'updateStatus']);
@@ -71,7 +71,7 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
 /*
 | JSON API — admin
 */
-Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('api/admin')->group(function () {
+Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('ajax/admin')->group(function () {
     Route::get('bootstrap', [AdminApiController::class, 'bootstrap']);
     Route::get('transactions/{transaction}', [AdminApiController::class, 'showTransaction']);
     Route::post('transactions/{transaction}/cancel', [AdminApiController::class, 'cancelTransaction']);

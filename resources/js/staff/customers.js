@@ -127,7 +127,7 @@ export function handleCustomerClick(t, e, ctx) {
             }
             return true;
         }
-        api('/api/staff/customers', {
+        api('/ajax/staff/customers', {
             method: 'POST',
             body: JSON.stringify({
                 name,
@@ -186,7 +186,7 @@ export function handleCustomerClick(t, e, ctx) {
             }
             return true;
         }
-        api(`/api/staff/customers/${id}`, {
+        api(`/ajax/staff/customers/${id}`, {
             method: 'PATCH',
             body: JSON.stringify({ contact_number: phone, email: email || null }),
         })

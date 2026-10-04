@@ -15,7 +15,7 @@ export function loadSales(app) {
     const period = app.querySelector('[data-sale-filter]')?.value || '';
     const since = periodStart(period);
 
-    return api('/api/staff/history')
+    return api('/ajax/staff/history')
         .then((result) => {
             const byId = new Map();
             [...(app._bootstrap?.active_laundry || []), ...(result.orders || [])].forEach((transaction) => {

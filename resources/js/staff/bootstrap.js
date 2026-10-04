@@ -201,7 +201,7 @@ export function renderStaffLists(app, data, updateFn) {
 }
 
 export function loadStaffBootstrap(app, updateFn) {
-    return api('/api/staff/bootstrap')
+    return api('/ajax/staff/bootstrap')
         .then((data) => {
             app._bootstrap = data;
             const snackList = app.querySelector('[data-snack-list]');
@@ -344,5 +344,12 @@ export function loadStaffBootstrap(app, updateFn) {
             renderStaffLists(app, data, updateFn);
             if (typeof updateFn === 'function') updateFn();
         })
-        .catch((err) => console.warn('SSK bootstrap:', err.message));
+        .catch((err) => {
+            console.warn('SSK bootstrap:', err.message);
+            const notice = `<div class="order-row"><span style="grid-column:1/-1;color:#af3b2c">Could not load data: ${esc(err.message)}</span></div>`;
+            ['[data-customer-rows]', '[data-queue-rows]', '[data-inventory-rows]', '[data-basket-rows]', '[data-archived-rows]', '[data-attendance-rows]'].forEach((sel) => {
+                const el = app.querySelector(sel);
+                if (el) el.innerHTML = notice;
+            });
+        });
 }

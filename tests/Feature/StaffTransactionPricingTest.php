@@ -24,19 +24,19 @@ function pricingPayload(array $overrides = []): array
 
 it('saves a transaction whose total matches stored prices', function () {
     $this->actingAs(User::factory()->create(['role' => 'staff']))
-        ->postJson('/api/staff/transactions', pricingPayload())
+        ->postJson('/ajax/staff/transactions', pricingPayload())
         ->assertOk();
 });
 
 it('rejects a tampered total', function () {
     $this->actingAs(User::factory()->create(['role' => 'staff']))
-        ->postJson('/api/staff/transactions', pricingPayload(['total_amount' => 1, 'cash_tendered' => 1]))
+        ->postJson('/ajax/staff/transactions', pricingPayload(['total_amount' => 1, 'cash_tendered' => 1]))
         ->assertStatus(422);
 });
 
 it('rejects a self-service charge that does not match a known rate', function () {
     $this->actingAs(User::factory()->create(['role' => 'staff']))
-        ->postJson('/api/staff/transactions', pricingPayload([
+        ->postJson('/ajax/staff/transactions', pricingPayload([
             'transaction_type' => 'self_service',
             'service_id' => null,
             'load_weight_kg' => 5,

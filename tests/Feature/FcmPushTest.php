@@ -67,7 +67,7 @@ it('sends a push to the opted-in device when the order is ready', function () {
     Cache::put("fcm:order:{$order->id}", 'device-token-123', now()->addDay());
 
     $this->actingAs(User::factory()->create(['role' => 'staff']))
-        ->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup'])
+        ->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup'])
         ->assertOk()
         ->assertJsonPath('notify.push', 'sent');
 
@@ -80,7 +80,7 @@ it('does nothing for push when the customer never opted in', function () {
     $order = fcmOrder();
 
     $this->actingAs(User::factory()->create(['role' => 'staff']))
-        ->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup'])
+        ->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup'])
         ->assertJsonPath('notify.push', 'skipped');
 });
 

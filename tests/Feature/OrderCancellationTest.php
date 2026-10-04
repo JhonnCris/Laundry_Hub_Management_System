@@ -19,7 +19,7 @@ function paidOrder(User $staff, int $quantity = 2): array
     ]);
     $customer = Customer::create(['name' => 'Cancel Me', 'contact_number' => '0911']);
 
-    test()->actingAs($staff)->postJson('/api/staff/transactions', [
+    test()->actingAs($staff)->postJson('/ajax/staff/transactions', [
         'customer_id' => $customer->id,
         'transaction_type' => 'drop_off',
         'service_amount' => 0,
@@ -38,16 +38,16 @@ it('cancels an order, returns stock and moves it to the archive records', functi
 
     expect(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(8);
 
-    $before = $this->actingAs($admin)->getJson('/api/admin/bootstrap')->json();
+    $before = $this->actingAs($admin)->getJson('/ajax/admin/bootstrap')->json();
     expect($before['metrics']['period_sales'])->toEqual(40);
 
     $this->actingAs($admin)
-        ->postJson("/api/admin/transactions/{$order->id}/cancel", ['reason' => 'Customer changed mind'])
+        ->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'Customer changed mind'])
         ->assertOk();
 
     expect(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
 
-    $after = $this->actingAs($admin)->getJson('/api/admin/bootstrap')->json();
+    $after = $this->actingAs($admin)->getJson('/ajax/admin/bootstrap')->json();
     expect($after['metrics']['period_sales'])->toEqual(0)
         ->and($after['metrics']['paid_orders'])->toBe(0)
         ->and($after['metrics']['cancelled_orders'])->toBe(1)
@@ -61,9 +61,9 @@ it('only lets admins cancel and requires a reason', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     [$order] = paidOrder($staff);
 
-    $this->actingAs($staff)->postJson("/api/admin/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
-    $this->actingAs($staff)->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
-    $this->actingAs($admin)->postJson("/api/admin/transactions/{$order->id}/cancel", [])->assertStatus(422);
+    $this->actingAs($staff)->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
+    $this->actingAs($admin)->postJson("/ajax/admin/transactions/{$order->id}/cancel", [])->assertStatus(422);
 });
 
 it('cannot cancel a claimed order', function () {
@@ -73,7 +73,7 @@ it('cannot cancel a claimed order', function () {
     $order->update(['status' => 'claimed']);
 
     $this->actingAs($admin)
-        ->postJson("/api/admin/transactions/{$order->id}/cancel", ['reason' => 'too late'])
+        ->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'too late'])
         ->assertStatus(422);
 });
 
@@ -91,7 +91,7 @@ it('blocks an email that already belongs to a staff record', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     Staff::create(['name' => 'Ghost', 'email' => 'ghost@example.com', 'password' => 'x', 'role' => 'staff']);
 
-    $this->actingAs($admin)->postJson('/api/admin/users', [
+    $this->actingAs($admin)->postJson('/ajax/admin/users', [
         'name' => 'Imposter', 'email' => 'ghost@example.com', 'password' => 'password123', 'role' => 'staff',
     ])->assertStatus(422);
 });

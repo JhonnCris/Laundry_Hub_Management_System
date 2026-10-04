@@ -31,6 +31,9 @@ export async function api(url, options = {}) {
         const msg = body?.message || body?.error || `Request failed (${res.status})`;
         throw new Error(msg);
     }
+    if (body === null) {
+        throw new Error(`The server sent an unreadable reply (status ${res.status}). Please refresh; if it keeps happening, check the server logs.`);
+    }
     return body;
 }
 

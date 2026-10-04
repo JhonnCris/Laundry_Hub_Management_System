@@ -12,7 +12,7 @@ export function handleAttendanceClick(t, e, ctx) {
             'Clock in?',
             'Start your shift now? This will be recorded for today.',
             () => {
-                api('/api/staff/attendance/clock-in', { method: 'POST', body: '{}' })
+                api('/ajax/staff/attendance/clock-in', { method: 'POST', body: '{}' })
                     .then((r) => {
                         openNotice('Clock in', r.message || 'Clocked in');
                         ctx.loadStaffBootstrap?.();
@@ -28,7 +28,7 @@ export function handleAttendanceClick(t, e, ctx) {
             'Clock out?',
             'End your shift now? Make sure you are done for the day.',
             () => {
-                api('/api/staff/attendance/clock-out', { method: 'POST', body: '{}' })
+                api('/ajax/staff/attendance/clock-out', { method: 'POST', body: '{}' })
                     .then((r) => {
                         openNotice('Clock out', r.message || 'Clocked out');
                         ctx.loadStaffBootstrap?.();

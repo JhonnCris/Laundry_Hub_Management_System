@@ -24,7 +24,7 @@ function processingOrder(array $customer): LaundryTransaction
 function markReady(LaundryTransaction $order)
 {
     return test()->actingAs(User::factory()->create(['role' => 'staff']))
-        ->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup']);
+        ->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup']);
 }
 
 it('emails and texts the customer when the order is ready for pickup', function () {
@@ -70,7 +70,7 @@ it('treats a repeated status request as a harmless no-op', function () {
     $order = processingOrder(['name' => 'Repeat']);
 
     test()->actingAs(User::factory()->create(['role' => 'staff']))
-        ->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'processing'])
+        ->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'processing'])
         ->assertOk()
         ->assertJsonPath('message', 'Already up to date.');
 });

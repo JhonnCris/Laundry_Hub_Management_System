@@ -51,7 +51,7 @@ it('rejects an order for more stock than exists', function () {
     $itemId = snackItem(2);
 
     $this->actingAs(staffUser())
-        ->postJson('/api/staff/transactions', purchasePayload($itemId, 5))
+        ->postJson('/ajax/staff/transactions', purchasePayload($itemId, 5))
         ->assertStatus(422);
 
     expect(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(2);
@@ -61,7 +61,7 @@ it('rejects oversized quantities', function () {
     $itemId = snackItem(500);
 
     $this->actingAs(staffUser())
-        ->postJson('/api/staff/transactions', purchasePayload($itemId, 500))
+        ->postJson('/ajax/staff/transactions', purchasePayload($itemId, 500))
         ->assertStatus(422);
 });
 
@@ -70,8 +70,8 @@ it('rejects the same payment token submitted twice', function () {
     $payload = purchasePayload($itemId, 1, ['client_token' => 'abc-123']);
     $user = staffUser();
 
-    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertOk();
-    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertStatus(409);
+    $this->actingAs($user)->postJson('/ajax/staff/transactions', $payload)->assertOk();
+    $this->actingAs($user)->postJson('/ajax/staff/transactions', $payload)->assertStatus(409);
 
     expect(LaundryTransaction::count())->toBe(1);
 });
@@ -79,12 +79,12 @@ it('rejects the same payment token submitted twice', function () {
 it('enforces order status transitions and admin-only cancellation', function () {
     $itemId = snackItem(10);
     $staff = staffUser();
-    $this->actingAs($staff)->postJson('/api/staff/transactions', purchasePayload($itemId, 1))->assertOk();
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1))->assertOk();
     $order = LaundryTransaction::first();
 
-    $this->actingAs($staff)->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'claimed'])->assertStatus(422);
-    $this->actingAs($staff)->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
-    $this->actingAs($staff)->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'processing'])->assertOk();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'claimed'])->assertStatus(422);
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'processing'])->assertOk();
 });
 
 it('does not allow role or verification to be mass assigned', function () {
@@ -96,7 +96,7 @@ it('does not allow role or verification to be mass assigned', function () {
 it('creates admin-made users as verified with the chosen role', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 
-    $this->actingAs($admin)->postJson('/api/admin/users', [
+    $this->actingAs($admin)->postJson('/ajax/admin/users', [
         'name' => 'New Staff', 'email' => 'new@example.com', 'password' => 'password123', 'role' => 'staff',
     ])->assertCreated();
 
@@ -116,11 +116,11 @@ it('lets the cashier retry with the same token after a failed (unsaved) payment'
     $payload = purchasePayload($itemId, 5, ['client_token' => 'retry-1']);
     $user = staffUser();
 
-    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertStatus(422);
+    $this->actingAs($user)->postJson('/ajax/staff/transactions', $payload)->assertStatus(422);
 
     $payload['items'][0]['quantity'] = 1;
     $payload['total_amount'] = 10;
-    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertOk();
+    $this->actingAs($user)->postJson('/ajax/staff/transactions', $payload)->assertOk();
 });
 
 it('shows which customer holds a basket and refuses to hand it out twice', function () {
@@ -129,12 +129,12 @@ it('shows which customer holds a basket and refuses to hand it out twice', funct
     $staff = staffUser();
     $laundry = fn () => purchasePayload($itemId, 1, ['basket_code' => '#050']);
 
-    $this->actingAs($staff)->postJson('/api/staff/transactions', $laundry())->assertOk();
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $laundry())->assertOk();
 
-    $bootstrap = $this->actingAs($staff)->getJson('/api/staff/bootstrap')->json();
+    $bootstrap = $this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json();
     $basket = collect($bootstrap['baskets'])->firstWhere('id', $basketId);
     expect($basket['assigned']['customer'])->toBe('Buyer')
         ->and(collect($bootstrap['available_baskets'])->pluck('id'))->not->toContain($basketId);
 
-    $this->actingAs($staff)->postJson('/api/staff/transactions', $laundry())->assertStatus(422);
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $laundry())->assertStatus(422);
 });

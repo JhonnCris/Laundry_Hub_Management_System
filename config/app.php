@@ -41,6 +41,9 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    // Turn the strict Content-Security-Policy on outside production (testing). Always on in production.
+    'strict_csp' => (bool) env('STRICT_CSP', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL

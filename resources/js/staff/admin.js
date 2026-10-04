@@ -718,7 +718,7 @@ function openActivityDetail(app, txId) {
         }
     };
 
-    api(`/api/admin/transactions/${txId}`)
+    api(`/ajax/admin/transactions/${txId}`)
         .then((r) => paint(r.transaction || r))
         .catch((err) => {
             if (local) paint(local);
@@ -1081,7 +1081,7 @@ function buildFullReport(app, meta = []) {
 
 export function loadAdminBootstrap(app) {
     const q = rangeQuery(app);
-    return api('/api/admin/bootstrap' + q)
+    return api('/ajax/admin/bootstrap' + q)
         .then((data) => {
             app._adminBootstrap = data;
             if (data.range) {
@@ -1256,7 +1256,7 @@ export function handleAdminClick(t, e, ctx) {
         const format = document.querySelector('[data-export-format]')?.value === 'csv' ? 'csv' : 'pdf';
         const data = app._adminBootstrap || {};
         const err = document.querySelector('[data-export-error]');
-        api('/api/admin/exports', {
+        api('/ajax/admin/exports', {
             method: 'POST',
             body: JSON.stringify({ report, format, from: data.range?.from || null, to: data.range?.to || null }),
         })
@@ -1277,7 +1277,7 @@ export function handleAdminClick(t, e, ctx) {
     if (dismissBtn) {
         e.preventDefault();
         dismissBtn.disabled = true;
-        api(`/api/admin/notifications/${dismissBtn.dataset.dismissAlert}/read`, { method: 'POST', body: '{}' })
+        api(`/ajax/admin/notifications/${dismissBtn.dataset.dismissAlert}/read`, { method: 'POST', body: '{}' })
             .then(() => loadAdminBootstrap(app))
             .catch((ex) => {
                 dismissBtn.disabled = false;
@@ -1373,7 +1373,7 @@ export function handleAdminClick(t, e, ctx) {
             }
             return true;
         }
-        api(`/api/admin/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
+        api(`/ajax/admin/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
             .then((r) => {
                 hideModal('[data-cancel-order-modal]');
                 hideModal('[data-activity-modal]');
@@ -1393,7 +1393,7 @@ export function handleAdminClick(t, e, ctx) {
     const approveBtn = t.closest('[data-approve-user]');
     if (approveBtn) {
         e.preventDefault();
-        api(`/api/admin/users/${approveBtn.dataset.approveUser}`, {
+        api(`/ajax/admin/users/${approveBtn.dataset.approveUser}`, {
             method: 'PATCH',
             body: JSON.stringify({ role: 'staff' }),
         })
@@ -1439,7 +1439,7 @@ export function handleAdminClick(t, e, ctx) {
         };
         const pw = val('[data-edit-user-password]');
         if (pw) body.password = pw;
-        api(`/api/admin/users/${val('[data-edit-user-id]')}`, { method: 'PATCH', body: JSON.stringify(body) })
+        api(`/ajax/admin/users/${val('[data-edit-user-id]')}`, { method: 'PATCH', body: JSON.stringify(body) })
             .then(() => {
                 hideModal('[data-edit-user-modal]');
                 openNotice('User updated', body.email);
@@ -1484,7 +1484,7 @@ export function handleAdminClick(t, e, ctx) {
             }
             return true;
         }
-        api('/api/admin/users', {
+        api('/ajax/admin/users', {
             method: 'POST',
             body: JSON.stringify({ name, email, password, role }),
         })
@@ -1530,7 +1530,7 @@ export function handleAdminClick(t, e, ctx) {
             }
             return true;
         }
-        api('/api/admin/inventory', {
+        api('/ajax/admin/inventory', {
             method: 'POST',
             body: JSON.stringify({
                 name,
@@ -1607,7 +1607,7 @@ export function handleAdminClick(t, e, ctx) {
             'Confirm stock receipt?',
             `Update inventory with ${qty} received${supplier ? ' from ' + supplier : ''}.${invoice ? ' Invoice ' + invoice + '.' : ''}${mismatch} This cannot be undone from here.`,
             () => {
-                api('/api/admin/procurement', {
+                api('/ajax/admin/procurement', {
                     method: 'POST',
                     body: JSON.stringify({
                         inventory_item_id: itemId,

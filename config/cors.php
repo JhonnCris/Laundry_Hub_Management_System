@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'paths' => ['api/*'],
+    'paths' => ['ajax/*'],
     'allowed_methods' => ['GET', 'POST', 'PATCH'],
     // Same-origin app only: never "*" for authenticated endpoints.
     'allowed_origins' => [env('APP_URL', 'http://localhost')],

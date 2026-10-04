@@ -31,6 +31,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
             RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->ipThrottleKey(), 900);
 
             throw ValidationException::withMessages([
                 'email' => __('auth.failed'),
@@ -55,13 +56,19 @@ new #[Layout('components.layouts.auth')] class extends Component {
      */
     protected function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $byEmail = RateLimiter::tooManyAttempts($this->throttleKey(), 5);
+        $byIp = RateLimiter::tooManyAttempts($this->ipThrottleKey(), 20);
+
+        if (! $byEmail && ! $byIp) {
             return;
         }
 
         event(new Lockout(request()));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = max(
+            RateLimiter::availableIn($this->throttleKey()),
+            $byIp ? RateLimiter::availableIn($this->ipThrottleKey()) : 0
+        );
 
         throw ValidationException::withMessages([
             'email' => __('auth.throttle', [
@@ -74,6 +81,12 @@ new #[Layout('components.layouts.auth')] class extends Component {
     /**
      * Get the authentication rate limiting throttle key.
      */
+    /** Failed sign-ins from one address across all emails (20 per 15 minutes). */
+    protected function ipThrottleKey(): string
+    {
+        return 'login-ip|'.request()->ip();
+    }
+
     protected function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->email).'|'.request()->ip());

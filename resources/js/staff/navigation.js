@@ -93,7 +93,7 @@ export function handleNavigationClick(t, e, ctx) {
         e.preventDefault();
         const id = machBtn.dataset.machineStatus;
         const st = machBtn.dataset.setMachine;
-        api(`/api/staff/machines/${id}/status`, {
+        api(`/ajax/staff/machines/${id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ status: st }),
         })

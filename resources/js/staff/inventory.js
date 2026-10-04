@@ -20,7 +20,7 @@ export function handleInventoryClick(t, e, ctx) {
     if (notifyBtn) {
         e.preventDefault();
         notifyBtn.disabled = true;
-        api(`/api/staff/inventory/${notifyBtn.dataset.notifyLow}/notify-low`, { method: 'POST', body: '{}' })
+        api(`/ajax/staff/inventory/${notifyBtn.dataset.notifyLow}/notify-low`, { method: 'POST', body: '{}' })
             .then((r) => {
                 notifyBtn.textContent = 'Admin notified ✓';
                 openNotice('Admin notified', r.message || 'The admin will see this in their alerts.');
@@ -57,7 +57,7 @@ export function handleInventoryClick(t, e, ctx) {
             }
             return true;
         }
-        api('/api/staff/baskets', {
+        api('/ajax/staff/baskets', {
             method: 'POST',
             body: JSON.stringify({ code }),
         })
@@ -96,7 +96,7 @@ export function handleInventoryClick(t, e, ctx) {
             'Archive stock?',
             `Remove ${qty} of ${itemLabel} as ${reason}. This reduces inventory quantity.`,
             () => {
-                api(`/api/staff/inventory/${itemId}/archive`, {
+                api(`/ajax/staff/inventory/${itemId}/archive`, {
                     method: 'POST',
                     body: JSON.stringify({ reason, quantity: qty }),
                 })

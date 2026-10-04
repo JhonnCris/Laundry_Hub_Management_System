@@ -32,3 +32,5 @@ firebase-service-account*.json
 /data.sql
 *.sql
 /vercel.env
+/vercel-db.env
+/vercel*.env

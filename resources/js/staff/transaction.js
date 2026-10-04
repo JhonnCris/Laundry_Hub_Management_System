@@ -394,7 +394,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (confirmBtn) confirmBtn.disabled = true;
         try {
             const payload = buildSavePayload(s, cash);
-            const result = await api('/api/staff/transactions', {
+            const result = await api('/ajax/staff/transactions', {
                 method: 'POST',
                 body: JSON.stringify(payload),
             });
@@ -633,7 +633,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             const sendBtn = t.closest('[data-send-receipt-sms]');
             sendBtn.disabled = true;
             if (smsNotice) smsNotice.textContent = 'Sending…';
-            api(`/api/staff/transactions/${app._receiptTransactionId}/receipt-sms`, { method: 'POST', body: '{}' })
+            api(`/ajax/staff/transactions/${app._receiptTransactionId}/receipt-sms`, { method: 'POST', body: '{}' })
                 .then((r) => {
                     const words = {
                         sent: 'Receipt sent by SMS.',

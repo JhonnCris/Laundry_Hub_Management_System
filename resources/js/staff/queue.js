@@ -64,7 +64,7 @@ export function handleQueueClick(t, e, ctx) {
         const search = document.querySelector('[data-history-search]');
         if (search) search.value = '';
         showModal('[data-history-modal]');
-        api('/api/staff/history')
+        api('/ajax/staff/history')
             .then((r) => renderHistory(r.orders || []))
             .catch((ex) => openNotice('History', ex.message));
         return true;
@@ -83,7 +83,7 @@ export function handleQueueClick(t, e, ctx) {
     const label = statusLabel(next);
     const isUndo = statusBtn.dataset.undo === '1';
     const run = () =>
-        api(`/api/staff/transactions/${id}/status`, {
+        api(`/ajax/staff/transactions/${id}/status`, {
             method: 'PATCH',
             body: JSON.stringify({ status: next }),
         })
