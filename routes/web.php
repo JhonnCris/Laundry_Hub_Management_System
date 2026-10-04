@@ -17,6 +17,7 @@ Route::get('firebase-messaging-sw.js', [NotifyController::class, 'serviceWorker'
 Route::middleware(['signed', 'throttle:30,1'])->group(function () {
     Route::get('notify/{transaction}', [NotifyController::class, 'show'])->name('notify.show');
     Route::post('notify/{transaction}', [NotifyController::class, 'subscribe'])->name('notify.subscribe');
+    Route::post('notify/{transaction}/test', [NotifyController::class, 'test'])->name('notify.test');
 });
 
 Route::get('dashboard', function () {

@@ -48,9 +48,19 @@ class FcmService
     /** @return 'sent'|'invalid'|'failed' */
     public function send(string $deviceToken, string $title, string $body, string $link): string
     {
+        return $this->sendWithDetail($deviceToken, $title, $body, $link)['result'];
+    }
+
+    /**
+     * Same as send(), but also returns Google's own explanation (used by the phone self-test).
+     *
+     * @return array{result: 'sent'|'invalid'|'failed', detail: string}
+     */
+    public function sendWithDetail(string $deviceToken, string $title, string $body, string $link): array
+    {
         $credentials = $this->credentials();
         if ($credentials === null) {
-            return 'failed';
+            return ['result' => 'failed', 'detail' => 'The server has no valid Firebase key configured.'];
         }
 
         try {
@@ -71,15 +81,22 @@ class FcmService
         } catch (\Throwable $e) {
             Log::warning('FCM request failed', ['error' => $e->getMessage()]);
 
-            return 'failed';
+            return ['result' => 'failed', 'detail' => 'Could not reach Google: '.$e->getMessage()];
         }
 
         if ($response->successful()) {
-            return 'sent';
+            return ['result' => 'sent', 'detail' => 'Google accepted the message.'];
         }
 
+        $status = (string) $response->json('error.status');
+        $detail = trim($status.' '.$response->json('error.message'));
+        Log::warning('FCM rejected a push', ['status' => $response->status(), 'error' => $detail]);
+
         // The device unsubscribed or the token expired: caller should forget it.
-        return in_array($response->json('error.status'), ['NOT_FOUND', 'INVALID_ARGUMENT', 'UNREGISTERED'], true) ? 'invalid' : 'failed';
+        return [
+            'result' => in_array($status, ['NOT_FOUND', 'INVALID_ARGUMENT', 'UNREGISTERED'], true) ? 'invalid' : 'failed',
+            'detail' => $detail !== '' ? $detail : 'Google refused the message (HTTP '.$response->status().').',
+        ];
     }
 
     private function projectId(): ?string

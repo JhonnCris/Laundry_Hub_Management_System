@@ -106,3 +106,22 @@ it('reads the Firebase key from a base64 environment value when no file exists',
     config(['services.fcm.credentials_base64' => base64_encode('not json')]);
     expect(app(FcmService::class)->isConfigured())->toBeFalse();
 });
+
+it('lets the phone self-test send one push and report Google\'s answer', function () {
+    fcmConfigured();
+    Http::fake([
+        'oauth2.googleapis.com/*' => Http::response(['access_token' => 'tok'], 200),
+        'fcm.googleapis.com/*' => Http::response(['error' => ['status' => 'UNREGISTERED', 'message' => 'Requested entity was not found.']], 404),
+    ]);
+    $order = fcmOrder();
+    $url = URL::temporarySignedRoute('notify.test', now()->addHour(), ['transaction' => $order->id]);
+
+    // nobody signed up yet
+    $this->postJson($url)->assertOk()->assertJsonPath('result', 'no_token');
+
+    Cache::put("fcm:order:{$order->id}", 'dead-token', now()->addDay());
+    $this->postJson($url)->assertOk()->assertJsonPath('result', 'invalid')->assertJsonPath('detail', 'UNREGISTERED Requested entity was not found.');
+
+    // unsigned requests are refused
+    $this->postJson("/notify/{$order->id}/test")->assertForbidden();
+});
