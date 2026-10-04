@@ -1,6 +1,5 @@
 /.phpunit.cache
 /node_modules
-/public/build
 /public/hot
 /public/storage
 /storage/*.key
@@ -27,3 +26,9 @@ yarn-error.log
 
 *firebase*adminsdk*.json
 firebase-service-account*.json
+
+# local-only database connection / dumps (never commit)
+/.env.tidb
+/data.sql
+*.sql
+/vercel.env

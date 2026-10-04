@@ -6,6 +6,8 @@ return [
     'fcm' => [
         'project_id' => env('FCM_PROJECT_ID'),
         'credentials' => env('FCM_CREDENTIALS', 'storage/app/firebase-service-account.json'),
+        // Base64 of the service-account JSON, for hosts without a writable/persistent disk (Vercel).
+        'credentials_base64' => env('FCM_CREDENTIALS_BASE64'),
         'web' => [
             'apiKey' => env('FCM_WEB_API_KEY'),
             'authDomain' => env('FCM_WEB_AUTH_DOMAIN'),

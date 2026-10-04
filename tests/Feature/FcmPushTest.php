@@ -3,6 +3,7 @@
 use App\Models\Customer;
 use App\Models\LaundryTransaction;
 use App\Models\User;
+use App\Services\FcmService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -88,4 +89,18 @@ it('serves the service worker only when Firebase web settings exist', function (
 
     fcmConfigured();
     $this->get('/firebase-messaging-sw.js')->assertOk()->assertSee('firebase.initializeApp', false);
+});
+
+it('reads the Firebase key from a base64 environment value when no file exists', function () {
+    fcmConfigured();
+    $json = file_get_contents(config('services.fcm.credentials'));
+    config([
+        'services.fcm.credentials' => 'storage/app/does-not-exist.json',
+        'services.fcm.credentials_base64' => base64_encode($json),
+    ]);
+
+    expect(app(FcmService::class)->isConfigured())->toBeTrue();
+
+    config(['services.fcm.credentials_base64' => base64_encode('not json')]);
+    expect(app(FcmService::class)->isConfigured())->toBeFalse();
 });

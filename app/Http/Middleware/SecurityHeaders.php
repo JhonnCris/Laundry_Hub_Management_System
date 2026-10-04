@@ -19,6 +19,10 @@ class SecurityHeaders
         // Conservative CSP: blocks framing, plugins and off-site form posts without breaking inline Livewire/Vite scripts.
         $response->headers->set('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
 
+        if ($request->isSecure() && app()->isProduction()) {
+            $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+        }
+
         return $response;
     }
 }

@@ -58,7 +58,13 @@ return [
             'ignore_exceptions' => false,
         ],
 
-        'audit' => [
+        'audit' => env('VERCEL') ? [
+            'driver' => 'monolog',
+            'level' => 'info',
+            'handler' => StreamHandler::class,
+            'with' => ['stream' => 'php://stderr'],
+            'processors' => [PsrLogMessageProcessor::class],
+        ] : [
             'driver' => 'daily',
             'path' => storage_path('logs/audit.log'),
             'level' => 'info',

@@ -85,6 +85,13 @@ class FcmService
     /** @return array<string, string>|null */
     private function credentials(): ?array
     {
+        $encoded = config('services.fcm.credentials_base64');
+        if (filled($encoded)) {
+            $json = json_decode((string) base64_decode($encoded, true), true);
+
+            return is_array($json) && isset($json['client_email'], $json['private_key']) ? $json : null;
+        }
+
         $path = config('services.fcm.credentials');
         if (blank($path)) {
             return null;
