@@ -1,0 +1,15 @@
+/vendor
+/node_modules
+/tests
+/.git
+/.github
+/.claude
+/.kilo
+/.phpunit.cache
+/public/hot
+/storage/logs
+/storage/framework
+.env
+.env.*
+!.env.example
+database/*.sqlite

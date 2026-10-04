@@ -27,3 +27,8 @@ yarn-error.log
 
 *firebase*adminsdk*.json
 firebase-service-account*.json
+
+# local-only database connection / dumps (never commit)
+/.env.tidb
+/data.sql
+*.sql
