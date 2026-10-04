@@ -57,7 +57,11 @@ class StaffApiController extends Controller
         $inventory = InventoryItem::query()->with('category:id,name')->orderBy('name')->get();
         $activeInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') === 'active')->values();
         $archivedInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') !== 'active')->values();
-        $customers = Customer::query()->orderBy('name')->get(['id', 'name', 'contact_number', 'email']);
+        $customers = Customer::query()
+            ->withCount('transactions')
+            ->withMax('transactions', 'created_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'contact_number', 'email']);
 
         $activeLaundry = LaundryTransaction::query()
             ->with(['customer:id,name', 'basketTag:id,code', 'service:id,name', 'machine:id,name'])
@@ -65,6 +69,21 @@ class StaffApiController extends Controller
             ->latest()
             ->limit(50)
             ->get();
+
+        // Who currently holds each basket: the customer of its latest unfinished order.
+        $basketAssignments = LaundryTransaction::query()
+            ->with('customer:id,name')
+            ->whereNotNull('basket_tag_id')
+            ->whereIn('status', ['pending', 'processing', 'ready_for_pickup'])
+            ->latest()
+            ->get()
+            ->unique('basket_tag_id')
+            ->mapWithKeys(fn ($t) => [$t->basket_tag_id => [
+                'order_id' => $t->id,
+                'customer' => $t->customer?->name,
+                'order_status' => $t->status,
+            ]])
+            ->all();
 
         $attendance = null;
         $recentAttendance = collect();
@@ -84,15 +103,13 @@ class StaffApiController extends Controller
         $detergents = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Detergent', 'Consumable'], true))->values();
 
         $customersWithStats = $customers->map(function ($c) {
-            $tx = LaundryTransaction::query()->where('customer_id', $c->id);
-
             return [
                 'id' => $c->id,
                 'name' => $c->name,
                 'contact_number' => $c->contact_number,
                 'email' => $c->email,
-                'orders_count' => (clone $tx)->count(),
-                'last_service' => optional((clone $tx)->latest('created_at')->first())->created_at,
+                'orders_count' => $c->transactions_count,
+                'last_service' => $c->transactions_max_created_at,
             ];
         });
 
@@ -132,8 +149,13 @@ class StaffApiController extends Controller
             'garment_types' => $garments,
             'services' => $services,
             'machines' => $machines,
-            'baskets' => $baskets,
-            'available_baskets' => $baskets->where('status', 'available')->values(),
+            'baskets' => $baskets->map(fn ($b) => [
+                'id' => $b->id,
+                'code' => $b->code,
+                'status' => $b->status,
+                'assigned' => $basketAssignments[$b->id] ?? null,
+            ])->values(),
+            'available_baskets' => $baskets->where('status', 'available')->reject(fn ($b) => isset($basketAssignments[$b->id]))->values(),
             'inventory' => $activeInventory->values(),
             'archived_inventory' => $archivedInventory->values(),
             'snacks' => $snacks,
@@ -191,150 +213,170 @@ class StaffApiController extends Controller
         $customer = Customer::query()->findOrFail($data['customer_id']);
 
         // Same payment submitted twice (double click / replay) is rejected.
-        if (! empty($data['client_token']) && ! Cache::add('tx-token:'.Auth::id().':'.$data['client_token'], true, 30)) {
+        $tokenKey = ! empty($data['client_token']) ? 'tx-token:'.Auth::id().':'.$data['client_token'] : null;
+        if ($tokenKey && ! Cache::add($tokenKey, true, 30)) {
             return response()->json(['message' => 'This payment was already submitted. Check Active Laundry before trying again.'], 409);
         }
 
-        $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId) {
-            $basketId = null;
-            if (! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
-                $basket = BasketTag::query()->where('code', $data['basket_code'])->first();
-                if ($basket) {
-                    $basket->update(['status' => 'in_use']);
-                    $basketId = $basket->id;
+        try {
+            $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId) {
+                $basketId = null;
+                if (! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
+                    $basket = BasketTag::query()->where('code', $data['basket_code'])->first();
+                    if ($basket) {
+                        $holder = LaundryTransaction::query()
+                            ->with('customer:id,name')
+                            ->where('basket_tag_id', $basket->id)
+                            ->whereIn('status', ['pending', 'processing', 'ready_for_pickup'])
+                            ->first();
+                        if ($holder) {
+                            throw ValidationException::withMessages([
+                                'basket_code' => "Basket {$basket->code} is already in use by ".($holder->customer?->name ?? 'another customer').'. Pick another basket.',
+                            ]);
+                        }
+                        $basket->update(['status' => 'in_use']);
+                        $basketId = $basket->id;
+                    }
                 }
-            }
 
-            $detergentQty = (int) ($data['detergent_quantity'] ?? 0);
-            $detergentId = $data['detergent_item_id'] ?? null;
-            if ($detergentQty <= 0) {
-                $detergentId = null;
-            }
+                $detergentQty = (int) ($data['detergent_quantity'] ?? 0);
+                $detergentId = $data['detergent_item_id'] ?? null;
+                if ($detergentQty <= 0) {
+                    $detergentId = null;
+                }
 
-            // Never trust client-side prices: flat services use the stored price,
-            // per-kg self-service must match a known rate × billable kg.
-            $subtotal = (float) $data['service_amount'];
-            if ($data['transaction_type'] === 'drop_off' && ! empty($data['service_id'])) {
-                $subtotal = (float) Service::query()->whereKey($data['service_id'])->value('base_price');
-            } elseif ($data['transaction_type'] === 'self_service') {
-                $billableKg = max((float) $data['load_weight_kg'], 3);
-                $validRate = collect([20, 25, 40])->contains(
-                    fn ($rate) => abs($rate * $billableKg - $subtotal) < 0.01
-                );
-                if (! $validRate) {
-                    throw ValidationException::withMessages([
-                        'service_amount' => 'Service charge does not match the load weight. Please refresh and try again.',
-                    ]);
-                }
-            }
-            foreach ($data['items'] ?? [] as $line) {
-                $item = InventoryItem::query()->find($line['inventory_item_id']);
-                if ($item) {
-                    $subtotal += (float) $item->unit_price * (int) $line['quantity'];
-                }
-            }
-            if ($detergentId && $detergentQty > 0) {
-                $det = InventoryItem::query()->find($detergentId);
-                if ($det) {
-                    $subtotal += (float) $det->unit_price * $detergentQty;
-                }
-            }
-            if (abs($subtotal - $total) > 0.01) {
-                throw ValidationException::withMessages([
-                    'total_amount' => 'Total does not match current prices. Please refresh and try again.',
-                ]);
-            }
-
-            $txn = LaundryTransaction::query()->create([
-                'customer_id' => $customer->id,
-                'basket_tag_id' => $basketId,
-                'machine_id' => $data['machine_id'] ?? null,
-                'machine_time_slot_id' => null,
-                'service_id' => $data['service_id'] ?? null,
-                'detergent_item_id' => $detergentId,
-                'detergent_quantity' => $detergentQty,
-                'handled_by' => $staffId,
-                'transaction_type' => $data['transaction_type'],
-                'status' => $data['transaction_type'] === 'self_service' ? 'processing' : 'pending',
-                'payment_status' => 'paid',
-                'subtotal' => $subtotal,
-                'total_amount' => $total,
-                'cash_tendered' => $cash,
-                'change_given' => $cash - $total,
-                'notes' => $data['notes'] ?? null,
-                'load_weight_kg' => $data['load_weight_kg'] ?? null,
-                'cycle_minutes' => $data['cycle_minutes'] ?? null,
-            ]);
-
-            foreach ($data['garments'] ?? [] as $g) {
-                if ((int) $g['quantity'] <= 0) {
-                    continue;
-                }
-                $type = GarmentType::query()->firstOrCreate(
-                    ['name' => $g['name']],
-                    ['is_custom' => true]
-                );
-                TransactionGarment::query()->updateOrCreate(
-                    [
-                        'laundry_transaction_id' => $txn->id,
-                        'garment_type_id' => $type->id,
-                    ],
-                    ['quantity' => (int) $g['quantity']]
-                );
-            }
-
-            foreach ($data['items'] ?? [] as $line) {
-                $item = InventoryItem::query()->lockForUpdate()->find($line['inventory_item_id']);
-                if (! $item) {
-                    continue;
-                }
-                $qty = (int) $line['quantity'];
-                if ($item->quantity_on_hand < $qty) {
-                    throw ValidationException::withMessages([
-                        'items' => "Not enough stock for {$item->name} ({$item->quantity_on_hand} left).",
-                    ]);
-                }
-                $unit = (float) $item->unit_price;
-                TransactionItem::query()->create([
-                    'laundry_transaction_id' => $txn->id,
-                    'inventory_item_id' => $item->id,
-                    'quantity' => $qty,
-                    'unit_price' => $unit,
-                    'line_total' => $unit * $qty,
-                ]);
-                $item->decrement('quantity_on_hand', $qty);
-            }
-
-            if ($detergentId && $detergentQty > 0) {
-                $det = InventoryItem::query()->lockForUpdate()->find($detergentId);
-                if ($det) {
-                    if ($det->quantity_on_hand < $detergentQty) {
+                // Never trust client-side prices: flat services use the stored price,
+                // per-kg self-service must match a known rate × billable kg.
+                $subtotal = (float) $data['service_amount'];
+                if ($data['transaction_type'] === 'drop_off' && ! empty($data['service_id'])) {
+                    $subtotal = (float) Service::query()->whereKey($data['service_id'])->value('base_price');
+                } elseif ($data['transaction_type'] === 'self_service') {
+                    $billableKg = max((float) $data['load_weight_kg'], 3);
+                    $validRate = collect([20, 25, 40])->contains(
+                        fn ($rate) => abs($rate * $billableKg - $subtotal) < 0.01
+                    );
+                    if (! $validRate) {
                         throw ValidationException::withMessages([
-                            'detergent_quantity' => "Not enough stock for {$det->name} ({$det->quantity_on_hand} left).",
+                            'service_amount' => 'Service charge does not match the load weight. Please refresh and try again.',
                         ]);
                     }
-                    $det->decrement('quantity_on_hand', $detergentQty);
                 }
+                foreach ($data['items'] ?? [] as $line) {
+                    $item = InventoryItem::query()->find($line['inventory_item_id']);
+                    if ($item) {
+                        $subtotal += (float) $item->unit_price * (int) $line['quantity'];
+                    }
+                }
+                if ($detergentId && $detergentQty > 0) {
+                    $det = InventoryItem::query()->find($detergentId);
+                    if ($det) {
+                        $subtotal += (float) $det->unit_price * $detergentQty;
+                    }
+                }
+                if (abs($subtotal - $total) > 0.01) {
+                    throw ValidationException::withMessages([
+                        'total_amount' => 'Total does not match current prices. Please refresh and try again.',
+                    ]);
+                }
+
+                $txn = LaundryTransaction::query()->create([
+                    'customer_id' => $customer->id,
+                    'basket_tag_id' => $basketId,
+                    'machine_id' => $data['machine_id'] ?? null,
+                    'machine_time_slot_id' => null,
+                    'service_id' => $data['service_id'] ?? null,
+                    'detergent_item_id' => $detergentId,
+                    'detergent_quantity' => $detergentQty,
+                    'handled_by' => $staffId,
+                    'transaction_type' => $data['transaction_type'],
+                    'status' => $data['transaction_type'] === 'self_service' ? 'processing' : 'pending',
+                    'payment_status' => 'paid',
+                    'subtotal' => $subtotal,
+                    'total_amount' => $total,
+                    'cash_tendered' => $cash,
+                    'change_given' => $cash - $total,
+                    'notes' => $data['notes'] ?? null,
+                    'load_weight_kg' => $data['load_weight_kg'] ?? null,
+                    'cycle_minutes' => $data['cycle_minutes'] ?? null,
+                ]);
+
+                foreach ($data['garments'] ?? [] as $g) {
+                    if ((int) $g['quantity'] <= 0) {
+                        continue;
+                    }
+                    $type = GarmentType::query()->firstOrCreate(
+                        ['name' => $g['name']],
+                        ['is_custom' => true]
+                    );
+                    TransactionGarment::query()->updateOrCreate(
+                        [
+                            'laundry_transaction_id' => $txn->id,
+                            'garment_type_id' => $type->id,
+                        ],
+                        ['quantity' => (int) $g['quantity']]
+                    );
+                }
+
+                foreach ($data['items'] ?? [] as $line) {
+                    $item = InventoryItem::query()->lockForUpdate()->find($line['inventory_item_id']);
+                    if (! $item) {
+                        continue;
+                    }
+                    $qty = (int) $line['quantity'];
+                    if ($item->quantity_on_hand < $qty) {
+                        throw ValidationException::withMessages([
+                            'items' => "Not enough stock for {$item->name} ({$item->quantity_on_hand} left).",
+                        ]);
+                    }
+                    $unit = (float) $item->unit_price;
+                    TransactionItem::query()->create([
+                        'laundry_transaction_id' => $txn->id,
+                        'inventory_item_id' => $item->id,
+                        'quantity' => $qty,
+                        'unit_price' => $unit,
+                        'line_total' => $unit * $qty,
+                    ]);
+                    $item->decrement('quantity_on_hand', $qty);
+                }
+
+                if ($detergentId && $detergentQty > 0) {
+                    $det = InventoryItem::query()->lockForUpdate()->find($detergentId);
+                    if ($det) {
+                        if ($det->quantity_on_hand < $detergentQty) {
+                            throw ValidationException::withMessages([
+                                'detergent_quantity' => "Not enough stock for {$det->name} ({$det->quantity_on_hand} left).",
+                            ]);
+                        }
+                        $det->decrement('quantity_on_hand', $detergentQty);
+                    }
+                }
+
+                TransactionStatusLog::query()->create([
+                    'laundry_transaction_id' => $txn->id,
+                    'status' => $txn->status,
+                    'changed_by' => $staffId,
+                    'changed_at' => now(),
+                ]);
+
+                FinanceTransaction::query()->create([
+                    'type' => 'income',
+                    'description' => 'Laundry order #'.$txn->id,
+                    'amount' => $total,
+                    'staff_id' => $staffId,
+                    'laundry_transaction_id' => $txn->id,
+                    'transaction_date' => today(),
+                ]);
+
+                return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes']);
+            });
+        } catch (\Throwable $e) {
+            // The order was NOT saved (e.g. not enough stock): let the cashier fix it and retry.
+            if ($tokenKey) {
+                Cache::forget($tokenKey);
             }
 
-            TransactionStatusLog::query()->create([
-                'laundry_transaction_id' => $txn->id,
-                'status' => $txn->status,
-                'changed_by' => $staffId,
-                'changed_at' => now(),
-            ]);
-
-            FinanceTransaction::query()->create([
-                'type' => 'income',
-                'description' => 'Laundry order #'.$txn->id,
-                'amount' => $total,
-                'staff_id' => $staffId,
-                'laundry_transaction_id' => $txn->id,
-                'transaction_date' => today(),
-            ]);
-
-            return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes']);
-        });
+            throw $e;
+        }
 
         $this->audit('order.created', ['order_id' => $tx->id, 'total' => (float) $tx->total_amount, 'type' => $tx->transaction_type]);
 
@@ -366,6 +408,10 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'Use Cancel order in the admin console so stock and sales are corrected.'], 422);
         }
 
+        if ($data['status'] === $transaction->status) {
+            return response()->json(['message' => 'Already up to date.', 'transaction' => $transaction, 'notify' => null]);
+        }
+
         $allowed = [
             'pending' => ['processing'],
             'processing' => ['pending', 'ready_for_pickup'],
@@ -389,7 +435,14 @@ class StaffApiController extends Controller
             ]);
 
             if ($data['status'] === 'claimed' && $transaction->basket_tag_id) {
-                BasketTag::query()->where('id', $transaction->basket_tag_id)->update(['status' => 'available']);
+                $stillHeld = LaundryTransaction::query()
+                    ->where('basket_tag_id', $transaction->basket_tag_id)
+                    ->where('id', '!=', $transaction->id)
+                    ->whereIn('status', ['pending', 'processing', 'ready_for_pickup'])
+                    ->exists();
+                if (! $stillHeld) {
+                    BasketTag::query()->where('id', $transaction->basket_tag_id)->update(['status' => 'available']);
+                }
             }
         });
 

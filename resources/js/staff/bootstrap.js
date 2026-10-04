@@ -161,8 +161,18 @@ export function renderStaffLists(app, data, updateFn) {
             ? '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No baskets yet. Click Add basket to register one.</span></div>'
             : list
             .map((b) => {
-                const cls = b.status === 'available' ? 'ready' : 'processing';
-                return `<div class="order-row"><strong>${esc(b.code)}</strong><span><em class="status ${cls}">${esc(b.status)}</em></span><span>—</span><span></span></div>`;
+                const inUse = !!b.assigned || b.status !== 'available';
+                const cls = inUse ? 'processing' : 'ready';
+                const a = b.assigned;
+                const who = a
+                    ? `<span><strong>${esc(a.customer || 'Customer')}</strong></span>`
+                    : b.status === 'in_use'
+                      ? '<span style="color:var(--staff-muted)">In use · no open order</span>'
+                      : '<span style="color:var(--staff-muted)">—</span>';
+                const orderCell = a
+                    ? `<span>#${esc(a.order_id)} · <em class="status ${statusClass(a.order_status)}">${esc(statusLabel(a.order_status))}</em></span>`
+                    : '<span></span>';
+                return `<div class="order-row"><strong>${esc(b.code)}</strong><span><em class="status ${cls}">${inUse ? 'in use' : 'available'}</em></span>${who}${orderCell}</div>`;
             })
             .join('');
     }

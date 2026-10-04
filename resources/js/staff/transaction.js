@@ -423,6 +423,8 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                 payErr.hidden = false;
                 payErr.textContent = err.message || 'Could not save transaction.';
             }
+            // A failed attempt saved nothing, so the retry gets a fresh payment token.
+            app._payToken = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
             if (confirmBtn) confirmBtn.disabled = false;
         }
     };

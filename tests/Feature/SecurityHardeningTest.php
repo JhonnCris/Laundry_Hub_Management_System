@@ -110,3 +110,31 @@ it('seeds accounts without the well-known password', function () {
     $admin = User::where('email', 'admin@ssklabadami.test')->first();
     expect(Hash::check('password', $admin->password))->toBeFalse();
 });
+
+it('lets the cashier retry with the same token after a failed (unsaved) payment', function () {
+    $itemId = snackItem(2);
+    $payload = purchasePayload($itemId, 5, ['client_token' => 'retry-1']);
+    $user = staffUser();
+
+    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertStatus(422);
+
+    $payload['items'][0]['quantity'] = 1;
+    $payload['total_amount'] = 10;
+    $this->actingAs($user)->postJson('/api/staff/transactions', $payload)->assertOk();
+});
+
+it('shows which customer holds a basket and refuses to hand it out twice', function () {
+    $itemId = snackItem(10);
+    $basketId = DB::table('basket_tags')->insertGetId(['code' => '#050', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
+    $staff = staffUser();
+    $laundry = fn () => purchasePayload($itemId, 1, ['basket_code' => '#050']);
+
+    $this->actingAs($staff)->postJson('/api/staff/transactions', $laundry())->assertOk();
+
+    $bootstrap = $this->actingAs($staff)->getJson('/api/staff/bootstrap')->json();
+    $basket = collect($bootstrap['baskets'])->firstWhere('id', $basketId);
+    expect($basket['assigned']['customer'])->toBe('Buyer')
+        ->and(collect($bootstrap['available_baskets'])->pluck('id'))->not->toContain($basketId);
+
+    $this->actingAs($staff)->postJson('/api/staff/transactions', $laundry())->assertStatus(422);
+});

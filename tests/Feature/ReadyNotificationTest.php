@@ -65,3 +65,12 @@ it('normalizes Philippine mobile numbers', function () {
         ->and($sms->normalize('639171234567'))->toBe('+639171234567')
         ->and($sms->normalize('12345'))->toBeNull();
 });
+
+it('treats a repeated status request as a harmless no-op', function () {
+    $order = processingOrder(['name' => 'Repeat']);
+
+    test()->actingAs(User::factory()->create(['role' => 'staff']))
+        ->patchJson("/api/staff/transactions/{$order->id}/status", ['status' => 'processing'])
+        ->assertOk()
+        ->assertJsonPath('message', 'Already up to date.');
+});

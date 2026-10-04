@@ -94,7 +94,10 @@ export function handleQueueClick(t, e, ctx) {
                     (isUndo ? `Order moved back to ${label}.` : `Order marked as ${label}.`) + notifyText(r?.notify)
                 );
             })
-            .catch((err) => openNotice('Status', err.message));
+            .catch((err) => {
+                ctx.loadStaffBootstrap?.();
+                openNotice('Status', err.message);
+            });
 
     if (next === 'claimed') {
         openConfirm(

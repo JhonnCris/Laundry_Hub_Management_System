@@ -370,7 +370,7 @@
     <h2 style="margin:0">Laundry baskets</h2>
     <button class="action-btn-primary" type="button" data-open-add-basket title="Register a new basket tag">Add basket →</button>
 </div>
-<div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span></span></div>
+<div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span>Order</span></div>
 <div data-basket-rows></div>
 </section></section>
 <section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Manage Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>

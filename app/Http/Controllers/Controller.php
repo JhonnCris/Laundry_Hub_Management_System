@@ -17,6 +17,10 @@ abstract class Controller
      */
     protected function audit(string $action, array $context = []): void
     {
+        if (app()->runningUnitTests()) {
+            return;
+        }
+
         Log::channel('audit')->info($action, [
             'user_id' => Auth::id(),
             'user_email' => Auth::user()?->email,
