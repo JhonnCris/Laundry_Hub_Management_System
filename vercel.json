@@ -10,7 +10,7 @@
     },
     "routes": [
         {
-            "src": "/index\\.php",
+            "src": "^/(?:index\\.php)?$",
             "dest": "/api/index.php"
         },
         {
@@ -40,5 +40,8 @@
         "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
         "SESSION_ENCRYPT": "true",
         "SESSION_LIFETIME": "120"
-    }
+    },
+    "regions": [
+        "sin1"
+    ]
 }
