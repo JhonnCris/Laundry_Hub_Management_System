@@ -224,6 +224,12 @@ export function handleCustomerClick(t, e, ctx) {
 
 export function handleCustomerSearch(t, app) {
     if (!t.matches('[data-customer-search]')) return false;
+    clearTimeout(t._debounce);
+    t._debounce = setTimeout(() => filterCustomers(t, app), 150);
+    return true;
+}
+
+function filterCustomers(t, app) {
     const q = (t.value || '').toLowerCase().trim();
     let visible = 0;
     app.querySelectorAll('[data-customer-row]').forEach((row) => {

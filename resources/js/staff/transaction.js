@@ -322,7 +322,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             <div class="receipt-paid">PAID</div>
             ${s.hasLaundry && !s.selfService ? `<div class="receipt-ready"><strong>Ready: ${esc(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within ${shop.claimDays} days.</span></div>` : ''}
             <p class="receipt-footer">Thank you for choosing ${esc(shop.name)}!</p>
-            ${s.notifyUrl && s.hasLaundry && !s.selfService ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
+            ${s.notifyUrl && s.hasLaundry && !s.selfService ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" loading="lazy" decoding="async" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
         </div>`;
     };
 

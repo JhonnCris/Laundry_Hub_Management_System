@@ -107,7 +107,7 @@ function receiptHtml(transaction, app) {
         <p class="receipt-footer">Thank you for choosing ${escValue(shop.name)}!</p>
         ${
             transaction.notify_url && transaction.transaction_type === 'drop_off' && !['claimed', 'cancelled'].includes(transaction.status)
-                ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(transaction.notify_url)}"><small>Scan for a pickup notification.</small></div>`
+                ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" loading="lazy" decoding="async" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(transaction.notify_url)}"><small>Scan for a pickup notification.</small></div>`
                 : ''
         }
     </div>`;

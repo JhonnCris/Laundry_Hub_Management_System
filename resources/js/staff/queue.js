@@ -49,10 +49,13 @@ function notifyText(n) {
 
 export function handleHistorySearch(t) {
     if (!t.matches('[data-history-search]')) return false;
-    const q = (t.value || '').toLowerCase().trim();
-    document.querySelectorAll('[data-history-item]').forEach((row) => {
-        row.hidden = !!q && !row.dataset.hay.includes(q);
-    });
+    clearTimeout(t._debounce);
+    t._debounce = setTimeout(() => {
+        const q = (t.value || '').toLowerCase().trim();
+        document.querySelectorAll('[data-history-item]').forEach((row) => {
+            row.hidden = !!q && !row.dataset.hay.includes(q);
+        });
+    }, 150);
     return true;
 }
 

@@ -64,12 +64,13 @@ class AdminApiController extends Controller
 
         $activeQuery = LaundryTransaction::query()
             ->whereIn('status', ['pending', 'processing', 'ready_for_pickup']);
-        $activeCount = (clone $activeQuery)->count();
+        $statusCounts = (clone $activeQuery)->selectRaw('status, COUNT(*) as n')->groupBy('status')->pluck('n', 'status');
         $statusBreakdown = [
-            'pending' => (clone $activeQuery)->where('status', 'pending')->count(),
-            'processing' => (clone $activeQuery)->where('status', 'processing')->count(),
-            'ready_for_pickup' => (clone $activeQuery)->where('status', 'ready_for_pickup')->count(),
+            'pending' => (int) ($statusCounts['pending'] ?? 0),
+            'processing' => (int) ($statusCounts['processing'] ?? 0),
+            'ready_for_pickup' => (int) ($statusCounts['ready_for_pickup'] ?? 0),
         ];
+        $activeCount = array_sum($statusBreakdown);
 
         $completedCount = LaundryTransaction::query()
             ->where('status', 'claimed')

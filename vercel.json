@@ -10,6 +10,13 @@
     },
     "routes": [
         {
+            "src": "/build/assets/(.*)",
+            "headers": {
+                "Cache-Control": "public, max-age=31536000, immutable"
+            },
+            "continue": true
+        },
+        {
             "src": "^/(?:index\\.php)?$",
             "dest": "/api/index.php"
         },
@@ -39,7 +46,8 @@
         "APP_SERVICES_CACHE": "/tmp/services.php",
         "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
         "SESSION_ENCRYPT": "true",
-        "SESSION_LIFETIME": "120"
+        "SESSION_LIFETIME": "120",
+        "APP_NAME": "SSK Laba Dami"
     },
     "regions": [
         "sin1"
