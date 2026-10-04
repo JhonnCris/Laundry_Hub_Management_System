@@ -9,7 +9,12 @@
 <button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
 <button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
-<button data-screen="inventory"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Inventory Tracking</span><b data-nav-badge="inventory" hidden>0</b></button>
+<button data-screen="sales"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sale Record</span></button>
+<button class="stock-group-toggle" type="button" data-stock-toggle aria-expanded="true" aria-controls="stock-subnav"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Stock</span><svg class="stock-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+<div class="stock-subnav" id="stock-subnav" data-stock-subnav>
+<button data-screen="inventory"><span>Inventory</span><b data-nav-badge="inventory" hidden>0</b></button>
+<button data-screen="archived"><span>Archived</span><b data-nav-badge="archived" hidden>0</b></button>
+</div>
 <button data-screen="machines"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></svg><span>Manage Machines</span></button>
 </nav>
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
@@ -217,9 +222,11 @@
 <div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;gap:8px">
 <button type="button" class="text-button" data-close-receipt>Close</button>
 <button type="button" class="text-button" data-print-receipt>Print receipt</button>
+<button type="button" class="outline-action" data-send-receipt-sms>Send via SMS</button>
 <button type="button" class="outline-action" data-new-tx-same-customer>New Transaction (same customer)</button>
 <button type="button" class="save-button" data-back-to-customers>Back to Customer List</button>
 </div>
+<p class="receipt-action-notice" data-receipt-sms-notice aria-live="polite"></p>
 </section>
 </div>
 
@@ -331,6 +338,13 @@
 <div class="order-row order-head"><span>Order</span><span>Customer</span><span>Service</span><span>Status</span><span>Action</span></div>
 <div data-queue-rows></div>
 </section></section>
+<section class="prototype-panel" data-panel="sales">
+<div class="page-intro"><div><p class="eyebrow">Payments</p><h1>Sale Record</h1><p>Browse transactions and reopen receipts.</p></div></div>
+<section class="staff-card full-card table-card">
+<div class="sales-filter"><label for="sale-record-date">Filter by day</label><input id="sale-record-date" type="date" data-sale-date><button class="action-btn-secondary" type="button" data-sale-all>Show all days</button></div>
+<div class="order-row sale-row sale-head"><span>Order</span><span>Date</span><span>Customer</span><span>Status</span><span>Total</span><span>Receipt</span></div>
+<div data-sale-rows><div class="order-row"><span>Loading sale records…</span></div></div>
+</section></section>
 <section class="prototype-panel is-visible" data-panel="customers">
 <div class="page-intro">
     <div>
@@ -361,10 +375,6 @@
 <div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Alert admin</span></div>
 <div data-inventory-rows></div>
 </section>
-<section class="staff-card full-card table-card" style="margin-top:18px"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Archived (expired / spoiled / damaged)</h2></div>
-<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>Quantity</span></div>
-<div data-archived-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
-</section>
 <section class="staff-card full-card table-card" style="margin-top:18px">
 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
     <h2 style="margin:0">Laundry baskets</h2>
@@ -373,6 +383,13 @@
 <div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span>Order</span></div>
 <div data-basket-rows></div>
 </section></section>
+<section class="prototype-panel" data-panel="archived">
+<div class="page-intro"><div><p class="eyebrow">Stock</p><h1>Archived</h1><p>Items removed from active stock as expired, spoiled, or damaged.</p></div></div>
+<section class="staff-card full-card table-card">
+<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>Quantity</span></div>
+<div data-archived-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
+</section>
+</section>
 <section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Manage Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>
 <div class="machine-grid" data-machine-grid></div>
 </section>

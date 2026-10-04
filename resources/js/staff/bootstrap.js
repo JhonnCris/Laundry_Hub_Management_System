@@ -293,6 +293,7 @@ export function loadStaffBootstrap(app, updateFn) {
                             Number(i.quantity_on_hand) <= Number(i.low_stock_threshold)
                     ).length
             );
+            setBadge('archived', (data.archived_inventory || []).length);
 
             // Optional notification panel if present
             const notifBox = app.querySelector('[data-notification-list]');

@@ -38,10 +38,6 @@
                     </div>
                 </a>
 
-                <p class="auth-brand-label">
-                    STAFF PORTAL
-                </p>
-
                 <h1>
                     Manage your laundry business with ease.
                 </h1>
