@@ -60,7 +60,12 @@ class FcmService
                     'message' => [
                         'token' => $deviceToken,
                         'notification' => ['title' => $title, 'body' => $body],
-                        'webpush' => ['fcm_options' => ['link' => $link]],
+                        'webpush' => [
+                            // High urgency so a phone in battery-saver / Doze shows it right away; keep for a day.
+                            'headers' => ['Urgency' => 'high', 'TTL' => '86400'],
+                            'notification' => ['icon' => url('/images/ssk-laba-dami-logo.jpg'), 'requireInteraction' => true],
+                            'fcm_options' => ['link' => $link],
+                        ],
                     ],
                 ]);
         } catch (\Throwable $e) {

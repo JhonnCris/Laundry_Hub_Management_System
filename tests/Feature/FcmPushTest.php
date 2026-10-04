@@ -71,7 +71,9 @@ it('sends a push to the opted-in device when the order is ready', function () {
         ->assertOk()
         ->assertJsonPath('notify.push', 'sent');
 
-    Http::assertSent(fn ($r) => str_contains($r->url(), 'projects/demo-proj/messages:send') && $r['message']['token'] === 'device-token-123');
+    Http::assertSent(fn ($r) => str_contains($r->url(), 'projects/demo-proj/messages:send')
+        && $r['message']['token'] === 'device-token-123'
+        && $r['message']['webpush']['headers']['Urgency'] === 'high');
     expect(Cache::get("fcm:order:{$order->id}"))->toBeNull();
 });
 
