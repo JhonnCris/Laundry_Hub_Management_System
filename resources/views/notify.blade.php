@@ -13,7 +13,7 @@
 </main>
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-    import { getMessaging, getToken } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js';
+    import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js';
 
     const config = @json($web['firebase']);
     const vapidKey = @json($web['vapidKey']);
@@ -31,13 +31,24 @@
                 return;
             }
             const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            const token = await getToken(getMessaging(initializeApp(config)), { vapidKey, serviceWorkerRegistration: registration });
+            const messaging = getMessaging(initializeApp(config));
+            const token = await getToken(messaging, { vapidKey, serviceWorkerRegistration: registration });
+
+            // When this page is open on screen, Google hands the push to the page instead of showing it: show it ourselves.
+            onMessage(messaging, (payload) => {
+                const n = payload.notification || {};
+                registration.showNotification(n.title || 'Your laundry is ready', { body: n.body || '', icon: n.icon || undefined, requireInteraction: true });
+            });
             const res = await fetch(subscribeUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 body: JSON.stringify({ token }),
             });
             status.textContent = res.ok ? 'All set! We will notify you when your laundry is ready.' : 'Could not save. Please try again.';
+            if (res.ok) {
+                // Proof that this phone can show notifications at all (if you do not see this, check the phone's notification settings).
+                registration.showNotification('Notifications are on', { body: 'You will get a message here when your laundry is ready.' });
+            }
         } catch (e) {
             status.textContent = 'Something went wrong. Please try again.';
         }
