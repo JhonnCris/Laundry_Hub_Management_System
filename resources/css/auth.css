@@ -398,3 +398,6 @@
     min-height: 50px;
     box-sizing: border-box;
 }
+
+/* Readable secondary text on the cream login background (WCAG contrast) */
+.auth-form-container .text-zinc-600 { color: #52675e !important; }
