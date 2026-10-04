@@ -55,6 +55,16 @@ export function fmtDate(iso) {
     }
 }
 
+/** Receipt/shop settings printed from config/shop.php (set on the app element by Blade). */
+export function shopInfo(app) {
+    return {
+        name: app.dataset.shopName || 'SSK Laba Dami',
+        tagline: app.dataset.shopTagline || '',
+        address: app.dataset.shopAddress || '',
+        claimDays: Number(app.dataset.claimDays) || 7,
+    };
+}
+
 export function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }

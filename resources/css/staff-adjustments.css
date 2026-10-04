@@ -1761,3 +1761,9 @@ button.outline-action:hover,
 
 .receipt-notify { display: grid; justify-items: center; gap: 6px; margin-top: 12px; text-align: center; }
 .receipt-notify small { color: var(--staff-muted); max-width: 220px; }
+
+/* Sale Record filter + receipt buttons: keep clear of the edges */
+.sales-filter { padding: 4px 4px 16px; }
+.sales-filter select { min-height: 40px; min-width: 150px; padding: 8px 14px; border: 1px solid var(--staff-input-border); border-radius: 8px; background: var(--staff-card-bg); color: var(--staff-text); font-weight: 600; cursor: pointer; }
+.receipt-modal .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; padding: 0 4px; }
+.receipt-modal .modal-actions > * { flex: 0 1 auto; }

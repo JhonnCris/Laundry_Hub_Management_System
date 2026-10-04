@@ -1,7 +1,7 @@
     /**
  * Transaction module: load details, pricing, payment, receipt
  */
-import { api, esc, money } from './core.js';
+import { api, esc, money, shopInfo } from './core.js';
 import { getSelectedCustomer, customerFullName } from './customers.js';
 
 export function createTransaction(app, { showModal, hideModal, openNotice, loadStaffBootstrap }) {
@@ -283,6 +283,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
     };
 
     const buildReceiptHtml = (s) => {
+        const shop = shopInfo(app);
         const plain = (t) => String(t || '').split('·')[0].trim();
         const createdAt = new Date(s.createdAt || Date.now());
         const when = createdAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
@@ -306,7 +307,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         s.addOns.forEach((i) => line(`${i.name} × ${i.qty}`, i.qty * i.price));
 
         return `<div class="receipt">
-            <div class="receipt-brand"><strong>Fresh Wash Laundry</strong><small>Matina, Davao City</small></div>
+            <div class="receipt-brand"><strong>${esc(shop.name)}</strong><small>${esc(shop.address || shop.tagline)}</small></div>
             <hr>
             <div class="receipt-order"><strong>Order #${s.receiptId ? esc(s.receiptId) : '—'}</strong><span>${esc(when)}</span></div>
             <div class="receipt-meta-grid"><span>Customer</span><strong>${esc(s.customer || '—')}</strong><span>Cashier</span><strong>${esc(servedBy)}</strong></div>
@@ -319,9 +320,9 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                 <tr><td>Change</td><td>${money(s.change)}</td></tr>
             </table>
             <div class="receipt-paid">PAID</div>
-            ${s.hasLaundry ? `<div class="receipt-ready"><strong>Ready: ${esc(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within 7 days.</span></div>` : ''}
-            <p class="receipt-footer">Thank you for choosing us</p>
-            ${s.notifyUrl && s.hasLaundry ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
+            ${s.hasLaundry && !s.selfService ? `<div class="receipt-ready"><strong>Ready: ${esc(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within ${shop.claimDays} days.</span></div>` : ''}
+            <p class="receipt-footer">Thank you for choosing ${esc(shop.name)}!</p>
+            ${s.notifyUrl && s.hasLaundry && !s.selfService ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
         </div>`;
     };
 
@@ -409,6 +410,9 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             hideModal('[data-payment-modal]');
             const body = document.querySelector('[data-receipt-body]');
             if (body) body.innerHTML = buildReceiptHtml(s);
+            app.querySelectorAll('[data-new-tx-same-customer], [data-back-to-customers]').forEach((btn) => {
+                btn.hidden = false;
+            });
             const smsButton = app.querySelector('[data-send-receipt-sms]');
             if (smsButton) smsButton.hidden = !s.customerPhone;
             const smsNotice = app.querySelector('[data-receipt-sms-notice]');
@@ -622,15 +626,28 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (t.closest('[data-send-receipt-sms]')) {
             e.preventDefault();
             const smsNotice = app.querySelector('[data-receipt-sms-notice]');
-            const phone = String(app._receiptCustomerPhone || '').replace(/[^+\d]/g, '');
-            if (!phone) {
+            if (!app._receiptCustomerPhone || !app._receiptTransactionId) {
                 if (smsNotice) smsNotice.textContent = 'No customer phone number is available.';
                 return true;
             }
-            const total = app._receiptTotal;
-            const message = `Fresh Wash Laundry receipt #${app._receiptTransactionId}: ${money(total)}. Thank you!`;
-            if (smsNotice) smsNotice.textContent = 'Opening your messaging app with the receipt details.';
-            window.location.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+            const sendBtn = t.closest('[data-send-receipt-sms]');
+            sendBtn.disabled = true;
+            if (smsNotice) smsNotice.textContent = 'Sending…';
+            api(`/api/staff/transactions/${app._receiptTransactionId}/receipt-sms`, { method: 'POST', body: '{}' })
+                .then((r) => {
+                    const words = {
+                        sent: 'Receipt sent by SMS.',
+                        logged: 'No SMS provider is set up yet, so nothing was sent.',
+                        failed: 'The SMS could not be sent.',
+                    };
+                    if (smsNotice) smsNotice.textContent = words[r.result] || 'Done.';
+                })
+                .catch((err) => {
+                    if (smsNotice) smsNotice.textContent = err.message;
+                })
+                .finally(() => {
+                    sendBtn.disabled = false;
+                });
             return true;
         }
 

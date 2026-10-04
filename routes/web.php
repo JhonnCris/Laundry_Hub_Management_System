@@ -64,6 +64,7 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
     Route::post('inventory/{item}/archive', [StaffApiController::class, 'archiveItem']);
     Route::post('inventory/{item}/notify-low', [StaffApiController::class, 'notifyLowStock']);
     Route::get('history', [StaffApiController::class, 'history']);
+    Route::post('transactions/{transaction}/receipt-sms', [StaffApiController::class, 'sendReceiptSms']);
     Route::patch('machines/{machine}/status', [StaffApiController::class, 'updateMachineStatus']);
 });
 

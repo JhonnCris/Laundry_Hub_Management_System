@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}"><head>@include('partials.head', ['title' => 'SSK Laba Dami | Staff'])</head>
-<body class="staff-body"><main class="staff-app" data-staff-app>
+<body class="staff-body"><main class="staff-app" data-staff-app data-shop-name="{{ config('shop.name') }}" data-shop-tagline="{{ config('shop.tagline') }}" data-shop-address="{{ config('shop.address') }}" data-claim-days="{{ config('shop.claim_days') }}">
 <aside class="staff-sidebar">
 <a class="brand" href="#"><img class="brand-logo" src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo" width="48" height="48"><span class="brand-text"><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a>
 <nav class="staff-nav">
@@ -9,8 +9,8 @@
 <button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
 <button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
-<button data-screen="sales"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sale Record</span></button>
-<button class="stock-group-toggle" type="button" data-stock-toggle aria-expanded="true" aria-controls="stock-subnav"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Stock</span><svg class="stock-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+<button data-screen="sales"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sales Record</span></button>
+<button class="stock-group-toggle" type="button" data-stock-toggle aria-expanded="true" aria-controls="stock-subnav"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Stocks</span><svg class="stock-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
 <div class="stock-subnav" id="stock-subnav" data-stock-subnav>
 <button data-screen="inventory"><span>Inventory</span><b data-nav-badge="inventory" hidden>0</b></button>
 <button data-screen="archived"><span>Archived</span><b data-nav-badge="archived" hidden>0</b></button>
@@ -339,11 +339,11 @@
 <div data-queue-rows></div>
 </section></section>
 <section class="prototype-panel" data-panel="sales">
-<div class="page-intro"><div><p class="eyebrow">Payments</p><h1>Sale Record</h1><p>Browse transactions and reopen receipts.</p></div></div>
+<div class="page-intro"><div><p class="eyebrow">Payments</p><h1>Sales Record</h1><p>Browse transactions and reopen receipts.</p></div></div>
 <section class="staff-card full-card table-card">
-<div class="sales-filter"><label for="sale-record-date">Filter by day</label><input id="sale-record-date" type="date" data-sale-date><button class="action-btn-secondary" type="button" data-sale-all>Show all days</button></div>
+<div class="sales-filter"><label for="sale-record-filter">Filter</label><select id="sale-record-filter" data-sale-filter><option value="" hidden>All records</option><option value="day" selected>Day</option><option value="week">Week</option><option value="month">Month</option></select><button class="action-btn-secondary" type="button" data-sale-all>Show all</button></div>
 <div class="order-row sale-row sale-head"><span>Order</span><span>Date</span><span>Customer</span><span>Status</span><span>Total</span><span>Receipt</span></div>
-<div data-sale-rows><div class="order-row"><span>Loading sale records…</span></div></div>
+<div data-sale-rows><div class="order-row"><span>Loading sales records…</span></div></div>
 </section></section>
 <section class="prototype-panel is-visible" data-panel="customers">
 <div class="page-intro">

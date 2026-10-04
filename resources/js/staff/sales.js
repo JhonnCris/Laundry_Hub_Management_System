@@ -1,4 +1,4 @@
-import { api, esc, money } from './core.js';
+import { api, esc, money, shopInfo } from './core.js';
 
 const saleDate = (value) => {
     if (!value) return '—';
@@ -9,8 +9,11 @@ const saleDate = (value) => {
 export function loadSales(app) {
     const rows = app.querySelector('[data-sale-rows]');
     if (!rows) return Promise.resolve();
-    rows.innerHTML = '<div class="order-row"><span>Loading sale records…</span></div>';
-    const selectedDate = app.querySelector('[data-sale-date]')?.value || '';
+    if (!rows.querySelector('[data-sale-row]')) {
+        rows.innerHTML = '<div class="order-row"><span>Loading sale records…</span></div>';
+    }
+    const period = app.querySelector('[data-sale-filter]')?.value || '';
+    const since = periodStart(period);
 
     return api('/api/staff/history')
         .then((result) => {
@@ -19,7 +22,7 @@ export function loadSales(app) {
                 byId.set(Number(transaction.id), transaction);
             });
             const transactions = [...byId.values()]
-                .filter((transaction) => !selectedDate || localDateKey(transaction.created_at) === selectedDate)
+                .filter((transaction) => !since || new Date(transaction.created_at) >= since)
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
             app._saleTransactions = transactions;
             rows.innerHTML = transactions.length
@@ -33,21 +36,32 @@ export function loadSales(app) {
                           <button type="button" class="action-btn-secondary" data-view-sale="${id}">View receipt</button>
                       </div>`;
                   }).join('')
-                : '<div class="order-row"><span style="grid-column:1/-1">No transactions found for this day.</span></div>';
+                : `<div class="order-row"><span style="grid-column:1/-1">No transactions found${period ? ` for this ${period}` : ''}.</span></div>`;
         })
         .catch((error) => {
             rows.innerHTML = `<div class="order-row"><span style="grid-column:1/-1">${esc(error.message || 'Could not load sale records.')}</span></div>`;
         });
 }
 
-function localDateKey(value) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    const pad = (part) => String(part).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+/** Start of today / this week (Monday) / this month, in the browser's local time; null = no limit. */
+function periodStart(period) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    if (period === 'day') return d;
+    if (period === 'week') {
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return d;
+    }
+    if (period === 'month') {
+        d.setDate(1);
+        return d;
+    }
+
+    return null;
 }
 
-function receiptHtml(transaction) {
+function receiptHtml(transaction, app) {
+    const shop = shopInfo(app);
     const escValue = esc;
     const service = transaction.service?.name || (transaction.transaction_type === 'self_service' ? 'Self Service' : 'Drop off');
     const customer = transaction.customer?.name || '—';
@@ -57,7 +71,7 @@ function receiptHtml(transaction) {
     readyAt.setDate(readyAt.getDate() + 1);
     readyAt.setHours(17, 0, 0, 0);
     const lines = [];
-    const line = (label, amount) => lines.push(`<tr><td>${escValue(label)}</td><td>${money(amount)}</td></tr>`);
+    const line = (label, amount) => lines.push(`<tr><td>${escValue(label)}</td><td>${amount == null ? '' : money(amount)}</td></tr>`);
     const detail = (label) => lines.push(`<tr class="receipt-detail"><td colspan="2">${escValue(label)}</td></tr>`);
 
     if (transaction.service || transaction.load_weight_kg || transaction.transaction_type === 'drop_off') {
@@ -82,23 +96,28 @@ function receiptHtml(transaction) {
     (transaction.garment_types || []).forEach((garment) => detail(`${garment.name}: ${garment.pivot?.quantity || 0}`));
 
     return `<div class="receipt">
-        <div class="receipt-brand"><strong>Fresh Wash Laundry</strong><small>Matina, Davao City</small></div><hr>
+        <div class="receipt-brand"><strong>${escValue(shop.name)}</strong><small>${escValue(shop.address || shop.tagline)}</small></div><hr>
         <div class="receipt-order"><strong>Order #${escValue(transaction.id)}</strong><span>${escValue(saleDate(transaction.created_at))}</span></div>
         <div class="receipt-meta-grid"><span>Customer</span><strong>${escValue(customer)}</strong><span>Cashier</span><strong>${escValue(staff)}</strong></div><hr>
         <table class="receipt-lines">${lines.join('')}</table><hr>
         <table class="receipt-totals"><tr class="receipt-grand"><td>Total</td><td>${money(transaction.total_amount)}</td></tr>
         <tr><td>Cash</td><td>${money(transaction.cash_tendered)}</td></tr><tr><td>Change</td><td>${money(transaction.change_given)}</td></tr></table>
         <div class="receipt-paid">${escValue(transaction.payment_status || 'PAID').toUpperCase()}</div>
-        ${transaction.transaction_type && !['claimed', 'cancelled'].includes(transaction.status) ? `<div class="receipt-ready"><strong>Ready: ${escValue(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within 7 days.</span></div>` : ''}
-        <p class="receipt-footer">Thank you for choosing us</p>
+        ${transaction.transaction_type === 'drop_off' && !['claimed', 'cancelled'].includes(transaction.status) ? `<div class="receipt-ready"><strong>Ready: ${escValue(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within ${shop.claimDays} days.</span></div>` : ''}
+        <p class="receipt-footer">Thank you for choosing ${escValue(shop.name)}!</p>
+        ${
+            transaction.notify_url && transaction.transaction_type === 'drop_off' && !['claimed', 'cancelled'].includes(transaction.status)
+                ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(transaction.notify_url)}"><small>Scan for a pickup notification.</small></div>`
+                : ''
+        }
     </div>`;
 }
 
 export function handleSalesClick(t, e, app, showModal) {
     if (t.closest('[data-sale-all]')) {
         e.preventDefault();
-        const date = app.querySelector('[data-sale-date]');
-        if (date) date.value = '';
+        const filter = app.querySelector('[data-sale-filter]');
+        if (filter) filter.value = '';
         loadSales(app);
         return true;
     }
@@ -111,19 +130,13 @@ export function handleSalesClick(t, e, app, showModal) {
         app._receiptTransactionId = transaction.id;
         app._receiptTotal = transaction.total_amount;
         app._receiptCustomerPhone = transaction.customer?.contact_number || '';
-        app._selectedCustomer = transaction.customer ? {
-            id: transaction.customer_id,
-            name: transaction.customer.name,
-            contact_number: transaction.customer.contact_number,
-        } : null;
-        if (app._selectedCustomer) {
-            try {
-                sessionStorage.setItem('ssk_selected_customer', JSON.stringify(app._selectedCustomer));
-            } catch (error) {}
-        }
+        // Viewing an old receipt must not change which customer is selected for the next order.
+        app.querySelectorAll('[data-new-tx-same-customer], [data-back-to-customers]').forEach((btn) => {
+            btn.hidden = true;
+        });
         const body = app.querySelector('[data-receipt-body]');
         const smsNotice = app.querySelector('[data-receipt-sms-notice]');
-        if (body) body.innerHTML = receiptHtml(transaction);
+        if (body) body.innerHTML = receiptHtml(transaction, app);
         if (smsNotice) smsNotice.textContent = '';
         const smsButton = app.querySelector('[data-send-receipt-sms]');
         if (smsButton) smsButton.hidden = !transaction.customer?.contact_number;
@@ -135,7 +148,7 @@ export function handleSalesClick(t, e, app, showModal) {
 }
 
 export function handleSalesInput(t, app) {
-    if (!t.matches('[data-sale-date]')) return false;
+    if (!t.matches('[data-sale-filter]')) return false;
     loadSales(app);
     return true;
 }

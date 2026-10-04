@@ -40,7 +40,7 @@ export function bootStaffApp() {
     });
     ctx.update = tx.update;
     ctx.resetTransactionForm = tx.resetTransactionForm;
-    ctx.loadStaffBootstrap = () => loadStaffBootstrap(app, tx.update).then(() => loadSales(app));
+    ctx.loadStaffBootstrap = () => loadStaffBootstrap(app, tx.update);
 
     // Hide overlays on load
     document.querySelectorAll('.modal-backdrop[hidden]').forEach((el) => {
@@ -51,6 +51,7 @@ export function bootStaffApp() {
         const t = e.target;
         if (!(t instanceof Element)) return;
 
+        if (t.closest('[data-screen="sales"]')) loadSales(app);
         if (handleModalClick(t, e)) return;
         if (handleNavigationClick(t, e, ctx)) return;
         if (handleAttendanceClick(t, e, ctx)) return;
@@ -127,9 +128,6 @@ export function start() {
     } else {
         run();
     }
-    document.addEventListener('livewire:navigated', () => {
-        const app = document.querySelector('[data-staff-app]');
-        if (app) delete app.dataset.sskBound;
-        run();
-    });
+    // After a Livewire page swap there is a new element to bind; bootStaffApp skips an already-bound one.
+    document.addEventListener('livewire:navigated', run);
 }

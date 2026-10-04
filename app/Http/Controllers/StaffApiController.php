@@ -23,6 +23,7 @@ use App\Services\FcmService;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +65,16 @@ class StaffApiController extends Controller
             ->get(['id', 'name', 'contact_number', 'email']);
 
         $activeLaundry = LaundryTransaction::query()
-            ->with(['customer:id,name', 'basketTag:id,code', 'service:id,name', 'machine:id,name'])
+            ->with([
+                'customer:id,name,contact_number',
+                'basketTag:id,code',
+                'service:id,name',
+                'machine:id,name',
+                'detergent:id,name,unit,unit_price',
+                'handledBy:id,name',
+                'garmentTypes:id,name',
+                'inventoryItems:id,name,unit',
+            ])
             ->whereIn('status', ['pending', 'processing', 'ready_for_pickup'])
             ->latest()
             ->limit(50)
@@ -161,7 +171,7 @@ class StaffApiController extends Controller
             'snacks' => $snacks,
             'detergents' => $detergents,
             'customers' => $customersWithStats,
-            'active_laundry' => $activeLaundry,
+            'active_laundry' => $this->withNotifyUrls($activeLaundry),
             'attendance_today' => $attendance,
             'attendance_recent' => $recentAttendance,
             'low_stock_count' => $lowStockItems->count(),
@@ -683,6 +693,41 @@ class StaffApiController extends Controller
         return response()->json(['message' => $alreadyReported ? 'Admin was already notified about this item.' : 'Admin notified.']);
     }
 
+    /**
+     * Give each order still waiting for pickup its signed "notify me" link (shown as a QR on the receipt).
+     *
+     * @param  Collection<int, LaundryTransaction>  $orders
+     */
+    protected function withNotifyUrls($orders)
+    {
+        if (app(FcmService::class)->webConfig() === null) {
+            return $orders;
+        }
+
+        return $orders->each(function (LaundryTransaction $order) {
+            if ($order->transaction_type === 'drop_off' && in_array($order->status, ['pending', 'processing', 'ready_for_pickup'], true)) {
+                $order->setAttribute('notify_url', URL::temporarySignedRoute('notify.show', now()->addDays(14), ['transaction' => $order->id]));
+            }
+        });
+    }
+
+    /** Text the customer a short receipt through the configured SMS provider. */
+    public function sendReceiptSms(LaundryTransaction $transaction): JsonResponse
+    {
+        $phone = $transaction->customer?->contact_number;
+        if (blank($phone)) {
+            return response()->json(['message' => 'This customer has no phone number on file.'], 422);
+        }
+
+        $sms = app(SmsService::class);
+        $shop = config('shop.name');
+        $ok = $sms->send($phone, "{$shop} receipt #{$transaction->id}: ₱".number_format((float) $transaction->total_amount, 2).'. Thank you!');
+        $result = ! $ok ? 'failed' : ($sms->isLive() ? 'sent' : 'logged');
+        $this->audit('order.receipt_sms', ['order_id' => $transaction->id, 'result' => $result]);
+
+        return response()->json(['result' => $result]);
+    }
+
     /** Completed (claimed) orders, newest first. */
     public function history(): JsonResponse
     {
@@ -691,6 +736,10 @@ class StaffApiController extends Controller
                 'customer:id,name,contact_number',
                 'basketTag:id,code',
                 'service:id,name',
+                'detergent:id,name,unit,unit_price',
+                'handledBy:id,name',
+                'garmentTypes:id,name',
+                'inventoryItems:id,name,unit',
                 'statusLogs' => fn ($q) => $q->where('status', 'claimed'),
             ])
             ->where('status', 'claimed')
@@ -698,7 +747,7 @@ class StaffApiController extends Controller
             ->limit(200)
             ->get();
 
-        return response()->json(['orders' => $orders]);
+        return response()->json(['orders' => $this->withNotifyUrls($orders)]);
     }
 
     public function updateMachineStatus(Request $request, Machine $machine): JsonResponse

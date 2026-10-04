@@ -390,3 +390,11 @@
     outline: 2px solid #064331;
     outline-offset: 2px;
 }
+
+
+/* Text inside the login/register fields must not touch the border */
+.auth-form-container input:not([type='checkbox']):not([type='radio']) {
+    padding: 0 14px !important;
+    min-height: 50px;
+    box-sizing: border-box;
+}
