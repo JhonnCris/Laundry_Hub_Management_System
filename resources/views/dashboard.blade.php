@@ -281,7 +281,9 @@
 <button class="modal-close" data-close-add-customer type="button">×</button>
 <h2>Add New Customer</h2>
 <p class="modal-hint">After saving, you will continue to a new transaction for this customer.</p>
-<label class="modal-field">Full name<input type="text" data-new-customer-name placeholder="e.g. Juan Dela Cruz" maxlength="120"></label>
+<label class="modal-field">First name<input type="text" data-new-customer-first placeholder="e.g. Juan" maxlength="80" autocomplete="given-name"></label>
+<label class="modal-field">Middle name <small>(optional)</small><input type="text" data-new-customer-middle placeholder="e.g. Dela" maxlength="80" autocomplete="additional-name"></label>
+<label class="modal-field">Last name<input type="text" data-new-customer-last placeholder="e.g. Cruz" maxlength="80" autocomplete="family-name"></label>
 <label class="modal-field">Phone / SMS<input type="text" data-new-customer-phone placeholder="09XX XXX XXXX" maxlength="40"></label>
 <label class="modal-field">Email <small>(optional)</small><input type="email" data-new-customer-email placeholder="name@email.com"></label>
 <label class="modal-field">Address <small>(optional)</small><input type="text" data-new-customer-address placeholder="Street, barangay, city"></label>

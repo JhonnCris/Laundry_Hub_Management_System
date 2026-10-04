@@ -765,12 +765,15 @@ class StaffApiController extends Controller
     public function storeCustomer(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
+            'first_name' => ['required', 'string', 'max:80'],
+            'middle_name' => ['nullable', 'string', 'max:80'],
+            'last_name' => ['required', 'string', 'max:80'],
             'contact_number' => ['required', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:190'],
             'address' => ['nullable', 'string', 'max:255'],
         ]);
 
+        // `name` (the display name) is rebuilt from the three parts by the Customer model.
         $customer = Customer::query()->create($data);
 
         return response()->json([

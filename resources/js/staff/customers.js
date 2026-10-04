@@ -101,7 +101,7 @@ export function handleCustomerClick(t, e, ctx) {
         const err = document.querySelector('[data-add-customer-error]');
         if (err) err.hidden = true;
         document
-            .querySelectorAll('[data-new-customer-name],[data-new-customer-phone],[data-new-customer-email],[data-new-customer-address]')
+            .querySelectorAll('[data-new-customer-first],[data-new-customer-middle],[data-new-customer-last],[data-new-customer-phone],[data-new-customer-email],[data-new-customer-address]')
             .forEach((el) => {
                 el.value = '';
             });
@@ -115,22 +115,26 @@ export function handleCustomerClick(t, e, ctx) {
     }
     if (t.closest('[data-confirm-add-customer]')) {
         e.preventDefault();
-        const name = (document.querySelector('[data-new-customer-name]')?.value || '').trim();
+        const first = (document.querySelector('[data-new-customer-first]')?.value || '').trim();
+        const middle = (document.querySelector('[data-new-customer-middle]')?.value || '').trim();
+        const last = (document.querySelector('[data-new-customer-last]')?.value || '').trim();
         const phone = (document.querySelector('[data-new-customer-phone]')?.value || '').trim();
         const email = (document.querySelector('[data-new-customer-email]')?.value || '').trim();
         const address = (document.querySelector('[data-new-customer-address]')?.value || '').trim();
         const err = document.querySelector('[data-add-customer-error]');
-        if (!name || !phone) {
+        if (!first || !last || !phone) {
             if (err) {
                 err.hidden = false;
-                err.textContent = 'Name and phone/SMS are required.';
+                err.textContent = 'First name, last name and phone/SMS are required.';
             }
             return true;
         }
         api('/ajax/staff/customers', {
             method: 'POST',
             body: JSON.stringify({
-                name,
+                first_name: first,
+                middle_name: middle || null,
+                last_name: last,
                 contact_number: phone,
                 email: email || null,
                 address: address || null,
