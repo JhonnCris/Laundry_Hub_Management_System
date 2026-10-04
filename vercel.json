@@ -1,6 +1,6 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
-    "buildCommand": "npm run build",
+    "buildCommand": "echo \"Assets are pre-built and committed in public/build\"",
     "outputDirectory": "public",
     "functions": {
         "api/index.php": {

@@ -68,7 +68,9 @@ git push -u origin vercel-deploy
 ## 5. Create the Vercel project
 
 1. vercel.com → sign up with GitHub → **Add New… → Project** → import `Laundry_Hub_Management_System`.
-2. Framework Preset: **Other**. Leave Root Directory as is. (Build command and output folder come from `vercel.json`.)
+2. Framework Preset: **Other** (not Vite). Leave Root Directory as is. (Build command and output folder come from `vercel.json`.)
+   The website CSS/JS is **pre-built and committed in `public/build`** (Vercel cannot build it: Composer's `vendor` folder is not there yet).
+   Whenever you change anything in `resources/css` or `resources/js`, run `npm run build` and commit `public/build` before deploying.
 3. Open **Environment Variables** and add these **before** the first deploy:
 
 | Name | Value |
