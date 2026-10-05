@@ -406,17 +406,17 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             app._receiptTransactionId = s.receiptId;
             app._receiptTotal = s.total;
             app._receiptCustomerPhone = s.customerPhone;
+            app._receiptCustomerEmail = result.transaction?.customer?.email || '';
             s.notifyUrl = result.notify_url || null;
             hideModal('[data-payment-modal]');
             const body = document.querySelector('[data-receipt-body]');
             if (body) body.innerHTML = buildReceiptHtml(s);
-            app.querySelectorAll('[data-new-tx-same-customer], [data-back-to-customers]').forEach((btn) => {
-                btn.hidden = false;
-            });
-            const smsButton = app.querySelector('[data-send-receipt-sms]');
-            if (smsButton) smsButton.hidden = !s.customerPhone;
-            const smsNotice = app.querySelector('[data-receipt-sms-notice]');
-            if (smsNotice) smsNotice.textContent = '';
+            const newTransactionButton = app.querySelector('[data-new-tx-same-customer]');
+            if (newTransactionButton) newTransactionButton.hidden = false;
+            const emailButton = app.querySelector('[data-send-receipt-email]');
+            if (emailButton) emailButton.hidden = !app._receiptCustomerEmail;
+            const emailNotice = app.querySelector('[data-receipt-email-notice]');
+            if (emailNotice) emailNotice.textContent = '';
             showModal('[data-receipt-modal]');
             const notice = app.querySelector('[data-save-notice]');
             if (notice) {
@@ -630,27 +630,26 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             confirmPayment();
             return true;
         }
-        if (t.closest('[data-send-receipt-sms]')) {
+        if (t.closest('[data-send-receipt-email]')) {
             e.preventDefault();
-            const smsNotice = app.querySelector('[data-receipt-sms-notice]');
-            if (!app._receiptCustomerPhone || !app._receiptTransactionId) {
-                if (smsNotice) smsNotice.textContent = 'No customer phone number is available.';
+            const emailNotice = app.querySelector('[data-receipt-email-notice]');
+            if (!app._receiptCustomerEmail || !app._receiptTransactionId) {
+                if (emailNotice) emailNotice.textContent = 'No customer email address is available.';
                 return true;
             }
-            const sendBtn = t.closest('[data-send-receipt-sms]');
+            const sendBtn = t.closest('[data-send-receipt-email]');
             sendBtn.disabled = true;
-            if (smsNotice) smsNotice.textContent = 'Sending…';
-            api(`/ajax/staff/transactions/${app._receiptTransactionId}/receipt-sms`, { method: 'POST', body: '{}' })
+            if (emailNotice) emailNotice.textContent = 'Sending receipt…';
+            api(`/ajax/staff/transactions/${app._receiptTransactionId}/receipt-email`, { method: 'POST', body: '{}' })
                 .then((r) => {
                     const words = {
-                        sent: 'Receipt sent by SMS.',
-                        logged: 'No SMS provider is set up yet, so nothing was sent.',
-                        failed: 'The SMS could not be sent.',
+                        sent: `Receipt emailed to ${app._receiptCustomerEmail}.`,
+                        logged: 'Email delivery is not configured, so the receipt was logged but not sent.',
                     };
-                    if (smsNotice) smsNotice.textContent = words[r.result] || 'Done.';
+                    if (emailNotice) emailNotice.textContent = words[r.result] || 'Receipt email processed.';
                 })
                 .catch((err) => {
-                    if (smsNotice) smsNotice.textContent = err.message;
+                    if (emailNotice) emailNotice.textContent = err.message;
                 })
                 .finally(() => {
                     sendBtn.disabled = false;

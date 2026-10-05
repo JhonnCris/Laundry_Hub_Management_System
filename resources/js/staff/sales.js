@@ -130,16 +130,16 @@ export function handleSalesClick(t, e, app, showModal) {
         app._receiptTransactionId = transaction.id;
         app._receiptTotal = transaction.total_amount;
         app._receiptCustomerPhone = transaction.customer?.contact_number || '';
+        app._receiptCustomerEmail = transaction.customer?.email || '';
         // Viewing an old receipt must not change which customer is selected for the next order.
-        app.querySelectorAll('[data-new-tx-same-customer], [data-back-to-customers]').forEach((btn) => {
-            btn.hidden = true;
-        });
+        const newTransactionButton = app.querySelector('[data-new-tx-same-customer]');
+        if (newTransactionButton) newTransactionButton.hidden = true;
         const body = app.querySelector('[data-receipt-body]');
-        const smsNotice = app.querySelector('[data-receipt-sms-notice]');
+        const emailNotice = app.querySelector('[data-receipt-email-notice]');
         if (body) body.innerHTML = receiptHtml(transaction, app);
-        if (smsNotice) smsNotice.textContent = '';
-        const smsButton = app.querySelector('[data-send-receipt-sms]');
-        if (smsButton) smsButton.hidden = !transaction.customer?.contact_number;
+        if (emailNotice) emailNotice.textContent = '';
+        const emailButton = app.querySelector('[data-send-receipt-email]');
+        if (emailButton) emailButton.hidden = !app._receiptCustomerEmail;
         showModal('[data-receipt-modal]');
         return true;
     }

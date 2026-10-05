@@ -458,13 +458,13 @@
         <label class="modal-field">Qty on invoice
             <input type="number" data-po-qty-invoiced min="0" value="1">
         </label>
-        <label class="modal-field">Qty received <small>(confirmed count)</small>
+        <label class="modal-field"><span>Qty received <small>(confirmed count)</small></span>
             <input type="number" data-po-qty min="1" value="1">
         </label>
-        <label class="modal-field">Invoice total (₱) <small>(optional · logged as expense)</small>
+        <label class="modal-field"><span>Invoice total (₱) <small>(optional · logged as expense)</small></span>
             <input type="number" data-po-cost min="0" step="0.01" placeholder="0.00">
         </label>
-        <label class="modal-field">Notes <small>(optional)</small>
+        <label class="modal-field"><span>Notes <small>(optional)</small></span>
             <input type="text" data-po-notes placeholder="e.g. Short 2 pcs vs invoice · accepted">
         </label>
         <p class="modal-error" data-po-error hidden></p>

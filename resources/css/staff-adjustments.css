@@ -1222,6 +1222,59 @@
     background: rgba(15, 40, 32, 0.55) !important;
 }
 
+/* Keep the stock receipt form visible without an internal modal scrollbar. */
+.profile-modal.admin-modal.receive-modal {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: center;
+    align-items: start;
+    gap: 0 16px;
+    width: min(700px, calc(100vw - 32px));
+    max-width: 700px;
+    max-height: none;
+    overflow: visible;
+    padding: 24px;
+}
+.profile-modal.admin-modal.receive-modal > h2,
+.profile-modal.admin-modal.receive-modal > .modal-hint,
+.profile-modal.admin-modal.receive-modal > .modal-error,
+.profile-modal.admin-modal.receive-modal > .modal-actions {
+    grid-column: 1 / -1;
+}
+.profile-modal.admin-modal.receive-modal > .modal-field {
+    min-width: 0;
+    margin-bottom: 10px;
+    gap: 6px;
+    line-height: 1.25;
+}
+.profile-modal.admin-modal.receive-modal > .modal-field input,
+.profile-modal.admin-modal.receive-modal > .modal-field select {
+    box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    height: 40px;
+    padding: 8px 10px;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background: var(--staff-input-bg);
+    color: var(--staff-input-text);
+    font: inherit;
+    font-size: 14px;
+}
+.profile-modal.admin-modal.receive-modal > .modal-field small {
+    display: inline;
+    margin-left: 4px;
+    font-size: 10px;
+    line-height: 1.2;
+}
+.profile-modal.admin-modal.receive-modal > .modal-hint {
+    margin-bottom: 12px;
+}
+.profile-modal.admin-modal.receive-modal > .modal-actions {
+    position: static;
+    margin-top: 2px;
+}
+
 /* Date inputs — keep calendar icon visible */
 .dash-filter input[type="date"],
 input[type="date"].date-input,
@@ -1765,8 +1818,12 @@ button.outline-action:hover,
 /* Sale Record filter + receipt buttons: keep clear of the edges */
 .sales-filter { padding: 4px 4px 16px; }
 .sales-filter select { min-height: 40px; min-width: 150px; padding: 8px 14px; border: 1px solid var(--staff-input-border); border-radius: 8px; background: var(--staff-card-bg); color: var(--staff-text); font-weight: 600; cursor: pointer; }
-.receipt-modal .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; padding: 0 4px; }
-.receipt-modal .modal-actions > * { flex: 0 1 auto; }
+.receipt-modal .receipt-actions { display: grid; justify-content: stretch; justify-items: center; gap: 10px; margin-top: 16px; padding: 0 4px; }
+.receipt-modal .receipt-actions-row { display: flex; justify-content: center; gap: 10px; }
+.receipt-modal .receipt-actions-row button { box-sizing: border-box; flex: 0 1 140px; min-height: 44px; margin: 0; }
+.receipt-modal .receipt-actions > button { box-sizing: border-box; min-height: 44px; margin: 0; }
+.receipt-modal .receipt-actions > [data-new-tx-same-customer] { width: auto; min-width: 200px; justify-self: center; }
+.receipt-modal .receipt-action-notice { text-align: center; }
 
 /* Product pie + ranking */
 .pie-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 8px 4px; }

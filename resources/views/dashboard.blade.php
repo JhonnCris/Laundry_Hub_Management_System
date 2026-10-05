@@ -219,14 +219,14 @@
 <section class="profile-modal receipt-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-receipt type="button">×</button>
 <div data-receipt-body></div>
-<div class="modal-actions" style="margin-top:16px;flex-wrap:wrap;gap:8px">
-<button type="button" class="text-button" data-close-receipt>Close</button>
-<button type="button" class="text-button" data-print-receipt>Print receipt</button>
-<button type="button" class="outline-action" data-send-receipt-sms>Send via SMS</button>
-<button type="button" class="outline-action" data-new-tx-same-customer>New Transaction (same customer)</button>
-<button type="button" class="save-button" data-back-to-customers>Back to Customer List</button>
+<div class="modal-actions receipt-actions">
+<div class="receipt-actions-row">
+<button type="button" class="outline-action" data-send-receipt-email hidden>Email receipt</button>
+<button type="button" class="outline-action" data-print-receipt>Print receipt</button>
 </div>
-<p class="receipt-action-notice" data-receipt-sms-notice aria-live="polite"></p>
+<button type="button" class="save-button" data-new-tx-same-customer hidden>New Transaction</button>
+</div>
+<p class="receipt-action-notice" data-receipt-email-notice aria-live="polite"></p>
 </section>
 </div>
 

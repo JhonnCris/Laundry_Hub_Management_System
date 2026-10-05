@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\LaundryReadyMail;
+use App\Mail\TransactionReceiptMail;
 use App\Models\BasketTag;
 use App\Models\Customer;
 use App\Models\FinanceTransaction;
@@ -32,6 +33,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class StaffApiController extends Controller
 {
@@ -78,7 +80,7 @@ class StaffApiController extends Controller
 
         $activeLaundry = LaundryTransaction::query()
             ->with([
-                'customer:id,name,contact_number',
+                'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name',
                 'machine:id,name',
@@ -412,7 +414,7 @@ class StaffApiController extends Controller
 
                 return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes']);
             });
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // The order was NOT saved (e.g. not enough stock): let the cashier fix it and retry.
             if ($tokenKey) {
                 Cache::forget($tokenKey);
@@ -513,7 +515,7 @@ class StaffApiController extends Controller
                 if ($live) {
                     $transaction->update(['email_sent_at' => now()]);
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 Log::warning('Ready-for-pickup email failed', ['order_id' => $transaction->id, 'error' => $e->getMessage()]);
                 $result['email'] = 'failed';
             }
@@ -757,12 +759,47 @@ class StaffApiController extends Controller
         return response()->json(['result' => $result]);
     }
 
+    /** Email a saved transaction receipt to the customer's email address. */
+    public function sendReceiptEmail(LaundryTransaction $transaction): JsonResponse
+    {
+        $transaction->load([
+            'customer',
+            'service',
+            'basketTag',
+            'detergent',
+            'handledBy',
+            'garmentTypes',
+            'inventoryItems',
+        ]);
+        $email = $transaction->customer?->email;
+
+        if (blank($email)) {
+            return response()->json(['message' => 'This customer has no email address on file.'], 422);
+        }
+
+        try {
+            Mail::to($email)->send(new TransactionReceiptMail($transaction));
+        } catch (Throwable $exception) {
+            Log::warning('Transaction receipt email failed', [
+                'order_id' => $transaction->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json(['message' => 'The receipt email could not be sent.'], 500);
+        }
+
+        $result = in_array(config('mail.default'), ['log', 'array'], true) ? 'logged' : 'sent';
+        $this->audit('order.receipt_email', ['order_id' => $transaction->id, 'result' => $result]);
+
+        return response()->json(['result' => $result]);
+    }
+
     /** Completed (claimed) orders, newest first. */
     public function history(): JsonResponse
     {
         $orders = LaundryTransaction::query()
             ->with([
-                'customer:id,name,contact_number',
+                'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name',
                 'detergent:id,name,unit,unit_price',
