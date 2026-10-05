@@ -57,6 +57,7 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
     Route::get('bootstrap', [StaffApiController::class, 'bootstrap']);
     Route::post('transactions', [StaffApiController::class, 'saveTransaction']);
     Route::patch('transactions/{transaction}/status', [StaffApiController::class, 'updateStatus']);
+    Route::post('transactions/{transaction}/cancel', [AdminApiController::class, 'cancelTransaction']);
     Route::post('baskets', [StaffApiController::class, 'storeBasket']);
     Route::post('attendance/clock-in', [StaffApiController::class, 'clockIn']);
     Route::post('attendance/clock-out', [StaffApiController::class, 'clockOut']);

@@ -76,14 +76,14 @@ it('rejects the same payment token submitted twice', function () {
     expect(LaundryTransaction::count())->toBe(1);
 });
 
-it('enforces order status transitions and admin-only cancellation', function () {
+it('enforces order status transitions and keeps cancellation off the status endpoint', function () {
     $itemId = snackItem(10);
     $staff = staffUser();
     $this->actingAs($staff)->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1))->assertOk();
     $order = LaundryTransaction::first();
 
     $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'claimed'])->assertStatus(422);
-    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertStatus(422);
     $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'processing'])->assertOk();
 });
 

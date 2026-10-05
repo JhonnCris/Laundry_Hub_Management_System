@@ -77,7 +77,7 @@ export function bootStaffApp() {
         if (t.matches('[data-sum-type-filter]')) {
             const v = t.value || 'all';
             if (app._adminBootstrap) {
-                renderFinanceFiltered(app, app._adminBootstrap, v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : 'net');
+                renderFinanceFiltered(app, app._adminBootstrap, v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : v === 'cancelled' ? 'cancelled' : 'net');
             }
             return;
         }

@@ -67,21 +67,48 @@ function renderBarChart(container, items, { valueKey = 'amount', labelKey = 'dat
         .join('');
 }
 
-function renderNamedBars(container, items, { nameKey = 'name', valueKey = 'qty_sold' } = {}) {
+/** Horizontal ranking: best seller first, bar length = units sold. */
+function renderRankBars(container, items) {
     if (!container) return;
     if (!items || !items.length) {
         container.innerHTML = '<p class="chart-empty">No product sales in this range.</p>';
         return;
     }
-    const max = Math.max(...items.map((i) => Number(i[valueKey]) || 0), 1);
-    container.innerHTML = items
-        .map((i) => {
-            const val = Number(i[valueKey]) || 0;
-            const h = Math.max(4, Math.round((val / max) * 120));
-            const name = i[nameKey] || '—';
-            return `<div class="chart-bar"><span class="bar-value">${val}</span><div class="bar" style="height:${h}px"></div><span class="bar-label" title="${esc(name)}">${esc(name)}</span></div>`;
+    const ranked = [...items].sort((a, b) => (Number(b.qty_sold) || 0) - (Number(a.qty_sold) || 0));
+    const max = Math.max(Number(ranked[0].qty_sold) || 0, 1);
+    container.innerHTML = ranked
+        .map((p, i) => {
+            const qty = Number(p.qty_sold) || 0;
+            const w = Math.max(3, Math.round((qty / max) * 100));
+            return `<div class="rank-row"><span class="rank-no">${i + 1}</span><span class="rank-name" title="${esc(p.name)}">${esc(p.name)}</span><div class="rank-track"><div class="rank-fill" style="width:${w}%"></div></div><span class="rank-qty">${qty} sold</span></div>`;
         })
         .join('');
+}
+
+const PIE_COLORS = ['#1a4d3e', '#2d6a4f', '#52b788', '#95d5b2', '#e9c46a', '#f4a261', '#e76f51', '#457b9d', '#8d99ae', '#b5838d'];
+
+/** Donut of units sold per product with a colour-keyed legend. */
+function renderProductPie(container, items) {
+    if (!container) return;
+    const list = (items || []).filter((p) => Number(p.qty_sold) > 0);
+    if (!list.length) {
+        container.innerHTML = '<p class="chart-empty">No product sales in this range.</p>';
+        return;
+    }
+    const total = list.reduce((s, p) => s + Number(p.qty_sold), 0);
+    let acc = 0;
+    const stops = list.map((p, i) => {
+        const from = (acc / total) * 100;
+        acc += Number(p.qty_sold);
+        return `${PIE_COLORS[i % PIE_COLORS.length]} ${from}% ${(acc / total) * 100}%`;
+    });
+    const legend = list
+        .map((p, i) => {
+            const pct = Math.round((Number(p.qty_sold) / total) * 100);
+            return `<li><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i><span class="pie-name">${esc(p.name)}</span><span class="pie-val">${p.qty_sold} · ${pct}% · ${money(p.revenue)}</span></li>`;
+        })
+        .join('');
+    container.innerHTML = `<div class="pie-wrap"><div class="pie" role="img" aria-label="Units sold per product" style="background:conic-gradient(${stops.join(',')})"><span>${total}<small>sold</small></span></div><ul class="pie-legend">${legend}</ul></div>`;
 }
 
 function rangeQuery(app) {
@@ -752,24 +779,7 @@ function renderSummaryAnalytics(app, data) {
     // Service mix + popular products
     renderServiceShare(app.querySelector('[data-sum-service-mix]'), an.service_mix || [], 'revenue');
 
-    const pop = an.popular_products || [];
-    const maxRev = Math.max(...pop.map((p) => Number(p.revenue) || 0), 1);
-    const popRows = app.querySelector('[data-popular-product-rows]');
-    if (popRows) {
-        popRows.innerHTML = pop.length
-            ? pop
-                  .map((p) => {
-                      const w = Math.max(8, Math.round(((Number(p.revenue) || 0) / maxRev) * 80));
-                      return `<div class="order-row"><strong>${esc(p.name)}</strong><span class="num">${p.qty_sold}</span><span class="num"><i class="rev-bar" style="width:${w}px"></i>${money(p.revenue)}</span></div>`;
-                  })
-                  .join('')
-            : '<div class="order-row"><span style="grid-column:1/-1">No product sales in this range.</span></div>';
-    }
-
-    renderNamedBars(app.querySelector('[data-chart-top-products]'), pop, {
-        nameKey: 'name',
-        valueKey: 'qty_sold',
-    });
+    renderProductPie(app.querySelector('[data-popular-product-rows]'), an.popular_products || []);
 
     renderCancelledArchive(app, data);
 
@@ -809,12 +819,17 @@ export function renderFinanceFiltered(app, data, kpi) {
         el.classList.toggle('is-active', el.dataset.sumKpi === kpi);
     });
     const typeSelect = app.querySelector('[data-sum-type-filter]');
-    if (typeSelect) typeSelect.value = kpi === 'sales' ? 'revenue' : kpi === 'expenses' ? 'expenses' : 'all';
+    if (typeSelect) typeSelect.value = kpi === 'sales' ? 'revenue' : kpi === 'expenses' ? 'expenses' : kpi === 'cancelled' ? 'cancelled' : 'all';
+    const showCancelled = kpi === 'cancelled';
+    const finCard = app.querySelector('[data-sum-finance-card]');
+    const canCard = app.querySelector('[data-sum-cancelled-card]');
+    if (finCard) finCard.hidden = showCancelled;
+    if (canCard) canCard.hidden = !showCancelled;
     const expBox = app.querySelector('[data-sum-show-expenses]');
     if (expBox) expBox.checked = kpi === 'net';
     const body = app.querySelector('[data-admin-finance-rows]');
     const title = app.querySelector('[data-sum-finance-title]');
-    if (!body) return;
+    if (!body || showCancelled) return;
     let rows = data.finance || [];
     if (kpi === 'sales') rows = rows.filter((f) => f.type === 'income');
     else if (kpi === 'expenses') rows = rows.filter((f) => f.type === 'expense');
@@ -877,23 +892,7 @@ function renderInventoryAnalytics(app, data) {
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
     }
 
-    const pop = (data.analytics || {}).popular_products || [];
-    const invPop = app.querySelector('[data-inv-popular-rows]');
-    if (invPop) {
-        invPop.innerHTML = pop.length
-            ? pop
-                  .slice(0, 5)
-                  .map(
-                      (p, idx) =>
-                          `<div class="dash-alert"><strong>#${idx + 1} ${esc(p.name)}</strong><small>${p.qty_sold} sold · ${money(p.revenue)}</small></div>`
-                  )
-                  .join('')
-            : '<p class="dash-empty">No product sales yet in this range.</p>';
-    }
-    renderNamedBars(app.querySelector('[data-chart-top-products]'), pop, {
-        nameKey: 'name',
-        valueKey: 'qty_sold',
-    });
+    renderRankBars(app.querySelector('[data-chart-top-products]'), (data.analytics || {}).popular_products || []);
 }
 
 const REPORT_LABELS = {
@@ -1232,6 +1231,7 @@ export function handleAdminClick(t, e, ctx) {
         const typeSel = app.querySelector('[data-sum-type-filter]')?.value || 'all';
         if (typeSel === 'revenue') app._sumKpi = 'sales';
         else if (typeSel === 'expenses') app._sumKpi = 'expenses';
+        else if (typeSel === 'cancelled') app._sumKpi = 'cancelled';
         else app._sumKpi = 'net';
         loadAdminBootstrap(app).then(() => {
             if (app._adminBootstrap) renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
@@ -1373,13 +1373,17 @@ export function handleAdminClick(t, e, ctx) {
             }
             return true;
         }
-        api(`/ajax/admin/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
+        api(`/ajax/staff/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
             .then((r) => {
                 hideModal('[data-cancel-order-modal]');
-                hideModal('[data-activity-modal]');
-                showActivityList();
-                openNotice('Order cancelled', r.message || 'The order is now in Archive records.');
-                loadAdminBootstrap(app);
+                openNotice('Order cancelled', r.message || 'The order is now in Cancelled orders.');
+                if (app.dataset.role === 'admin') {
+                    hideModal('[data-activity-modal]');
+                    showActivityList();
+                    loadAdminBootstrap(app);
+                } else {
+                    ctx.loadStaffBootstrap?.();
+                }
             })
             .catch((ex) => {
                 if (errEl) {

@@ -62,8 +62,23 @@ it('only lets admins cancel and requires a reason', function () {
     [$order] = paidOrder($staff);
 
     $this->actingAs($staff)->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
-    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertForbidden();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertStatus(422);
     $this->actingAs($admin)->postJson("/ajax/admin/transactions/{$order->id}/cancel", [])->assertStatus(422);
+});
+
+it('lets staff cancel an order from the staff API and returns stock', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    [$order, $itemId] = paidOrder($staff);
+
+    $this->actingAs($staff)
+        ->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'Customer left'])
+        ->assertOk();
+
+    expect($order->fresh()->status)->toBe('cancelled')
+        ->and(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
+
+    $pending = User::factory()->create(['role' => 'pending']);
+    $this->actingAs($pending)->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
 });
 
 it('cannot cancel a claimed order', function () {

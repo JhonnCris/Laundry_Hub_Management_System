@@ -325,6 +325,21 @@
 </section>
 </div>
 
+<div class="modal-backdrop" data-cancel-order-modal hidden>
+<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<button class="modal-close" data-close-cancel-order type="button">×</button>
+<h2>Cancel order</h2>
+<p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Cancelled orders. This cannot be undone.</p>
+<input type="hidden" data-cancel-order-id>
+<label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
+<p class="modal-error" data-cancel-order-error hidden></p>
+<div class="modal-actions">
+<button type="button" class="text-button" data-close-cancel-order>Keep order</button>
+<button type="button" class="save-button" data-confirm-cancel-order>Cancel order</button>
+</div>
+</section>
+</div>
+
 <div class="modal-backdrop" data-notice-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-notice type="button">×</button>

@@ -27,7 +27,6 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
@@ -405,17 +404,11 @@ class StaffApiController extends Controller
     public function updateStatus(Request $request, LaundryTransaction $transaction): JsonResponse
     {
         $data = $request->validate([
-            'status' => ['required', Rule::in(['pending', 'processing', 'ready_for_pickup', 'claimed', 'cancelled'])],
+            'status' => ['required', Rule::in(['pending', 'processing', 'ready_for_pickup', 'claimed'])],
         ]);
 
         if ($transaction->status === 'claimed') {
             return response()->json(['message' => 'This order is already claimed and cannot be changed.'], 422);
-        }
-
-        if ($data['status'] === 'cancelled') {
-            abort_unless(Gate::allows('cancel', $transaction), 403, 'Only an admin can cancel an order.');
-
-            return response()->json(['message' => 'Use Cancel order in the admin console so stock and sales are corrected.'], 422);
         }
 
         if ($data['status'] === $transaction->status) {

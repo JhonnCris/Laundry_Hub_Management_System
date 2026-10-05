@@ -157,6 +157,7 @@
                         <option value="all">All activity</option>
                         <option value="revenue">Revenue only</option>
                         <option value="expenses">Expenses only</option>
+                        <option value="cancelled">Cancelled orders</option>
                     </select>
                 </label>
                 <button class="outline-action" type="button" data-sum-apply-range>Filter</button>
@@ -194,12 +195,11 @@
             </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Popular products</h2><small style="color:var(--staff-muted)">Snacks, drinks & extras sold</small></div>
-                <div class="order-row order-head popular-head"><span>Product</span><span class="num">Qty sold</span><span class="num">Revenue</span></div>
-                <div data-popular-product-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading products…</span></div></div>
+                <div data-popular-product-rows><p class="chart-empty">Loading products…</p></div>
             </section>
         </div>
 
-        <section class="staff-card full-card table-card" style="margin-top:18px">
+        <section class="staff-card full-card table-card" data-sum-finance-card style="margin-top:18px">
             <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
                 <h2 data-sum-finance-title style="margin:0">Finance activity</h2>
                 <label class="toggle-inline"><input type="checkbox" data-sum-show-expenses checked> Show expense rows</label>
@@ -208,14 +208,14 @@
             <div data-admin-finance-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading finance…</span></div></div>
         </section>
 
-        <section class="staff-card full-card table-card archive-table" style="margin-top:18px">
+        <section class="staff-card full-card table-card archive-table" data-sum-cancelled-card hidden style="margin-top:18px">
             <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
-                <h2 style="margin:0">Archive records · Cancelled orders</h2>
+                <h2 style="margin:0">Cancelled orders</h2>
                 <small data-cancelled-count style="color:var(--staff-muted)">0 cancelled</small>
             </div>
             <p class="modal-hint" style="padding:6px 20px 0;margin:0">Cancelled orders are kept here for reference and are not counted in sales, orders or charts.</p>
             <div class="order-row order-head"><span>Cancelled</span><span>Order</span><span>Customer</span><span class="num">Amount</span><span>Reason</span></div>
-            <div data-cancelled-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading archive…</span></div></div>
+            <div data-cancelled-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading cancelled orders…</span></div></div>
         </section>
     </section>
 
@@ -254,8 +254,7 @@
             </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Top sellers</h2><small style="color:var(--staff-muted)">From paid orders in current range</small></div>
-                <div class="chart-bars" data-chart-top-products></div>
-                <div data-inv-popular-rows style="margin-top:8px"></div>
+                <div class="rank-bars" data-chart-top-products></div>
             </section>
         </div>
     </section>
@@ -480,7 +479,7 @@
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-cancel-order type="button">×</button>
         <h2>Cancel order</h2>
-        <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Archive records. This cannot be undone.</p>
+        <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Cancelled orders. This cannot be undone.</p>
         <input type="hidden" data-cancel-order-id>
         <label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
         <p class="modal-error" data-cancel-order-error hidden></p>

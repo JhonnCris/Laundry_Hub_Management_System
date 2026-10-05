@@ -88,10 +88,8 @@ export function renderStaffLists(app, data, updateFn) {
                       const undoBtn = prev
                           ? `<button type="button" class="queue-undo-btn" data-set-status="${tx.id}" data-next-status="${prev}" data-undo="1" title="Undo last status change">Undo → ${statusLabel(prev)}</button>`
                           : '';
-                      const actions =
-                          forwardBtn || undoBtn
-                              ? `${forwardBtn}${undoBtn}`
-                              : '<span class="queue-action-empty">—</span>';
+                      const cancelBtn = `<button type="button" class="queue-undo-btn" data-cancel-order="${tx.id}" title="Cancel this order">Cancel order</button>`;
+                      const actions = `${forwardBtn}${undoBtn}${cancelBtn}`;
                       return `<div class="order-row"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${esc(svc)}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
                   })
                   .join('')

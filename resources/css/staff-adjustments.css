@@ -1767,3 +1767,21 @@ button.outline-action:hover,
 .sales-filter select { min-height: 40px; min-width: 150px; padding: 8px 14px; border: 1px solid var(--staff-input-border); border-radius: 8px; background: var(--staff-card-bg); color: var(--staff-text); font-weight: 600; cursor: pointer; }
 .receipt-modal .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; padding: 0 4px; }
 .receipt-modal .modal-actions > * { flex: 0 1 auto; }
+
+/* Product pie + ranking */
+.pie-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; padding: 8px 4px; }
+.pie { position: relative; width: 150px; height: 150px; border-radius: 50%; flex: none; }
+.pie::after { content: ""; position: absolute; inset: 30px; border-radius: 50%; background: #fffef9; }
+.pie span { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; font-size: 1.3rem; }
+.pie span small { font-size: .7rem; font-weight: 400; color: var(--staff-muted); }
+.pie-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 180px; display: grid; gap: 6px; }
+.pie-legend li { display: grid; grid-template-columns: 12px 1fr auto; gap: 8px; align-items: center; font-size: .85rem; }
+.pie-legend i { width: 12px; height: 12px; border-radius: 3px; }
+.pie-val { color: var(--staff-muted); font-size: .78rem; }
+.rank-bars { display: grid; gap: 10px; padding: 8px 4px; }
+.rank-row { display: grid; grid-template-columns: 24px minmax(70px, 1fr) minmax(60px, 2fr) auto; gap: 10px; align-items: center; font-size: .88rem; }
+.rank-no { font-weight: 700; color: var(--staff-muted); }
+.rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-track { height: 12px; border-radius: 6px; background: #eaf2ec; overflow: hidden; }
+.rank-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #2d6a4f, #1a4d3e); }
+.rank-qty { color: var(--staff-muted); font-size: .8rem; white-space: nowrap; }
