@@ -370,6 +370,8 @@ class AdminApiController extends Controller
             ]);
         });
 
+        $transaction->machine?->syncUsage();
+
         $this->audit('order.cancelled', ['order_id' => $transaction->id, 'reason' => $data['reason']]);
 
         return response()->json(['message' => 'Order cancelled and archived.', 'transaction' => $transaction->fresh()]);

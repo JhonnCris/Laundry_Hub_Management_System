@@ -57,6 +57,28 @@ export function renderAttendance(app, data) {
     }
 }
 
+/** Counts down every machine timer on screen; one interval for the whole page. */
+function tickMachineTimers() {
+    const paint = () => {
+        const grid = document.querySelector('[data-machine-grid]');
+        if (!grid) return;
+        const skew = Number(grid.dataset.skew || 0);
+        grid.querySelectorAll('[data-ends-at]').forEach((el) => {
+            if (!el.dataset.endsAt) return;
+            const left = Math.round((new Date(el.dataset.endsAt).getTime() - (Date.now() + skew)) / 1000);
+            if (left <= 0) {
+                el.textContent = "Time's up · mark the order ready";
+                return;
+            }
+            const m = Math.floor(left / 60);
+            const sec = String(left % 60).padStart(2, '0');
+            el.textContent = `Time left ${m}:${sec}`;
+        });
+    };
+    paint();
+    if (!window._machineTimer) window._machineTimer = setInterval(paint, 1000);
+}
+
 export function renderStaffLists(app, data, updateFn) {
     const q = app.querySelector('[data-queue-rows]');
     if (q) {
@@ -178,13 +200,23 @@ export function renderStaffLists(app, data, updateFn) {
     const mg = app.querySelector('[data-machine-grid]');
     if (mg) {
         const list = data.machines || [];
+        const skew = data.server_now ? new Date(data.server_now).getTime() - Date.now() : 0;
+        mg.dataset.skew = String(skew);
         mg.innerHTML = list
             .map((m) => {
                 const avail = m.status === 'available';
-                return `<article class="staff-card" data-machine-id="${m.id}"><span>${esc(m.name)}</span><strong class="${avail ? 'available' : ''}">${esc(m.status.replace(/_/g, ' '))}</strong><small>${esc(m.type)}</small>
-                <button type="button" class="action-btn-secondary" data-machine-status="${m.id}" data-set-machine="${avail ? 'maintenance' : 'available'}" title="Click to change machine status">${avail ? 'Set maintenance →' : 'Set available →'}</button></article>`;
+                const o = m.current_order;
+                const using = m.status === 'in_use';
+                const usage = using && o
+                    ? `<small>Order #${o.id} · ${esc(o.customer || '—')} · Self service</small><small class="machine-eta" data-ends-at="${esc(o.ends_at || '')}">${o.ends_at ? '' : 'No timer set'}</small>`
+                    : '';
+                const btn = using
+                    ? ''
+                    : `<button type="button" class="action-btn-secondary" data-machine-status="${m.id}" data-set-machine="${avail ? 'maintenance' : 'available'}" title="Click to change machine status">${avail ? 'Set maintenance →' : 'Set available →'}</button>`;
+                return `<article class="staff-card" data-machine-id="${m.id}"><span>${esc(m.name)}</span><strong class="${avail ? 'available' : ''}">${esc(m.status.replace(/_/g, ' '))}</strong><small>${esc(m.type)}</small>${usage}${btn}</article>`;
             })
             .join('');
+        tickMachineTimers();
     }
 
     const fillSelect = (sel, items) => {
@@ -246,13 +278,14 @@ export function loadStaffBootstrap(app, updateFn) {
             const machineSelect = app.querySelector('[data-machine]');
             if (machineSelect && (data.machines || []).length) {
                 machineSelect.innerHTML = '';
-                data.machines.forEach((m) => {
+                data.machines.filter((m) => m.status === 'available').forEach((m) => {
                     const o = document.createElement('option');
                     o.value = m.name;
                     o.dataset.machineId = String(m.id);
                     o.textContent = m.name;
                     machineSelect.appendChild(o);
                 });
+                if (!machineSelect.options.length) machineSelect.innerHTML = '<option value="">No machine available</option>';
             }
             const list = app.querySelector('[data-basket-list]');
             if (list) {

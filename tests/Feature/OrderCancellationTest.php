@@ -145,3 +145,28 @@ it('answers registration the same way whether or not the email exists', function
     expect(User::where('email', 'taken@example.com')->count())->toBe(1)
         ->and(User::where('email', 'fresh@example.com')->exists())->toBeTrue();
 });
+
+it('marks a machine in use for a self-service order and frees it when the order is ready', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    $customer = Customer::create(['name' => 'Wash Day', 'contact_number' => '0922']);
+    $machineId = DB::table('machines')->insertGetId(['name' => 'Washer 9', 'type' => 'washer', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
+
+    $payload = [
+        'customer_id' => $customer->id, 'transaction_type' => 'self_service', 'machine_id' => $machineId,
+        'load_weight_kg' => 5, 'cycle_minutes' => 45, 'service_amount' => 125, 'total_amount' => 125, 'cash_tendered' => 200,
+    ];
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $payload)->assertOk();
+
+    $machine = collect($this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json('machines'))->firstWhere('id', $machineId);
+    expect($machine['status'])->toBe('in_use')
+        ->and($machine['current_order']['customer'])->toBe('Wash Day')
+        ->and($machine['current_order']['ends_at'])->not->toBeNull();
+
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $payload)->assertStatus(422);
+    $this->actingAs($staff)->patchJson("/ajax/staff/machines/{$machineId}/status", ['status' => 'maintenance'])->assertStatus(422);
+
+    $order = LaundryTransaction::first();
+    $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'ready_for_pickup'])->assertOk();
+
+    expect(DB::table('machines')->where('id', $machineId)->value('status'))->toBe('available');
+});

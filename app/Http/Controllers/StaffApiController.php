@@ -52,7 +52,20 @@ class StaffApiController extends Controller
 
         $garments = GarmentType::query()->orderBy('name')->get(['id', 'name', 'is_custom']);
         $services = Service::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'base_price']);
-        $machines = Machine::query()->orderBy('name')->get(['id', 'name', 'type', 'status']);
+        $machines = Machine::query()->with('activeOrder.customer:id,name')->orderBy('name')->get(['id', 'name', 'type', 'status'])
+            ->map(function (Machine $m) {
+                $order = $m->activeOrder;
+                $row = $m->only(['id', 'name', 'type', 'status']);
+                $row['current_order'] = $order ? [
+                    'id' => $order->id,
+                    'customer' => $order->customer?->name,
+                    'started_at' => $order->created_at->toIso8601String(),
+                    'ends_at' => $order->cycle_minutes ? $order->created_at->copy()->addMinutes($order->cycle_minutes)->toIso8601String() : null,
+                    'cycle_minutes' => $order->cycle_minutes,
+                ] : null;
+
+                return $row;
+            });
         $baskets = BasketTag::query()->orderBy('code')->get(['id', 'code', 'status']);
         $inventory = InventoryItem::query()->with('category:id,name')->orderBy('name')->get();
         $activeInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') === 'active')->values();
@@ -158,6 +171,7 @@ class StaffApiController extends Controller
             'garment_types' => $garments,
             'services' => $services,
             'machines' => $machines,
+            'server_now' => now()->toIso8601String(),
             'baskets' => $baskets->map(fn ($b) => [
                 'id' => $b->id,
                 'code' => $b->code,
@@ -256,6 +270,16 @@ class StaffApiController extends Controller
                         $basket->update(['status' => 'in_use']);
                         $basketId = $basket->id;
                     }
+                }
+
+                if ($data['transaction_type'] === 'self_service' && ! empty($data['machine_id'])) {
+                    $machine = Machine::query()->lockForUpdate()->findOrFail($data['machine_id']);
+                    if ($machine->status !== 'available') {
+                        throw ValidationException::withMessages([
+                            'machine_id' => "{$machine->name} is not available right now. Pick another machine.",
+                        ]);
+                    }
+                    $machine->update(['status' => 'in_use']);
                 }
 
                 $detergentQty = (int) ($data['detergent_quantity'] ?? 0);
@@ -458,6 +482,8 @@ class StaffApiController extends Controller
                 }
             }
         });
+
+        $transaction->machine?->syncUsage();
 
         $this->audit('order.status_changed', ['order_id' => $transaction->id, 'from' => $previousStatus, 'to' => $data['status']]);
 
@@ -758,6 +784,9 @@ class StaffApiController extends Controller
         $data = $request->validate([
             'status' => ['required', 'in:available,in_use,reserved,maintenance,out_of_service'],
         ]);
+        if ($machine->activeOrder()->exists()) {
+            return response()->json(['message' => "{$machine->name} is running an order. It frees up when that order is marked ready or cancelled."], 422);
+        }
         $before = $machine->status;
         $machine->update(['status' => $data['status']]);
         $this->audit('machine.status_changed', ['machine_id' => $machine->id, 'from' => $before, 'to' => $data['status']]);
