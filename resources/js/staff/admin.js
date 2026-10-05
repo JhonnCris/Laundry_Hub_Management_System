@@ -576,7 +576,7 @@ function buildActivityDetailHtml(tx) {
               : ''
       }
       ${
-          tx.status !== 'claimed' && tx.status !== 'cancelled'
+          tx.status !== 'cancelled' && (tx.status !== 'claimed' || isPurchaseOnly)
               ? `<div class="ad-section"><button type="button" class="outline-action" data-cancel-order="${tx.id}">Cancel order…</button></div>`
               : ''
       }

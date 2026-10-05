@@ -81,11 +81,28 @@ it('lets staff cancel an order from the staff API and returns stock', function (
     $this->actingAs($pending)->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
 });
 
+it('sells snacks and drinks without laundry: no queue entry, no basket, still counted as sales', function () {
+    $staff = User::factory()->create(['role' => 'staff']);
+    [$order] = paidOrder($staff);
+
+    expect($order->status)->toBe('claimed')
+        ->and($order->basket_tag_id)->toBeNull();
+
+    $active = $this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json('active_laundry');
+    expect($active)->toBeEmpty();
+
+    $customer = Customer::first();
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', [
+        'customer_id' => $customer->id, 'transaction_type' => 'drop_off', 'service_amount' => 0,
+        'total_amount' => 0, 'cash_tendered' => 0,
+    ])->assertStatus(422);
+});
+
 it('cannot cancel a claimed order', function () {
     $staff = User::factory()->create(['role' => 'staff']);
     $admin = User::factory()->create(['role' => 'admin']);
-    [$order] = paidOrder($staff);
-    $order->update(['status' => 'claimed']);
+    [$order, $itemId] = paidOrder($staff);
+    $order->update(['status' => 'claimed', 'detergent_item_id' => $itemId]);
 
     $this->actingAs($admin)
         ->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'too late'])

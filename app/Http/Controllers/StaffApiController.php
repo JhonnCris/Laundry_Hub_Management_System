@@ -212,6 +212,16 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'Load weight (kg) is required for self-service.'], 422);
         }
 
+        // Snacks/drinks only: no service, garments or detergent. Sold over the counter, never queued.
+        $purchaseOnly = $data['transaction_type'] === 'drop_off'
+            && empty($data['service_id'])
+            && (float) $data['service_amount'] == 0.0
+            && (int) ($data['detergent_quantity'] ?? 0) <= 0
+            && collect($data['garments'] ?? [])->sum('quantity') <= 0;
+        if ($purchaseOnly && empty($data['items'])) {
+            return response()->json(['message' => 'Add a service or at least one snack/drink.'], 422);
+        }
+
         $cash = (float) $data['cash_tendered'];
         $total = (float) $data['total_amount'];
         if ($cash + 0.001 < $total) {
@@ -228,9 +238,9 @@ class StaffApiController extends Controller
         }
 
         try {
-            $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId) {
+            $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId, $purchaseOnly) {
                 $basketId = null;
-                if (! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
+                if (! $purchaseOnly && ! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
                     $basket = BasketTag::query()->where('code', $data['basket_code'])->first();
                     if ($basket) {
                         $holder = LaundryTransaction::query()
@@ -298,7 +308,7 @@ class StaffApiController extends Controller
                     'detergent_quantity' => $detergentQty,
                     'handled_by' => $staffId,
                     'transaction_type' => $data['transaction_type'],
-                    'status' => $data['transaction_type'] === 'self_service' ? 'processing' : 'pending',
+                    'status' => $purchaseOnly ? 'claimed' : ($data['transaction_type'] === 'self_service' ? 'processing' : 'pending'),
                     'payment_status' => 'paid',
                     'subtotal' => $subtotal,
                     'total_amount' => $total,
@@ -369,7 +379,7 @@ class StaffApiController extends Controller
 
                 FinanceTransaction::query()->create([
                     'type' => 'income',
-                    'description' => 'Laundry order #'.$txn->id,
+                    'description' => ($purchaseOnly ? 'Snacks & drinks purchase #' : 'Laundry order #').$txn->id,
                     'amount' => $total,
                     'staff_id' => $staffId,
                     'laundry_transaction_id' => $txn->id,

@@ -79,7 +79,7 @@ it('rejects the same payment token submitted twice', function () {
 it('enforces order status transitions and keeps cancellation off the status endpoint', function () {
     $itemId = snackItem(10);
     $staff = staffUser();
-    $this->actingAs($staff)->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1))->assertOk();
+    $this->actingAs($staff)->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1, ['garments' => [['name' => 'Shirt', 'quantity' => 1]]]))->assertOk();
     $order = LaundryTransaction::first();
 
     $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'claimed'])->assertStatus(422);
@@ -127,7 +127,7 @@ it('shows which customer holds a basket and refuses to hand it out twice', funct
     $itemId = snackItem(10);
     $basketId = DB::table('basket_tags')->insertGetId(['code' => '#050', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
     $staff = staffUser();
-    $laundry = fn () => purchasePayload($itemId, 1, ['basket_code' => '#050']);
+    $laundry = fn () => purchasePayload($itemId, 1, ['basket_code' => '#050', 'garments' => [['name' => 'Shirt', 'quantity' => 1]]]);
 
     $this->actingAs($staff)->postJson('/ajax/staff/transactions', $laundry())->assertOk();
 

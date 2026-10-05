@@ -337,7 +337,12 @@ class AdminApiController extends Controller
         DB::transaction(function () use ($transaction, $data) {
             $order = LaundryTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
 
-            if (in_array($order->status, ['claimed', 'cancelled'], true)) {
+            // A claimed laundry order is done; a claimed snacks/drinks sale can still be voided.
+            $isPurchaseOnly = $order->transaction_type === 'drop_off'
+                && ! $order->service_id
+                && ! $order->detergent_item_id
+                && ! $order->garmentTypes()->exists();
+            if ($order->status === 'cancelled' || ($order->status === 'claimed' && ! $isPurchaseOnly)) {
                 throw ValidationException::withMessages([
                     'status' => "A {$order->status} order cannot be cancelled.",
                 ]);
