@@ -70,7 +70,7 @@
     <label class="field">
         <span class="field-label">Service type</span>
         <select data-service-price data-pricing="flat">
-            <option value="0">Loading services…</option>
+            <option value="0" data-none="1">None (snacks &amp; drinks only)</option>
         </select>
         <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>

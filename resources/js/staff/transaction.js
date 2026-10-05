@@ -159,7 +159,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         toggle('[data-row-garments]', !s.selfService);
         toggle('[data-row-kg]', s.kg > 0);
         toggle('[data-row-duration]', s.selfService && !!s.duration);
-        toggle('[data-row-service-type]', true);
+        toggle('[data-row-service-type]', s.service.amount > 0);
         toggle('[data-row-consumable]', s.consumable.qty > 0);
 
         set('[data-summary-tag]', app.querySelector('[data-basket-tag]')?.value || '—');
@@ -456,6 +456,13 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                 notice.textContent = isSelfService()
                     ? 'Enter load weight (kg) or add snacks before saving.'
                     : 'Add garments or snacks before saving.';
+                notice.classList.add('is-error');
+            }
+            return;
+        }
+        if (!s.selfService && s.garments > 0 && !(s.service.amount > 0)) {
+            if (notice) {
+                notice.textContent = 'Pick a service type for the garments, or remove them to sell snacks and drinks only.';
                 notice.classList.add('is-error');
             }
             return;

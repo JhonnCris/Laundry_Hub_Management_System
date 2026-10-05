@@ -230,7 +230,7 @@ export function loadStaffBootstrap(app, updateFn) {
             });
             app.querySelectorAll('[data-service-price][data-pricing="flat"]').forEach((select) => {
                 if (!(data.services || []).length) return;
-                select.innerHTML = '';
+                select.innerHTML = '<option value="0" data-none="1">None (snacks &amp; drinks only)</option>';
                 data.services.forEach((svc) => {
                     const o = document.createElement('option');
                     o.value = String(svc.base_price);
