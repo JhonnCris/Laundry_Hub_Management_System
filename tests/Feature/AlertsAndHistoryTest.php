@@ -6,7 +6,6 @@ use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -100,27 +99,6 @@ it('loads the items, garments, detergent and cashier needed to reprint a receipt
 
     expect($json)->toHaveKeys(['inventory_items', 'garment_types', 'detergent', 'handled_by'])
         ->and($json['id'])->toBe($order->id);
-});
-
-it('sends the receipt SMS through the configured provider and reports the result', function () {
-    config(['services.sms.driver' => 'android', 'services.sms.android_url' => 'http://phone.local:8080/message']);
-    Http::fake(['phone.local:8080/*' => Http::response([], 202)]);
-    $staff = User::factory()->create(['role' => 'staff']);
-    $customer = Customer::create(['name' => 'Texted', 'contact_number' => '09602457559']);
-    $order = LaundryTransaction::create([
-        'customer_id' => $customer->id, 'transaction_type' => 'drop_off', 'status' => 'pending',
-        'payment_status' => 'paid', 'subtotal' => 50, 'total_amount' => 50,
-    ]);
-
-    $this->actingAs($staff)->postJson("/ajax/staff/transactions/{$order->id}/receipt-sms")
-        ->assertOk()->assertJsonPath('result', 'sent');
-    Http::assertSent(fn ($r) => $r['phoneNumbers'] === ['+639602457559'] && str_contains($r['message'], "#{$order->id}"));
-
-    $noPhone = LaundryTransaction::create([
-        'customer_id' => Customer::create(['name' => 'No Phone'])->id, 'transaction_type' => 'drop_off', 'status' => 'pending',
-        'payment_status' => 'paid', 'subtotal' => 1, 'total_amount' => 1,
-    ]);
-    $this->actingAs($staff)->postJson("/ajax/staff/transactions/{$noPhone->id}/receipt-sms")->assertStatus(422);
 });
 
 it('gives drop-off orders waiting for pickup a signed notify link when Firebase web settings exist', function () {

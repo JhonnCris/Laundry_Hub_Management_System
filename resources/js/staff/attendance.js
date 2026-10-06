@@ -4,7 +4,7 @@
 import { api } from './core.js';
 
 export function handleAttendanceClick(t, e, ctx) {
-    const { openConfirm, openNotice } = ctx;
+    const { openConfirm, openNotice, openError } = ctx;
 
     if (t.closest('[data-clock-in]')) {
         e.preventDefault();
@@ -14,10 +14,10 @@ export function handleAttendanceClick(t, e, ctx) {
             () => {
                 api('/ajax/staff/attendance/clock-in', { method: 'POST', body: '{}' })
                     .then((r) => {
-                        openNotice('Clock in', r.message || 'Clocked in');
+                        openNotice('Clock in', r.message || 'Clocked in', 'success');
                         ctx.loadStaffBootstrap?.();
                     })
-                    .catch((err) => openNotice('Clock in', err.message));
+                    .catch((err) => openError('Clock in', err));
             }
         );
         return true;
@@ -30,10 +30,10 @@ export function handleAttendanceClick(t, e, ctx) {
             () => {
                 api('/ajax/staff/attendance/clock-out', { method: 'POST', body: '{}' })
                     .then((r) => {
-                        openNotice('Clock out', r.message || 'Clocked out');
+                        openNotice('Clock out', r.message || 'Clocked out', 'success');
                         ctx.loadStaffBootstrap?.();
                     })
-                    .catch((err) => openNotice('Clock out', err.message));
+                    .catch((err) => openError('Clock out', err));
             }
         );
         return true;

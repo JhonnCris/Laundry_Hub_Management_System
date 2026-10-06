@@ -39,6 +39,18 @@ new #[Layout('components.layouts.auth')] class extends Component {
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // Self-registered accounts cannot sign in until an admin approves them.
+        if (Auth::user()->role === 'pending') {
+            Auth::logout();
+            Session::invalidate();
+            Session::regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => __('Your account is waiting for admin approval. Please ask the owner or an admin to approve it, then log in again.'),
+            ]);
+        }
+
         Session::regenerate();
 
         // Separate UI by role: admin → admin console, staff → operations

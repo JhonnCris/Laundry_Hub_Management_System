@@ -1,4 +1,4 @@
-import { api, esc, money, shopInfo } from './core.js';
+import { api, esc, money, paginate, shopInfo } from './core.js';
 
 const saleDate = (value) => {
     if (!value) return '—';
@@ -37,6 +37,7 @@ export function loadSales(app) {
                       </div>`;
                   }).join('')
                 : `<div class="order-row"><span style="grid-column:1/-1">No transactions found${period ? ` for this ${period}` : ''}.</span></div>`;
+            paginate(rows);
         })
         .catch((error) => {
             rows.innerHTML = `<div class="order-row"><span style="grid-column:1/-1">${esc(error.message || 'Could not load sale records.')}</span></div>`;
@@ -129,7 +130,6 @@ export function handleSalesClick(t, e, app, showModal) {
         if (!transaction) return true;
         app._receiptTransactionId = transaction.id;
         app._receiptTotal = transaction.total_amount;
-        app._receiptCustomerPhone = transaction.customer?.contact_number || '';
         app._receiptCustomerEmail = transaction.customer?.email || '';
         // Viewing an old receipt must not change which customer is selected for the next order.
         const newTransactionButton = app.querySelector('[data-new-tx-same-customer]');
@@ -137,7 +137,10 @@ export function handleSalesClick(t, e, app, showModal) {
         const body = app.querySelector('[data-receipt-body]');
         const emailNotice = app.querySelector('[data-receipt-email-notice]');
         if (body) body.innerHTML = receiptHtml(transaction, app);
-        if (emailNotice) emailNotice.textContent = '';
+        if (emailNotice) {
+            emailNotice.textContent = '';
+            emailNotice.classList.remove('is-error');
+        }
         const emailButton = app.querySelector('[data-send-receipt-email]');
         if (emailButton) emailButton.hidden = !app._receiptCustomerEmail;
         showModal('[data-receipt-modal]');

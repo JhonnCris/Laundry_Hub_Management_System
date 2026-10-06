@@ -8,7 +8,9 @@ import { handleInventoryClick } from './inventory.js';
 import { handleHistorySearch, handleQueueClick } from './queue.js';
 import { handleAdminClick, loadAdminBootstrap, renderFinanceFiltered } from './admin.js';
 import { handleNavigationClick } from './navigation.js';
-import { loadStaffBootstrap } from './bootstrap.js';
+import { loadStaffBootstrap, renderBaskets } from './bootstrap.js';
+import { toast } from './core.js';
+import { applyLocale, currentLocale } from './i18n.js';
 import { createTransaction } from './transaction.js';
 import { handleSalesClick, handleSalesInput, loadSales } from './sales.js';
 
@@ -19,13 +21,14 @@ export function bootStaffApp() {
     app.dataset.sskBound = '1';
 
     const modals = createModals();
-    const { showModal, hideModal, openNotice, openConfirm, handleModalClick } = modals;
+    const { showModal, hideModal, openNotice, openError, openConfirm, handleModalClick } = modals;
 
     const ctx = {
         app,
         showModal,
         hideModal,
         openNotice,
+        openError,
         openConfirm,
         update: null,
         resetTransactionForm: null,
@@ -81,6 +84,11 @@ export function bootStaffApp() {
             }
             return;
         }
+        if (t.matches('[data-basket-filter]')) {
+            app._basketFilter = t.value;
+            if (app._bootstrap) renderBaskets(app, app._bootstrap);
+            return;
+        }
         if (handleSalesInput(t, app)) return;
         if (tx.handleTransactionInput(t)) return;
     });
@@ -103,6 +111,7 @@ export function bootStaffApp() {
         }
     });
 
+
     // also payment cash may be outside app root in some layouts
     document.addEventListener('input', (e) => {
         const t = e.target;
@@ -122,7 +131,14 @@ export function bootStaffApp() {
 }
 
 export function start() {
-    const run = () => bootStaffApp();
+    // Anything that slips past a screen's own error handling still reaches the user.
+    window.addEventListener('unhandledrejection', (e) => {
+        toast(e.reason?.message || 'Something went wrong. Please refresh the page and try again.');
+    });
+    const run = () => {
+        bootStaffApp();
+        applyLocale(currentLocale());
+    };
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', run);
     } else {

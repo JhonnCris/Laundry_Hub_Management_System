@@ -1,8 +1,22 @@
 /**
  * Staff bootstrap: load DB data + render module tables
  */
-import { api, esc, fmtDate, fmtTime } from './core.js';
+import { api, errorText, esc, fmtDate, fmtTime, paginate } from './core.js';
+import { showScreen } from './navigation.js';
 import { statusLabel, statusClass } from './queue.js';
+
+/** Staff can use Manage Customer and Transactions only while clocked in (and not yet clocked out). */
+function applyDutyState(app, onDuty) {
+    if (app.dataset.role === 'admin') return;
+    app.dataset.onDuty = onDuty ? '1' : '0';
+    app.querySelectorAll('[data-needs-duty]').forEach((btn) => btn.classList.toggle('is-locked', !onDuty));
+    const lock = app.querySelector('[data-duty-lock]');
+    const guide = app.querySelector('[data-duty-guide]');
+    if (lock) lock.hidden = onDuty;
+    if (guide) guide.hidden = !onDuty;
+    const open = app.querySelector('.prototype-panel.is-visible');
+    if (!onDuty && open && ['customers', 'transactions'].includes(open.dataset.panel)) showScreen(app, 'attendance');
+}
 
 export function renderAttendance(app, data) {
     const today = data.attendance_today;
@@ -42,6 +56,7 @@ export function renderAttendance(app, data) {
         outBtn.disabled = !clockedIn || clockedOut;
         outBtn.title = !clockedIn ? 'Clock in first' : clockedOut ? 'Already clocked out today' : 'End your shift';
     }
+    applyDutyState(app, clockedIn && !clockedOut);
     const rows = app.querySelector('[data-attendance-rows]');
     if (rows) {
         if (!recent.length) {
@@ -55,6 +70,37 @@ export function renderAttendance(app, data) {
                 .join('');
         }
     }
+}
+
+/** Baskets table, narrowed by the In use / Available filter. */
+export function renderBaskets(app, data) {
+    const br = app.querySelector('[data-basket-rows]');
+    if (!br) return;
+    const filter = app._basketFilter || '';
+    const all = data.baskets || [];
+    const list = all.filter((b) => {
+        const inUse = !!b.assigned || b.status !== 'available';
+        return !filter || (filter === 'in_use' ? inUse : !inUse);
+    });
+    br.innerHTML = list.length
+        ? list
+              .map((b) => {
+                  const inUse = !!b.assigned || b.status !== 'available';
+                  const cls = inUse ? 'processing' : 'ready';
+                  const a = b.assigned;
+                  const who = a
+                      ? `<span><strong>${esc(a.customer || 'Customer')}</strong></span>`
+                      : b.status === 'in_use'
+                        ? '<span style="color:var(--staff-muted)">In use · no open order</span>'
+                        : '<span style="color:var(--staff-muted)">—</span>';
+                  const orderCell = a
+                      ? `<span>#${esc(a.order_id)} · <em class="status ${statusClass(a.order_status)}">${esc(statusLabel(a.order_status))}</em></span>`
+                      : '<span></span>';
+                  return `<div class="order-row"><strong>${esc(b.code)}</strong><span><em class="status ${cls}">${inUse ? 'in use' : 'available'}</em></span>${who}${orderCell}</div>`;
+              })
+              .join('')
+        : `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${all.length ? `No ${filter === 'in_use' ? 'baskets in use' : 'available baskets'}.` : 'No baskets yet. Click Add basket to register one.'}</span></div>`;
+    paginate(br);
 }
 
 /** Counts down every machine timer on screen; one interval for the whole page. */
@@ -79,7 +125,7 @@ function tickMachineTimers() {
     if (!window._machineTimer) window._machineTimer = setInterval(paint, 1000);
 }
 
-export function renderStaffLists(app, data, updateFn) {
+export function renderStaffLists(app, data) {
     const q = app.querySelector('[data-queue-rows]');
     if (q) {
         const list = data.active_laundry || [];
@@ -110,7 +156,7 @@ export function renderStaffLists(app, data, updateFn) {
                       const undoBtn = prev
                           ? `<button type="button" class="queue-undo-btn" data-set-status="${tx.id}" data-next-status="${prev}" data-undo="1" title="Undo last status change">Undo → ${statusLabel(prev)}</button>`
                           : '';
-                      const cancelBtn = `<button type="button" class="queue-undo-btn" data-cancel-order="${tx.id}" title="Cancel this order">Cancel order</button>`;
+                      const cancelBtn = `<button type="button" class="queue-cancel-btn" data-cancel-order="${tx.id}" title="Cancel this order and return its stock">Cancel order</button>`;
                       const actions = `${forwardBtn}${undoBtn}${cancelBtn}`;
                       return `<div class="order-row"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${esc(svc)}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
                   })
@@ -174,28 +220,7 @@ export function renderStaffLists(app, data, updateFn) {
             : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div>';
     }
 
-    const br = app.querySelector('[data-basket-rows]');
-    if (br) {
-        const list = data.baskets || [];
-        br.innerHTML = !list.length
-            ? '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No baskets yet. Click Add basket to register one.</span></div>'
-            : list
-            .map((b) => {
-                const inUse = !!b.assigned || b.status !== 'available';
-                const cls = inUse ? 'processing' : 'ready';
-                const a = b.assigned;
-                const who = a
-                    ? `<span><strong>${esc(a.customer || 'Customer')}</strong></span>`
-                    : b.status === 'in_use'
-                      ? '<span style="color:var(--staff-muted)">In use · no open order</span>'
-                      : '<span style="color:var(--staff-muted)">—</span>';
-                const orderCell = a
-                    ? `<span>#${esc(a.order_id)} · <em class="status ${statusClass(a.order_status)}">${esc(statusLabel(a.order_status))}</em></span>`
-                    : '<span></span>';
-                return `<div class="order-row"><strong>${esc(b.code)}</strong><span><em class="status ${cls}">${inUse ? 'in use' : 'available'}</em></span>${who}${orderCell}</div>`;
-            })
-            .join('');
-    }
+    renderBaskets(app, data);
 
     const mg = app.querySelector('[data-machine-grid]');
     if (mg) {
@@ -218,6 +243,8 @@ export function renderStaffLists(app, data, updateFn) {
             .join('');
         tickMachineTimers();
     }
+
+    ['[data-queue-rows]', '[data-customer-rows]', '[data-inventory-rows]', '[data-archived-rows]'].forEach((sel) => paginate(app.querySelector(sel)));
 
     const fillSelect = (sel, items) => {
         if (!sel) return;
@@ -326,26 +353,6 @@ export function loadStaffBootstrap(app, updateFn) {
             );
             setBadge('archived', (data.archived_inventory || []).length);
 
-            // Optional notification panel if present
-            const notifBox = app.querySelector('[data-notification-list]');
-            if (notifBox) {
-                const notes = data.notifications || [];
-                notifBox.innerHTML = notes.length
-                    ? notes
-                          .map(
-                              (n) =>
-                                  `<div class="dash-alert"><strong>${(n.type || 'alert').replace(/_/g, ' ')}</strong><small>${esc(n.message)}</small></div>`
-                          )
-                          .join('')
-                    : '<p class="dash-empty">No notifications.</p>';
-            }
-            const notifCount = app.querySelector('[data-notification-count]');
-            if (notifCount) {
-                const n = (data.notifications || []).length;
-                notifCount.textContent = String(n);
-                notifCount.hidden = n === 0;
-            }
-
             // Default basket: first available, not a hardcoded tag
             const basketInput = app.querySelector('[data-basket-tag]');
             if (basketInput && !basketInput.value) {
@@ -372,12 +379,12 @@ export function loadStaffBootstrap(app, updateFn) {
                 });
             }
 
-            renderStaffLists(app, data, updateFn);
+            renderStaffLists(app, data);
             if (typeof updateFn === 'function') updateFn();
         })
         .catch((err) => {
             console.warn('SSK bootstrap:', err.message);
-            const notice = `<div class="order-row"><span style="grid-column:1/-1;color:#af3b2c">Could not load data: ${esc(err.message)}</span></div>`;
+            const notice = `<div class="order-row"><span style="grid-column:1/-1;color:#af3b2c">Could not load data: ${esc(errorText(err))}</span></div>`;
             ['[data-customer-rows]', '[data-queue-rows]', '[data-inventory-rows]', '[data-basket-rows]', '[data-archived-rows]', '[data-attendance-rows]'].forEach((sel) => {
                 const el = app.querySelector(sel);
                 if (el) el.innerHTML = notice;

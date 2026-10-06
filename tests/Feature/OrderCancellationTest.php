@@ -41,8 +41,8 @@ it('cancels an order, returns stock and moves it to the archive records', functi
     $before = $this->actingAs($admin)->getJson('/ajax/admin/bootstrap')->json();
     expect($before['metrics']['period_sales'])->toEqual(40);
 
-    $this->actingAs($admin)
-        ->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'Customer changed mind'])
+    $this->actingAs($staff)
+        ->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'Customer changed mind'])
         ->assertOk();
 
     expect(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
@@ -56,14 +56,15 @@ it('cancels an order, returns stock and moves it to the archive records', functi
         ->and(collect($after['finance'])->where('type', 'income'))->toBeEmpty();
 });
 
-it('only lets admins cancel and requires a reason', function () {
+it('only lets staff cancel (not admins) and requires a reason', function () {
     $staff = User::factory()->create(['role' => 'staff']);
     $admin = User::factory()->create(['role' => 'admin']);
     [$order] = paidOrder($staff);
 
-    $this->actingAs($staff)->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
+    $this->actingAs($admin)->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertForbidden();
+    $this->actingAs($admin)->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'nope'])->assertStatus(404);
     $this->actingAs($staff)->patchJson("/ajax/staff/transactions/{$order->id}/status", ['status' => 'cancelled'])->assertStatus(422);
-    $this->actingAs($admin)->postJson("/ajax/admin/transactions/{$order->id}/cancel", [])->assertStatus(422);
+    $this->actingAs($staff)->postJson("/ajax/staff/transactions/{$order->id}/cancel", [])->assertStatus(422);
 });
 
 it('lets staff cancel an order from the staff API and returns stock', function () {
@@ -104,8 +105,8 @@ it('cannot cancel a claimed order', function () {
     [$order, $itemId] = paidOrder($staff);
     $order->update(['status' => 'claimed', 'detergent_item_id' => $itemId]);
 
-    $this->actingAs($admin)
-        ->postJson("/ajax/admin/transactions/{$order->id}/cancel", ['reason' => 'too late'])
+    $this->actingAs($staff)
+        ->postJson("/ajax/staff/transactions/{$order->id}/cancel", ['reason' => 'too late'])
         ->assertStatus(422);
 });
 

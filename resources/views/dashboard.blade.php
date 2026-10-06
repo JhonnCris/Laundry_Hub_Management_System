@@ -5,9 +5,9 @@
 <a class="brand" href="#"><img class="brand-logo" src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo" width="48" height="48"><span class="brand-text"><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a>
 <nav class="staff-nav">
 <p class="nav-group-label">Staff operations</p>
-<button class="is-active" data-screen="customers"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
-<button data-screen="transactions"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
-<button data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
+<button class="is-active" data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
+<button data-screen="customers" data-needs-duty><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
+<button data-screen="transactions" data-needs-duty><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
 <button data-screen="sales"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sales Record</span></button>
 <button class="stock-group-toggle" type="button" data-stock-toggle aria-expanded="true" aria-controls="stock-subnav"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Stocks</span><svg class="stock-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
@@ -163,7 +163,6 @@
 <section class="notes-card"><label>Notes<textarea placeholder="Special requests, stains, or payment note..."></textarea></label></section>
 <p class="save-notice" data-save-notice></p>
 </aside></div></section>
-<!-- Add garment type modal -->
 <div class="modal-backdrop" data-history-modal hidden>
 <section class="profile-modal action-modal history-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-history type="button">×</button>
@@ -362,7 +361,7 @@
 <div class="order-row sale-row sale-head"><span>Order</span><span>Date</span><span>Customer</span><span>Status</span><span>Total</span><span>Receipt</span></div>
 <div data-sale-rows><div class="order-row"><span>Loading sales records…</span></div></div>
 </section></section>
-<section class="prototype-panel is-visible" data-panel="customers">
+<section class="prototype-panel" data-panel="customers">
 <div class="page-intro">
     <div>
         <p class="eyebrow">Customer hub</p>
@@ -395,6 +394,7 @@
 <section class="staff-card full-card table-card" style="margin-top:18px">
 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
     <h2 style="margin:0">Laundry baskets</h2>
+    <select class="basket-filter" data-basket-filter aria-label="Filter baskets by status"><option value="">All baskets</option><option value="in_use">In use</option><option value="available">Available</option></select>
     <button class="action-btn-primary" type="button" data-open-add-basket title="Register a new basket tag">Add basket →</button>
 </div>
 <div class="order-row order-head"><span>Basket</span><span>Status</span><span>Assigned to</span><span>Order</span></div>
@@ -410,7 +410,7 @@
 <section class="prototype-panel" data-panel="machines"><div class="page-intro"><div><p class="eyebrow">Machine monitoring</p><h1>Manage Machines</h1><p>Availability, reservations, and maintenance at a glance.</p></div></div>
 <div class="machine-grid" data-machine-grid></div>
 </section>
-<section class="prototype-panel" data-panel="attendance">
+<section class="prototype-panel is-visible" data-panel="attendance">
 <div class="page-intro">
     <div>
         <p class="eyebrow">Timekeeping</p>
@@ -422,6 +422,13 @@
         <button class="action-btn-secondary" type="button" data-clock-out title="End your shift">Clock out →</button>
     </div>
 </div>
+<section class="staff-card duty-banner is-locked" data-duty-lock>
+    <div><strong>Clock in to start your shift</strong><p>Manage Customer and Transactions stay locked until you clock in. After you clock out they lock again.</p></div>
+</section>
+<section class="staff-card duty-banner is-ready" data-duty-guide hidden>
+    <div><strong>You are on duty</strong><p>Next step: open Manage Customer, find or add the customer, then start their laundry or purchase.</p></div>
+    <button class="action-btn-primary" type="button" data-guide-customers>Go to Manage Customer →</button>
+</section>
 <div class="metric-grid">
     <article><span>Status today</span><strong data-att-status>—</strong><small data-att-status-sub>Not clocked in</small></article>
     <article><span>Hours so far</span><strong data-att-hours>—</strong><small>Updates on clock out</small></article>
@@ -435,7 +442,7 @@
 </section>
 </section>
 <div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true"><button class="modal-close" data-close-modal type="button">×</button>
-<div data-modal-view="menu"><span class="profile-avatar">SS</span><h2>{{ auth()->user()->name }}</h2><p>{{ auth()->user()->email }}</p><div class="settings-options"><button data-show-view="profile" type="button">Edit profile settings <span>›</span></button><button data-show-view="password" type="button">Change password <span>›</span></button><button data-show-view="display" type="button">Display settings <span>›</span></button><form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit">Log out</button></form></div></div>
+<div data-modal-view="menu"><span class="profile-avatar">SS</span><h2>{{ auth()->user()->name }}</h2><p>{{ auth()->user()->email }}</p><div class="settings-options"><button data-show-view="profile" type="button">Edit profile settings <span>›</span></button><button data-show-view="password" type="button">Change password <span>›</span></button><button data-show-view="display" type="button">Display settings <span>›</span></button><button data-show-view="language" type="button">Language <span>›</span></button><form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit">Log out</button></form></div></div>
 <div data-modal-view="profile" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Edit profile</h2><livewire:settings.profile-modal-form /></div>
 <div data-modal-view="password" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Change password</h2><livewire:settings.password-modal-form /></div>
 <div data-modal-view="display" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Display settings</h2>
@@ -458,5 +465,13 @@
         </div>
     </div>
 </div>
+<div data-modal-view="language" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Language</h2>
+    <small style="color:var(--staff-muted);font-size:calc(12px * var(--text-scale))">Choose the language used by the system text.</small>
+    <div class="option-toggle" data-locale-toggle>
+        <button type="button" data-locale-option="en">English</button>
+        <button type="button" data-locale-option="fil">Filipino (Tagalog)</button>
+    </div>
+</div>
 </section></div>
+@include('partials.help-guide')
 </main></body></html>

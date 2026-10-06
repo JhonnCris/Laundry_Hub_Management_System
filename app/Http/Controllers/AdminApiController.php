@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BasketTag;
 use App\Models\FinanceTransaction;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
@@ -11,7 +10,6 @@ use App\Models\LaundryTransaction;
 use App\Models\Machine;
 use App\Models\Notification;
 use App\Models\Staff;
-use App\Models\TransactionStatusLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -21,7 +19,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
-use Illuminate\Validation\ValidationException;
 
 class AdminApiController extends Controller
 {
@@ -322,61 +319,6 @@ class AdminApiController extends Controller
         return response()->json(['transaction' => $transaction]);
     }
 
-    /**
-     * Cancel an order: it leaves all sales totals, stock is returned and the
-     * order is kept in the archive records with the reason.
-     */
-    public function cancelTransaction(Request $request, LaundryTransaction $transaction): JsonResponse
-    {
-        $this->authorize('cancel', $transaction);
-
-        $data = $request->validate([
-            'reason' => ['required', 'string', 'min:3', 'max:200'],
-        ]);
-
-        DB::transaction(function () use ($transaction, $data) {
-            $order = LaundryTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
-
-            // A claimed laundry order is done; a claimed snacks/drinks sale can still be voided.
-            $isPurchaseOnly = $order->transaction_type === 'drop_off'
-                && ! $order->service_id
-                && ! $order->detergent_item_id
-                && ! $order->garmentTypes()->exists();
-            if ($order->status === 'cancelled' || ($order->status === 'claimed' && ! $isPurchaseOnly)) {
-                throw ValidationException::withMessages([
-                    'status' => "A {$order->status} order cannot be cancelled.",
-                ]);
-            }
-
-            foreach ($order->inventoryItems as $item) {
-                $item->increment('quantity_on_hand', (int) $item->pivot->quantity);
-            }
-            if ($order->detergent_item_id && $order->detergent_quantity > 0) {
-                InventoryItem::query()->whereKey($order->detergent_item_id)->increment('quantity_on_hand', (int) $order->detergent_quantity);
-            }
-            if ($order->basket_tag_id) {
-                BasketTag::query()->whereKey($order->basket_tag_id)->update(['status' => 'available']);
-            }
-
-            $order->update([
-                'status' => 'cancelled',
-                'notes' => trim(($order->notes ? $order->notes."\n" : '').'[Cancelled: '.$data['reason'].']'),
-            ]);
-            TransactionStatusLog::query()->create([
-                'laundry_transaction_id' => $order->id,
-                'status' => 'cancelled',
-                'changed_by' => $this->staffId(),
-                'changed_at' => now(),
-            ]);
-        });
-
-        $transaction->machine?->syncUsage();
-
-        $this->audit('order.cancelled', ['order_id' => $transaction->id, 'reason' => $data['reason']]);
-
-        return response()->json(['message' => 'Order cancelled and archived.', 'transaction' => $transaction->fresh()]);
-    }
-
     /** Records who exported which report (the CSV itself is built in the browser). */
     public function logExport(Request $request): JsonResponse
     {
@@ -417,23 +359,32 @@ class AdminApiController extends Controller
         return response()->json(['item' => $item->load('category')], 201);
     }
 
-    public function adjustInventory(Request $request, InventoryItem $item): JsonResponse
+    /** Edit an inventory item's details; a changed quantity is logged as an adjustment. */
+    public function updateInventoryItem(Request $request, InventoryItem $item): JsonResponse
     {
         $data = $request->validate([
-            'quantity_change' => ['required', 'integer'],
-            'reason' => ['nullable', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:120'],
+            'inventory_category_id' => ['required', 'integer', 'exists:inventory_categories,id'],
+            'unit' => ['required', 'string', 'max:40'],
+            'unit_price' => ['required', 'numeric', 'min:0'],
+            'quantity_on_hand' => ['required', 'integer', 'min:0'],
+            'low_stock_threshold' => ['required', 'integer', 'min:0'],
         ]);
 
         DB::transaction(function () use ($item, $data) {
-            $item->increment('quantity_on_hand', $data['quantity_change']);
-            $item->adjustments()->create([
-                'staff_id' => $this->staffId(),
-                'quantity_change' => $data['quantity_change'],
-                'reason' => $data['reason'] ?? null,
-            ]);
+            $item = InventoryItem::query()->lockForUpdate()->findOrFail($item->id);
+            $change = (int) $data['quantity_on_hand'] - (int) $item->quantity_on_hand;
+            $item->update($data);
+            if ($change !== 0) {
+                $item->adjustments()->create([
+                    'staff_id' => $this->staffId(),
+                    'quantity_change' => $change,
+                    'reason' => 'Edited by admin',
+                ]);
+            }
         });
 
-        $this->audit('inventory.adjusted', ['item_id' => $item->id, 'change' => $data['quantity_change'], 'reason' => $data['reason'] ?? null]);
+        $this->audit('inventory.item_updated', ['item_id' => $item->id, 'name' => $data['name'], 'unit_price' => (float) $data['unit_price']]);
 
         return response()->json(['item' => $item->fresh('category')]);
     }

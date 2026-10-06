@@ -101,7 +101,7 @@
             <section class="staff-card full-card">
                 <div class="section-heading">
                     <h2>Alerts</h2>
-                    <small data-dash-alert-count style="color:var(--staff-muted)">0 alerts</small>
+                    <small class="alert-legend"><i class="alert-key is-urgent"></i>Urgent <i class="alert-key is-info"></i>Info · <span data-dash-alert-count>0 alerts</span></small>
                 </div>
                 <div data-dash-alerts><p class="dash-empty">Loading alerts…</p></div>
             </section>
@@ -249,7 +249,7 @@
         <div class="dash-panels">
             <section class="staff-card full-card table-card">
                 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-inv-table-title>All items</h2></div>
-                <div class="order-row order-head"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
+                <div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Action</span></div>
                 <div data-admin-inventory-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading inventory…</span></div></div>
             </section>
             <section class="staff-card full-card">
@@ -405,6 +405,28 @@
     </section>
 </div>
 
+<div class="modal-backdrop" data-edit-item-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-edit-item type="button">×</button>
+        <h2>Edit inventory item</h2>
+        <p class="modal-hint">Changing the quantity is recorded as a stock adjustment. To add delivered stock, use Stock Receiving instead.</p>
+        <input type="hidden" data-edit-item-id>
+        <label class="modal-field">Name<input type="text" data-edit-item-name maxlength="120"></label>
+        <label class="modal-field">Category
+            <select data-edit-item-category></select>
+        </label>
+        <label class="modal-field">Unit<input type="text" data-edit-item-unit maxlength="40"></label>
+        <label class="modal-field">Unit price (₱)<input type="number" data-edit-item-price min="0" step="0.01"></label>
+        <label class="modal-field">Quantity on hand<input type="number" data-edit-item-qty min="0" step="1"></label>
+        <label class="modal-field">Low-stock threshold<input type="number" data-edit-item-threshold min="0" step="1"></label>
+        <p class="modal-error" data-edit-item-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-edit-item>Cancel</button>
+            <button type="button" class="save-button" data-confirm-edit-item>Save changes</button>
+        </div>
+    </section>
+</div>
+
 <div class="modal-backdrop" data-kpi-detail-modal hidden>
     <section class="profile-modal action-modal admin-modal activity-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-kpi-detail type="button">×</button>
@@ -475,23 +497,6 @@
     </section>
 </div>
 
-<div class="modal-backdrop" data-cancel-order-modal hidden>
-    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" data-close-cancel-order type="button">×</button>
-        <h2>Cancel order</h2>
-        <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Cancelled orders. This cannot be undone.</p>
-        <input type="hidden" data-cancel-order-id>
-        <label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
-        <p class="modal-error" data-cancel-order-error hidden></p>
-        <div class="modal-actions">
-            <button type="button" class="text-button" data-close-cancel-order>Keep order</button>
-            <button type="button" class="save-button" data-confirm-cancel-order>Cancel order</button>
-        </div>
-    </section>
-</div>
-
-{{-- Notice modal --}}
-
 <div class="modal-backdrop" data-confirm-modal hidden>
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-confirm type="button">×</button>
@@ -528,6 +533,7 @@
                 <button data-show-view="profile" type="button">Edit profile settings <span>›</span></button>
                 <button data-show-view="password" type="button">Change password <span>›</span></button>
                 <button data-show-view="display" type="button">Display settings <span>›</span></button>
+                <button data-show-view="language" type="button">Language <span>›</span></button>
                 <form method="POST" action="{{ route('logout') }}">@csrf
                     <button class="logout-button" type="submit">Log out</button>
                 </form>
@@ -565,9 +571,17 @@
                 </div>
             </div>
         </div>
-    </section>
+        <div data-modal-view="language" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Language</h2>
+            <small style="color:var(--staff-muted);font-size:calc(12px * var(--text-scale))">Choose the language used by the system text.</small>
+            <div class="option-toggle" data-locale-toggle>
+                <button type="button" data-locale-option="en">English</button>
+                <button type="button" data-locale-option="fil">Filipino (Tagalog)</button>
+            </div>
+        </div>
+            </section>
 </div>
 
+@include('partials.help-guide')
 </main>
 </body>
 </html>

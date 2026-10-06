@@ -4,7 +4,7 @@
 import { api } from './core.js';
 
 export function handleInventoryClick(t, e, ctx) {
-    const { showModal, hideModal, openConfirm, openNotice } = ctx;
+    const { showModal, hideModal, openConfirm, openNotice, openError } = ctx;
 
     const stockToggle = t.closest('[data-stock-toggle]');
     if (stockToggle) {
@@ -23,11 +23,11 @@ export function handleInventoryClick(t, e, ctx) {
         api(`/ajax/staff/inventory/${notifyBtn.dataset.notifyLow}/notify-low`, { method: 'POST', body: '{}' })
             .then((r) => {
                 notifyBtn.textContent = 'Admin notified ✓';
-                openNotice('Admin notified', r.message || 'The admin will see this in their alerts.');
+                openNotice('Admin notified', r.message || 'The admin will see this in their alerts.', 'success');
             })
             .catch((ex) => {
                 notifyBtn.disabled = false;
-                openNotice('Notify admin', ex.message);
+                openError('Notify admin', ex);
             });
         return true;
     }
@@ -63,7 +63,7 @@ export function handleInventoryClick(t, e, ctx) {
         })
             .then((r) => {
                 hideModal('[data-add-basket-modal]');
-                openNotice('Basket added', (r.basket?.code || code) + ' is now available.');
+                openNotice('Basket added', (r.basket?.code || code) + ' is now available.', 'success');
                 ctx.loadStaffBootstrap?.();
             })
             .catch((ex) => {
@@ -102,7 +102,7 @@ export function handleInventoryClick(t, e, ctx) {
                 })
                     .then((r) => {
                         hideModal('[data-archive-modal]');
-                        openNotice('Archive', r.message || 'Archived');
+                        openNotice('Archive', r.message || 'Archived', 'success');
                         ctx.loadStaffBootstrap?.();
                     })
                     .catch((ex) => {

@@ -402,10 +402,8 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             s.change = result.change_given ?? cash - due;
             if (result.transaction?.id) s.receiptId = result.transaction.id;
             s.createdAt = result.transaction?.created_at || new Date().toISOString();
-            s.customerPhone = result.transaction?.customer?.contact_number || '';
             app._receiptTransactionId = s.receiptId;
             app._receiptTotal = s.total;
-            app._receiptCustomerPhone = s.customerPhone;
             app._receiptCustomerEmail = result.transaction?.customer?.email || '';
             s.notifyUrl = result.notify_url || null;
             hideModal('[data-payment-modal]');
@@ -416,7 +414,10 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             const emailButton = app.querySelector('[data-send-receipt-email]');
             if (emailButton) emailButton.hidden = !app._receiptCustomerEmail;
             const emailNotice = app.querySelector('[data-receipt-email-notice]');
-            if (emailNotice) emailNotice.textContent = '';
+            if (emailNotice) {
+                emailNotice.textContent = '';
+                emailNotice.classList.remove('is-error');
+            }
             showModal('[data-receipt-modal]');
             const notice = app.querySelector('[data-save-notice]');
             if (notice) {
@@ -639,7 +640,10 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             }
             const sendBtn = t.closest('[data-send-receipt-email]');
             sendBtn.disabled = true;
-            if (emailNotice) emailNotice.textContent = 'Sending receipt…';
+            if (emailNotice) {
+                emailNotice.textContent = 'Sending receipt…';
+                emailNotice.classList.remove('is-error');
+            }
             api(`/ajax/staff/transactions/${app._receiptTransactionId}/receipt-email`, { method: 'POST', body: '{}' })
                 .then((r) => {
                     const words = {
@@ -649,7 +653,10 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                     if (emailNotice) emailNotice.textContent = words[r.result] || 'Receipt email processed.';
                 })
                 .catch((err) => {
-                    if (emailNotice) emailNotice.textContent = err.message;
+                    if (emailNotice) {
+                        emailNotice.textContent = err.message;
+                        emailNotice.classList.add('is-error');
+                    }
                 })
                 .finally(() => {
                     sendBtn.disabled = false;

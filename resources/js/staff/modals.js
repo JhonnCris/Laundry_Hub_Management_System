@@ -25,13 +25,19 @@ export function createModals() {
         el.style.display = 'none';
     };
 
-    const openNotice = (title, body) => {
+    /** type: "info" (blue), "success" (green) or "error" (red) colours and labels the dialog. */
+    const openNotice = (title, body, type = 'info') => {
         const t = document.querySelector('[data-notice-title]');
         const b = document.querySelector('[data-notice-body]');
+        const box = document.querySelector('[data-notice-modal] .profile-modal');
         if (t) t.textContent = title || 'Notice';
         if (b) b.textContent = body || '';
+        if (box) box.dataset.type = type;
         showModal('[data-notice-modal]');
     };
+
+    /** Show a failed request as a red dialog: openError('Clock in', err). */
+    const openError = (title, err) => openNotice(title, err?.message || 'Something went wrong. Please try again.', 'error');
 
     const openConfirm = (title, body, onYes) => {
         const tEl = document.querySelector('[data-confirm-title]');
@@ -58,9 +64,6 @@ export function createModals() {
             if (cb) cb();
             return true;
         }
-        if (t.closest('[data-close-notice]') || (t.closest('[data-notice-modal]') && t.classList?.contains('modal-backdrop'))) {
-            // only close button
-        }
         if (t.closest('[data-close-notice]')) {
             e.preventDefault();
             hideModal('[data-notice-modal]');
@@ -69,5 +72,5 @@ export function createModals() {
         return false;
     };
 
-    return { showModal, hideModal, openNotice, openConfirm, handleModalClick };
+    return { showModal, hideModal, openNotice, openError, openConfirm, handleModalClick };
 }

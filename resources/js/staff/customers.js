@@ -1,7 +1,7 @@
 /**
  * Manage Customer module
  */
-import { api } from './core.js';
+import { api, paginate } from './core.js';
 
 export function getSelectedCustomer(app) {
     if (app._selectedCustomer && app._selectedCustomer.id) return app._selectedCustomer;
@@ -85,14 +85,6 @@ export function handleCustomerClick(t, e, ctx) {
         ctx.resetTransactionForm?.();
         renderCustomerContext(app);
         app.querySelector('[data-screen="transactions"]')?.click();
-        return true;
-    }
-    if (t.closest('[data-back-to-customers]')) {
-        e.preventDefault();
-        hideModal('[data-receipt-modal]');
-        ctx.resetTransactionForm?.();
-        clearSelectedCustomer(app);
-        app.querySelector('[data-screen="customers"]')?.click();
         return true;
     }
 
@@ -196,7 +188,7 @@ export function handleCustomerClick(t, e, ctx) {
         })
             .then((r) => {
                 hideModal('[data-edit-customer-modal]');
-                openNotice('Customer updated', r.message || 'Contact info saved.');
+                openNotice('Customer updated', r.message || 'Contact info saved.', 'success');
                 ctx.loadStaffBootstrap?.();
             })
             .catch((ex) => {
@@ -244,17 +236,18 @@ function filterCustomers(t, app) {
     });
     const box = app.querySelector('[data-customer-rows]');
     const total = app.querySelectorAll('[data-customer-row]').length;
-    let none = box?.querySelector('[data-no-match]');
+    let none = box?.querySelector('[data-page-skip]');
     if (box && total && !visible) {
         if (!none) {
             none = document.createElement('div');
             none.className = 'order-row';
-            none.dataset.noMatch = '';
+            none.dataset.pageSkip = '';
             none.innerHTML = '<span style="grid-column:1/-1;color:var(--staff-muted)">No customers match your search.</span>';
             box.appendChild(none);
         }
     } else if (none) {
         none.remove();
     }
+    paginate(box, { reset: true });
     return true;
 }

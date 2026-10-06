@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureStaffAccess;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,6 +18,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->web(append: [
             SecurityHeaders::class,
+            SetLocale::class,
         ]);
         $middleware->alias([
             'staff.access' => EnsureStaffAccess::class,

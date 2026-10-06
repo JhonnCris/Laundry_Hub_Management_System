@@ -7,9 +7,9 @@ use App\Models\User;
 
 class LaundryTransactionPolicy
 {
-    /** Admins and staff may cancel an order (it removes it from sales and returns stock). */
+    /** Only staff may cancel an order (it removes it from sales and returns stock); admins can only view cancelled orders. */
     public function cancel(User $user, LaundryTransaction $transaction): bool
     {
-        return in_array($user->role, ['admin', 'staff'], true);
+        return $user->role === 'staff';
     }
 }

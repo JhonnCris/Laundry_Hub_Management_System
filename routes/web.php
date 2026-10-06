@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminApiController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotifyController;
 use App\Http\Controllers\StaffApiController;
 use App\Models\User;
@@ -57,7 +58,7 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
     Route::get('bootstrap', [StaffApiController::class, 'bootstrap']);
     Route::post('transactions', [StaffApiController::class, 'saveTransaction']);
     Route::patch('transactions/{transaction}/status', [StaffApiController::class, 'updateStatus']);
-    Route::post('transactions/{transaction}/cancel', [AdminApiController::class, 'cancelTransaction']);
+    Route::post('transactions/{transaction}/cancel', [StaffApiController::class, 'cancelTransaction']);
     Route::post('baskets', [StaffApiController::class, 'storeBasket']);
     Route::post('attendance/clock-in', [StaffApiController::class, 'clockIn']);
     Route::post('attendance/clock-out', [StaffApiController::class, 'clockOut']);
@@ -67,7 +68,6 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
     Route::post('inventory/{item}/notify-low', [StaffApiController::class, 'notifyLowStock']);
     Route::get('history', [StaffApiController::class, 'history']);
     Route::post('transactions/{transaction}/receipt-email', [StaffApiController::class, 'sendReceiptEmail']);
-    Route::post('transactions/{transaction}/receipt-sms', [StaffApiController::class, 'sendReceiptSms']);
     Route::patch('machines/{machine}/status', [StaffApiController::class, 'updateMachineStatus']);
 });
 
@@ -77,15 +77,16 @@ Route::middleware(['auth', 'verified', 'staff.access', 'throttle:120,1'])->prefi
 Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('ajax/admin')->group(function () {
     Route::get('bootstrap', [AdminApiController::class, 'bootstrap']);
     Route::get('transactions/{transaction}', [AdminApiController::class, 'showTransaction']);
-    Route::post('transactions/{transaction}/cancel', [AdminApiController::class, 'cancelTransaction']);
     Route::post('exports', [AdminApiController::class, 'logExport']);
     Route::post('notifications/{notification}/read', [AdminApiController::class, 'readNotification']);
     Route::post('inventory', [AdminApiController::class, 'storeInventoryItem']);
-    Route::post('inventory/{item}/adjust', [AdminApiController::class, 'adjustInventory']);
+    Route::patch('inventory/{item}', [AdminApiController::class, 'updateInventoryItem']);
     Route::post('procurement', [AdminApiController::class, 'storeRestock']);
     Route::post('users', [AdminApiController::class, 'storeUser']);
     Route::patch('users/{user}', [AdminApiController::class, 'updateUser']);
 });
+
+Route::post('ajax/locale', LocaleController::class)->middleware(['auth', 'throttle:30,1']);
 
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');

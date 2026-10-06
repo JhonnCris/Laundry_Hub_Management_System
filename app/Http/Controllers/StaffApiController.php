@@ -10,7 +10,6 @@ use App\Models\FinanceTransaction;
 use App\Models\GarmentType;
 use App\Models\InventoryAdjustment;
 use App\Models\InventoryItem;
-use App\Models\InventoryRestock;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
 use App\Models\Notification;
@@ -45,6 +44,23 @@ class StaffApiController extends Controller
         }
 
         return Staff::query()->where('email', $user->email)->value('id');
+    }
+
+    /** Staff may only add customers and record transactions while clocked in (and not yet clocked out) today. */
+    protected function offDutyResponse(): ?JsonResponse
+    {
+        if (Auth::user()?->role !== 'staff') {
+            return null;
+        }
+
+        $onDuty = StaffAttendance::query()
+            ->where('staff_id', $this->staffId())
+            ->whereDate('work_date', today())
+            ->whereNotNull('clock_in')
+            ->whereNull('clock_out')
+            ->exists();
+
+        return $onDuty ? null : response()->json(['message' => 'Clock in on the Attendance page before adding customers or recording transactions.'], 403);
     }
 
     /** Bootstrap data for staff dashboard UI */
@@ -201,6 +217,10 @@ class StaffApiController extends Controller
 
     public function saveTransaction(Request $request): JsonResponse
     {
+        if ($blocked = $this->offDutyResponse()) {
+            return $blocked;
+        }
+
         $data = $request->validate([
             'customer_id' => ['required', 'integer', 'exists:customers,id'],
             'transaction_type' => ['required', Rule::in(['drop_off', 'self_service'])],
@@ -551,32 +571,59 @@ class StaffApiController extends Controller
         return $result;
     }
 
-    public function reassignBasket(Request $request): JsonResponse
+    /**
+     * Cancel an order: it leaves all sales totals, stock is returned and the
+     * order is kept in the archive records with the reason.
+     */
+    public function cancelTransaction(Request $request, LaundryTransaction $transaction): JsonResponse
     {
+        $this->authorize('cancel', $transaction);
+
         $data = $request->validate([
-            'code' => ['required', 'string'],
+            'reason' => ['required', 'string', 'min:3', 'max:200'],
         ]);
 
-        $basket = BasketTag::query()->where('code', $data['code'])->firstOrFail();
-        if ($basket->status !== 'available') {
-            return response()->json(['message' => 'Basket is not available.'], 422);
-        }
+        DB::transaction(function () use ($transaction, $data) {
+            $order = LaundryTransaction::query()->lockForUpdate()->findOrFail($transaction->id);
 
-        return response()->json(['basket' => $basket]);
-    }
+            // A claimed laundry order is done; a claimed snacks/drinks sale can still be voided.
+            $isPurchaseOnly = $order->transaction_type === 'drop_off'
+                && ! $order->service_id
+                && ! $order->detergent_item_id
+                && ! $order->garmentTypes()->exists();
+            if ($order->status === 'cancelled' || ($order->status === 'claimed' && ! $isPurchaseOnly)) {
+                throw ValidationException::withMessages([
+                    'status' => "A {$order->status} order cannot be cancelled.",
+                ]);
+            }
 
-    public function addGarmentType(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:80'],
-        ]);
+            foreach ($order->inventoryItems as $item) {
+                $item->increment('quantity_on_hand', (int) $item->pivot->quantity);
+            }
+            if ($order->detergent_item_id && $order->detergent_quantity > 0) {
+                InventoryItem::query()->whereKey($order->detergent_item_id)->increment('quantity_on_hand', (int) $order->detergent_quantity);
+            }
+            if ($order->basket_tag_id) {
+                BasketTag::query()->whereKey($order->basket_tag_id)->update(['status' => 'available']);
+            }
 
-        $type = GarmentType::query()->firstOrCreate(
-            ['name' => $data['name']],
-            ['is_custom' => true]
-        );
+            $order->update([
+                'status' => 'cancelled',
+                'notes' => trim(($order->notes ? $order->notes."\n" : '').'[Cancelled: '.$data['reason'].']'),
+            ]);
+            TransactionStatusLog::query()->create([
+                'laundry_transaction_id' => $order->id,
+                'status' => 'cancelled',
+                'changed_by' => $this->staffId(),
+                'changed_at' => now(),
+            ]);
+        });
 
-        return response()->json(['garment_type' => $type]);
+        $transaction->machine?->syncUsage();
+
+        $this->audit('order.cancelled', ['order_id' => $transaction->id, 'reason' => $data['reason']]);
+
+        return response()->json(['message' => 'Order cancelled and archived.', 'transaction' => $transaction->fresh()]);
     }
 
     public function clockIn(): JsonResponse
@@ -629,37 +676,6 @@ class StaffApiController extends Controller
         $row->update(['clock_out' => now()]);
 
         return response()->json(['message' => 'Clocked out', 'attendance' => $row->fresh()]);
-    }
-
-    public function restockItem(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'inventory_item_id' => ['required', 'integer', 'exists:inventory_items,id'],
-            'quantity_received' => ['required', 'integer', 'min:1'],
-            'supplier' => ['nullable', 'string', 'max:120'],
-        ]);
-
-        $staffId = $this->staffId();
-
-        $item = DB::transaction(function () use ($data, $staffId) {
-            $item = InventoryItem::query()->lockForUpdate()->findOrFail($data['inventory_item_id']);
-            $item->increment('quantity_on_hand', $data['quantity_received']);
-            if (($item->status ?? 'active') !== 'active') {
-                $item->update(['status' => 'active']);
-            }
-
-            InventoryRestock::query()->create([
-                'inventory_item_id' => $item->id,
-                'staff_id' => $staffId,
-                'quantity_received' => $data['quantity_received'],
-                'supplier' => $data['supplier'] ?? null,
-                'restocked_at' => today(),
-            ]);
-
-            return $item->fresh('category');
-        });
-
-        return response()->json(['message' => 'Restocked', 'item' => $item]);
     }
 
     public function archiveItem(Request $request, InventoryItem $item): JsonResponse
@@ -742,23 +758,6 @@ class StaffApiController extends Controller
         });
     }
 
-    /** Text the customer a short receipt through the configured SMS provider. */
-    public function sendReceiptSms(LaundryTransaction $transaction): JsonResponse
-    {
-        $phone = $transaction->customer?->contact_number;
-        if (blank($phone)) {
-            return response()->json(['message' => 'This customer has no phone number on file.'], 422);
-        }
-
-        $sms = app(SmsService::class);
-        $shop = config('shop.name');
-        $ok = $sms->send($phone, "{$shop} receipt #{$transaction->id}: ₱".number_format((float) $transaction->total_amount, 2).'. Thank you!');
-        $result = ! $ok ? 'failed' : ($sms->isLive() ? 'sent' : 'logged');
-        $this->audit('order.receipt_sms', ['order_id' => $transaction->id, 'result' => $result]);
-
-        return response()->json(['result' => $result]);
-    }
-
     /** Email a saved transaction receipt to the customer's email address. */
     public function sendReceiptEmail(LaundryTransaction $transaction): JsonResponse
     {
@@ -833,6 +832,10 @@ class StaffApiController extends Controller
 
     public function storeCustomer(Request $request): JsonResponse
     {
+        if ($blocked = $this->offDutyResponse()) {
+            return $blocked;
+        }
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:80'],
             'middle_name' => ['nullable', 'string', 'max:80'],

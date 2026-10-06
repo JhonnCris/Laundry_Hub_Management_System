@@ -1,7 +1,7 @@
 /**
  * Active Laundry: status forward + undo
  */
-import { api, esc } from './core.js';
+import { api, esc, paginate } from './core.js';
 
 export function statusLabel(st) {
     const map = {
@@ -37,6 +37,7 @@ function renderHistory(orders) {
               })
               .join('')
         : '<div class="history-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No completed orders yet.</span></div>';
+    paginate(box, { reset: true });
 }
 
 /** One short sentence describing what happened to the customer notification. */
@@ -55,12 +56,13 @@ export function handleHistorySearch(t) {
         document.querySelectorAll('[data-history-item]').forEach((row) => {
             row.hidden = !!q && !row.dataset.hay.includes(q);
         });
+        paginate(document.querySelector('[data-history-rows]'), { reset: true });
     }, 150);
     return true;
 }
 
 export function handleQueueClick(t, e, ctx) {
-    const { openConfirm, openNotice, showModal, hideModal } = ctx;
+    const { openConfirm, openNotice, openError, showModal, hideModal } = ctx;
 
     if (t.closest('[data-open-history]')) {
         e.preventDefault();
@@ -69,7 +71,7 @@ export function handleQueueClick(t, e, ctx) {
         showModal('[data-history-modal]');
         api('/ajax/staff/history')
             .then((r) => renderHistory(r.orders || []))
-            .catch((ex) => openNotice('History', ex.message));
+            .catch((ex) => openError('History', ex));
         return true;
     }
     if (t.closest('[data-close-history]')) {
@@ -77,6 +79,47 @@ export function handleQueueClick(t, e, ctx) {
         hideModal('[data-history-modal]');
         return true;
     }
+    const cancelOpen = t.closest('[data-cancel-order]');
+    if (cancelOpen) {
+        e.preventDefault();
+        const reasonEl = document.querySelector('[data-cancel-order-reason]');
+        const errEl = document.querySelector('[data-cancel-order-error]');
+        document.querySelector('[data-cancel-order-id]').value = cancelOpen.dataset.cancelOrder;
+        if (reasonEl) reasonEl.value = '';
+        if (errEl) errEl.hidden = true;
+        showModal('[data-cancel-order-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-cancel-order]')) {
+        e.preventDefault();
+        hideModal('[data-cancel-order-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-cancel-order]')) {
+        e.preventDefault();
+        const id = document.querySelector('[data-cancel-order-id]')?.value;
+        const reason = (document.querySelector('[data-cancel-order-reason]')?.value || '').trim();
+        const errEl = document.querySelector('[data-cancel-order-error]');
+        const showErr = (msg) => {
+            if (errEl) {
+                errEl.hidden = false;
+                errEl.textContent = msg;
+            }
+        };
+        if (reason.length < 3) {
+            showErr('Please give a short reason (at least 3 letters).');
+            return true;
+        }
+        api(`/ajax/staff/transactions/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) })
+            .then((r) => {
+                hideModal('[data-cancel-order-modal]');
+                openNotice('Order cancelled', r.message || 'The order is now in Cancelled orders.', 'success');
+                ctx.loadStaffBootstrap?.();
+            })
+            .catch((ex) => showErr(ex.message));
+        return true;
+    }
+
     const statusBtn = t.closest('[data-set-status]');
     if (!statusBtn) return false;
 
@@ -94,12 +137,13 @@ export function handleQueueClick(t, e, ctx) {
                 ctx.loadStaffBootstrap?.();
                 openNotice(
                     isUndo ? 'Status undone' : 'Status updated',
-                    (isUndo ? `Order moved back to ${label}.` : `Order marked as ${label}.`) + notifyText(r?.notify)
+                    (isUndo ? `Order moved back to ${label}.` : `Order marked as ${label}.`) + notifyText(r?.notify),
+                    'success'
                 );
             })
             .catch((err) => {
                 ctx.loadStaffBootstrap?.();
-                openNotice('Status', err.message);
+                openError('Status', err);
             });
 
     if (next === 'claimed') {
