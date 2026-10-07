@@ -530,14 +530,13 @@
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-edit-user type="button">×</button>
         <h2>Edit user</h2>
-        <p class="modal-hint">Set the role to Staff or Admin to approve an account. "Pending" blocks access until approved.</p>
+        <p class="modal-hint">Set the role to Staff or Admin to approve an account. "Pending" blocks access until approved. Rejected sign-ups cannot be approved.</p>
         <input type="hidden" data-edit-user-id>
         <label class="modal-field">Name<input type="text" data-edit-user-name maxlength="120"></label>
         <label class="modal-field">Email<input type="email" data-edit-user-email maxlength="190"></label>
         <label class="modal-field">Role
             <select data-edit-user-role>
                 <option value="pending">Pending (no access)</option>
-                <option value="rejected">Rejected (no access)</option>
                 <option value="staff">Staff</option>
                 <option value="admin">Admin</option>
             </select>

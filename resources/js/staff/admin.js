@@ -393,10 +393,11 @@ function renderUsers(app, data) {
                   .map((u) => {
                       const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : u.role === 'rejected' ? 'Rejected' : 'Staff';
                       const isPending = u.role === 'pending';
-                      const approve = isPending || u.role === 'rejected'
-                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button>${isPending ? `<button type="button" class="action-btn-danger" data-reject-user="${u.id}" data-reject-name="${esc(u.name)}" title="Reject this sign-up">Reject</button>` : ''}`
+                      const rejected = u.role === 'rejected';
+                      const approve = isPending
+                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button><button type="button" class="action-btn-danger" data-reject-user="${u.id}" data-reject-name="${esc(u.name)}" title="Reject this sign-up">Reject</button>`
                           : '';
-                      return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${u.role === 'rejected' ? 'is-bad' : isPending ? 'pending' : 'ready'}" title="${esc(u.rejection_reason || '')}">${u.role === 'rejected' ? 'Rejected' : isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button></span></div>`;
+                      return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${u.role === 'rejected' ? 'is-bad' : isPending ? 'pending' : 'ready'}" title="${esc(u.rejection_reason || '')}">${u.role === 'rejected' ? 'Rejected' : isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${rejected ? '<small style="color:var(--staff-muted)">Not eligible</small>' : `${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button>`}</span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No users yet.</span></div>';

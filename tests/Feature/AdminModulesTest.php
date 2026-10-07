@@ -64,6 +64,9 @@ it('rejects only pending accounts, keeps the reason and blocks their login', fun
     $this->actingAs($admin)->postJson("/ajax/admin/users/{$pending->id}/reject", [])->assertStatus(422);
     $this->actingAs($admin)->postJson("/ajax/admin/users/{$pending->id}/reject", ['reason' => 'Not a known employee'])->assertOk();
     expect($pending->fresh())->role->toBe('rejected')->rejection_reason->toBe('Not a known employee');
+    $this->actingAs($admin)->patchJson("/ajax/admin/users/{$pending->id}", ['role' => 'staff'])->assertStatus(422);
+    expect($pending->fresh()->role)->toBe('rejected');
+
     $another = User::factory()->create(['role' => 'pending']);
     $this->actingAs($staff)->postJson("/ajax/admin/users/{$another->id}/reject", ['reason' => 'nope nope'])->assertForbidden();
     $this->assertModelExists($another);

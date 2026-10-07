@@ -598,9 +598,13 @@ class AdminApiController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:120'],
             'email' => ['sometimes', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id), Rule::unique('staff', 'email')->ignore($user->email, 'email')],
-            'role' => ['sometimes', Rule::in(['admin', 'staff', 'pending', 'rejected'])],
+            'role' => ['sometimes', Rule::in(['admin', 'staff', 'pending'])],
             'password' => ['nullable', 'string', Password::defaults()],
         ]);
+
+        if ($user->role === 'rejected') {
+            return response()->json(['message' => 'This sign-up was rejected. A rejected account cannot be approved or changed.'], 422);
+        }
 
         if ($user->is(Auth::user()) && ($data['role'] ?? $user->role) !== 'admin') {
             return response()->json(['message' => 'You cannot remove your own admin access.'], 422);
@@ -613,9 +617,6 @@ class AdminApiController extends Controller
         $user->fill(collect($data)->only(['name', 'email'])->all());
         if (isset($data['role'])) {
             $user->forceFill(['role' => $data['role']]);
-            if ($data['role'] !== 'rejected') {
-                $user->forceFill(['rejection_reason' => null]);
-            }
         }
         $user->save();
         $this->audit('user.updated', [
