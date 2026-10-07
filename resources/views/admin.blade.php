@@ -39,8 +39,6 @@
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c.5-3.5 2.5-5.5 6-5.5s5.5 2 6 5.5M16 11a3 3 0 100-6M19 20c-.3-2.5-1.5-4-3.5-4.8"/></svg>
             <span>Manage Users</span>
         </button>
-    </nav>
-    <nav class="staff-nav staff-nav-bottom">
         <button data-screen="audit" type="button">
             <svg viewBox="0 0 24 24"><path d="M9 4h6M8 2h8v4H8zM6 5H5a1 1 0 00-1 1v15a1 1 0 001 1h14a1 1 0 001-1V6a1 1 0 00-1-1h-1M8 12h8M8 16h5"/></svg>
             <span>Activity Log</span>
@@ -408,7 +406,7 @@
         <p class="modal-hint">New prices apply to new orders only. Past orders keep what was charged.</p>
         <input type="hidden" data-service-id>
         <label class="modal-field">Name<input type="text" data-service-name maxlength="80" placeholder="e.g. Wash Only"></label>
-        <label class="modal-field">Drop-off price (₱)<input type="number" data-service-price min="0" step="0.01"></label>
+        <label class="modal-field">Drop-off price (₱)<input type="number" data-svc-price min="0" step="0.01"></label>
         <label class="modal-field">Self-service rate per kg (₱) <small>(leave empty if not offered as self-service)</small><input type="number" data-service-rate min="0" step="0.01"></label>
         <label class="modal-field">Status
             <select data-service-active>

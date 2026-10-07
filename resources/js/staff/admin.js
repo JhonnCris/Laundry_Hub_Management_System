@@ -1274,6 +1274,7 @@ export function loadAdminBootstrap(app) {
                               const item = r.item?.name || '—';
                               const supplier = r.supplier || '—';
                               const invQty = r.quantity_invoiced ?? '—';
+                              const qty = r.quantity_received ?? '—';
                               const st = r.receipt_status || 'pending';
                               const badge = {
                                   pending: ['Not yet stocked', 'is-wait'],
@@ -1838,7 +1839,7 @@ export function handleAdminClick(t, e, ctx) {
         document.querySelector('[data-service-modal-title]').textContent = svc ? 'Edit service' : 'Add service';
         setVal('[data-service-id]', svc?.id ?? '');
         setVal('[data-service-name]', svc?.name ?? '');
-        setVal('[data-service-price]', svc?.base_price ?? '');
+        setVal('[data-svc-price]', svc?.base_price ?? '');
         setVal('[data-service-rate]', svc?.rate_per_kg ?? '');
         setVal('[data-service-active]', svc && !svc.is_active ? '0' : '1');
         document.querySelector('[data-service-error]').hidden = true;
@@ -1855,9 +1856,9 @@ export function handleAdminClick(t, e, ctx) {
         const val = (sel) => document.querySelector(sel).value;
         const id = val('[data-service-id]');
         const rate = val('[data-service-rate]');
-        const body = { name: val('[data-service-name]').trim(), base_price: Number(val('[data-service-price]')), rate_per_kg: rate === '' ? null : Number(rate), is_active: val('[data-service-active]') === '1' };
+        const body = { name: val('[data-service-name]').trim(), base_price: Number(val('[data-svc-price]')), rate_per_kg: rate === '' ? null : Number(rate), is_active: val('[data-service-active]') === '1' };
         const err = document.querySelector('[data-service-error]');
-        if (!body.name || val('[data-service-price]') === '' || !(body.base_price >= 0)) {
+        if (!body.name || val('[data-svc-price]') === '' || !(body.base_price >= 0)) {
             err.hidden = false;
             err.textContent = 'Enter a name and a drop-off price (0 or more).';
             return true;
