@@ -1,7 +1,7 @@
 /**
  * Inventory: archive items + add baskets
  */
-import { api } from './core.js';
+import { api, qtyUnit } from './core.js';
 
 export function handleInventoryClick(t, e, ctx) {
     const { showModal, hideModal, openConfirm, openNotice, openError } = ctx;
@@ -91,10 +91,25 @@ export function handleInventoryClick(t, e, ctx) {
         const reason = document.querySelector('[data-archive-reason]')?.value;
         const qty = Number(document.querySelector('[data-archive-qty]')?.value || 0);
         const err = document.querySelector('[data-archive-error]');
-        const itemLabel = document.querySelector('[data-archive-item]')?.selectedOptions?.[0]?.textContent || 'this item';
+        const stock = ((ctx.app._bootstrap || ctx.app._adminBootstrap || {}).inventory || []).find((i) => String(i.id) === String(itemId));
+        const problem = !stock
+            ? 'Pick an item that still has stock.'
+            : !Number.isInteger(qty) || qty < 1
+              ? 'Enter how many to remove (1 or more).'
+              : qty > Number(stock.quantity_on_hand)
+                ? `Only ${qtyUnit(stock.quantity_on_hand, stock.unit)} of ${stock.name} in stock.`
+                : '';
+        if (problem) {
+            if (err) {
+                err.hidden = false;
+                err.textContent = problem;
+            }
+            return true;
+        }
+        if (err) err.hidden = true;
         openConfirm(
             'Archive stock?',
-            `Remove ${qty} of ${itemLabel} as ${reason}. This reduces inventory quantity.`,
+            `Remove ${qtyUnit(qty, stock.unit)} of ${stock.name} as ${reason}. This reduces inventory and is kept in the Archived records.`,
             () => {
                 api(`/ajax/staff/inventory/${itemId}/archive`, {
                     method: 'POST',

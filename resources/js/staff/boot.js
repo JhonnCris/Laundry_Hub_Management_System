@@ -43,7 +43,7 @@ export function bootStaffApp() {
     });
     ctx.update = tx.update;
     ctx.resetTransactionForm = tx.resetTransactionForm;
-    ctx.loadStaffBootstrap = () => loadStaffBootstrap(app, tx.update);
+    ctx.loadStaffBootstrap = () => (app.dataset.role === 'admin' ? loadAdminBootstrap(app) : loadStaffBootstrap(app, tx.update));
 
     // Hide overlays on load
     document.querySelectorAll('.modal-backdrop[hidden]').forEach((el) => {

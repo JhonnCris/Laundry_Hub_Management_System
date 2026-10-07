@@ -27,9 +27,23 @@
             <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12zM6 6L5 3H2M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
             <span>Stock Receiving</span>
         </button>
+        <button data-screen="manage-pricing" type="button">
+            <svg viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V3h8zM7.5 7.5h.01"/></svg>
+            <span>Manage Pricing</span>
+        </button>
+        <button data-screen="manage-machines" type="button">
+            <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="13" r="4"/><path d="M8 6.5h.01M11 6.5h.01"/></svg>
+            <span>Manage Machines</span>
+        </button>
         <button data-screen="manage-users" type="button">
             <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c.5-3.5 2.5-5.5 6-5.5s5.5 2 6 5.5M16 11a3 3 0 100-6M19 20c-.3-2.5-1.5-4-3.5-4.8"/></svg>
             <span>Manage Users</span>
+        </button>
+    </nav>
+    <nav class="staff-nav staff-nav-bottom">
+        <button data-screen="audit" type="button">
+            <svg viewBox="0 0 24 24"><path d="M9 4h6M8 2h8v4H8zM6 5H5a1 1 0 00-1 1v15a1 1 0 001 1h14a1 1 0 001-1V6a1 1 0 00-1-1h-1M8 12h8M8 16h5"/></svg>
+            <span>Activity Log</span>
         </button>
     </nav>
     <button class="staff-user" data-profile type="button">
@@ -227,7 +241,7 @@
                 <h1>Manage Inventory</h1>
                 <p>Stock levels, value, low-stock alerts, and what sells most from the counter.</p>
             </div>
-            <button class="action-btn-primary" type="button" data-open-add-item>Add item →</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="action-btn-secondary" type="button" data-open-archive title="Remove expired, spoiled or damaged stock">Archive stock →</button><button class="action-btn-primary" type="button" data-open-add-item>Add item →</button></div>
         </div>
         <div class="metric-grid dash-kpis">
             <article class="kpi-card is-active" data-inv-kpi="all" tabindex="0" role="button" title="Show all items">
@@ -257,6 +271,17 @@
                 <div class="rank-bars" data-chart-top-products></div>
             </section>
         </div>
+        <section class="staff-card full-card table-card">
+            <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Stock movements</h2><small style="color:var(--staff-muted)">Every stock in and out: deliveries, sales, archives, edits</small></div>
+            <div class="table-filters"><input type="search" class="search-input" data-move-search placeholder="Search by item or reason" aria-label="Search stock movements"></div>
+            <div class="order-row order-head"><span>Date</span><span>Item</span><span class="num">Change</span><span>Reason</span><span>By</span></div>
+            <div data-admin-movement-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading movements…</span></div></div>
+        </section>
+        <section class="staff-card full-card table-card" data-panel-archive>
+            <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Archived stock</h2><small style="color:var(--staff-muted)">Expired, spoiled and damaged</small></div>
+            <div class="order-row order-head"><span>Date</span><span>Item</span><span>Category</span><span>Reason</span><span class="num">Qty removed</span></div>
+            <div data-admin-archive-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading…</span></div></div>
+        </section>
     </section>
 
     {{-- Admin: Stock Receiving (invoice-based) --}}
@@ -265,18 +290,71 @@
             <div>
                 <p class="eyebrow">Admin · Receiving</p>
                 <h1>Stock Receiving</h1>
-                <p>Record what was delivered and confirm quantities against the supplier invoice. Stock is updated only when you save a receipt.</p>
+                <p>Step 1: record what was delivered against the supplier invoice. Step 2: click Add to inventory on that receipt when the stock is put on the shelf. Inventory changes only at step 2.</p>
             </div>
             <button class="action-btn-primary" type="button" data-open-procurement title="Record goods received from an invoice">Record receipt →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small>In selected range</small></article>
+            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small data-admin-restock-sub>0 not yet in inventory</small></article>
             <article><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Receipt costs in range</small></article>
             <article><span>Last receipt</span><strong data-admin-last-restock>—</strong><small data-admin-last-restock-sub>No records yet</small></article>
         </div>
         <section class="staff-card full-card table-card">
-            <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span class="num">Invoiced</span><span class="num">Received qty</span></div>
+            <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span class="num">Invoiced</span><span class="num">Received qty</span><span>Inventory</span></div>
             <div data-admin-restock-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading receipts…</span></div></div>
+        </section>
+    </section>
+
+    {{-- Admin: Manage Pricing --}}
+    <section class="prototype-panel" data-panel="manage-pricing">
+        <div class="page-intro">
+            <div>
+                <p class="eyebrow">Admin · Prices</p>
+                <h1>Manage Pricing</h1>
+                <p>Set the drop-off price and the self-service per-kg rate of each laundry service. Changes apply to new orders only.</p>
+            </div>
+            <button class="action-btn-primary" type="button" data-open-add-service>Add service →</button>
+        </div>
+        <section class="staff-card full-card table-card">
+            <div class="order-row order-head"><span>Service</span><span class="num">Drop-off price</span><span class="num">Per-kg rate</span><span>Status</span><span class="num">Orders</span><span>Action</span></div>
+            <div data-admin-service-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading services…</span></div></div>
+        </section>
+    </section>
+
+    {{-- Admin: Manage Machines --}}
+    <section class="prototype-panel" data-panel="manage-machines">
+        <div class="page-intro">
+            <div>
+                <p class="eyebrow">Admin · Equipment</p>
+                <h1>Manage Machines</h1>
+                <p>Add, edit and retire washers and dryers, and see which are free, running or need attention.</p>
+            </div>
+            <button class="action-btn-primary" type="button" data-open-add-machine>Add machine →</button>
+        </div>
+        <div class="metric-grid">
+            <article><span>Total machines</span><strong data-mach-total>0</strong><small data-mach-types>Washers and dryers</small></article>
+            <article><span>Available now</span><strong data-mach-available>0</strong><small data-mach-inuse>0 in use</small></article>
+            <article><span>Need attention</span><strong data-mach-attention>0</strong><small>Maintenance / out of service</small></article>
+        </div>
+        <section class="staff-card full-card table-card">
+            <div class="table-filters">
+                <input type="search" class="search-input" data-mach-search placeholder="Search by machine name" aria-label="Search machines">
+                <select data-mach-type aria-label="Filter by type">
+                    <option value="">All types</option>
+                    <option value="washer">Washers</option>
+                    <option value="dryer">Dryers</option>
+                </select>
+                <select data-mach-status aria-label="Filter by status">
+                    <option value="">All statuses</option>
+                    <option value="available">Available</option>
+                    <option value="in_use">In use</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="out_of_service">Out of service</option>
+                </select>
+            </div>
+            <div class="order-row order-head"><span>Machine</span><span>Type</span><span>Status</span><span class="num">Orders</span><span>Now running</span><span>Action</span></div>
+            <div data-admin-machine-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading machines…</span></div></div>
         </section>
     </section>
 
@@ -300,11 +378,133 @@
             <div data-admin-user-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading users…</span></div></div>
         </section>
     </section>
+
+    {{-- Admin: Activity Log --}}
+    <section class="prototype-panel" data-panel="audit">
+        <div class="page-intro">
+            <div>
+                <p class="eyebrow">Admin · Accountability</p>
+                <h1>Activity Log</h1>
+                <p>Who did what: receipts, stock changes, user approvals, machines and exports.</p>
+            </div>
+        </div>
+        <section class="staff-card full-card table-card">
+            <div class="table-filters"><input type="search" class="search-input" data-audit-search placeholder="Search by action or user email" aria-label="Search activity"></div>
+            <div class="order-row order-head"><span>When</span><span>Who</span><span>Action</span><span>Details</span></div>
+            <div data-audit-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Open this screen to load activity…</span></div></div>
+            <div class="pager" data-audit-pager><button type="button" class="pager-btn" data-audit-prev>‹ Prev</button><span class="pager-info" data-audit-info></span><button type="button" class="pager-btn" data-audit-next>Next ›</button></div>
+        </section>
+    </section>
 </section>
 
 
 
 
+
+<div class="modal-backdrop" data-service-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-service type="button">×</button>
+        <h2 data-service-modal-title>Add service</h2>
+        <p class="modal-hint">New prices apply to new orders only. Past orders keep what was charged.</p>
+        <input type="hidden" data-service-id>
+        <label class="modal-field">Name<input type="text" data-service-name maxlength="80" placeholder="e.g. Wash Only"></label>
+        <label class="modal-field">Drop-off price (₱)<input type="number" data-service-price min="0" step="0.01"></label>
+        <label class="modal-field">Self-service rate per kg (₱) <small>(leave empty if not offered as self-service)</small><input type="number" data-service-rate min="0" step="0.01"></label>
+        <label class="modal-field">Status
+            <select data-service-active>
+                <option value="1">Active (can be sold)</option>
+                <option value="0">Inactive (hidden from staff)</option>
+            </select>
+        </label>
+        <p class="modal-error" data-service-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-service>Cancel</button>
+            <button type="button" class="save-button" data-confirm-service>Save service</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-machine-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-machine type="button">×</button>
+        <h2 data-machine-modal-title>Add machine</h2>
+        <p class="modal-hint">Machines appear in staff self-service and in the dashboard.</p>
+        <input type="hidden" data-machine-form-id>
+        <label class="modal-field">Name<input type="text" data-machine-form-name maxlength="60" placeholder="e.g. Washer 3"></label>
+        <label class="modal-field">Type
+            <select data-machine-form-type>
+                <option value="washer">Washer</option>
+                <option value="dryer">Dryer</option>
+            </select>
+        </label>
+        <label class="modal-field">Status
+            <select data-machine-form-status>
+                <option value="available">Available</option>
+                <option value="reserved">Reserved</option>
+                <option value="maintenance">Maintenance</option>
+                <option value="out_of_service">Out of service</option>
+            </select>
+        </label>
+        <p class="modal-hint" data-machine-running-note hidden>This machine is running an order, so its status cannot be changed until that order is ready or cancelled.</p>
+        <p class="modal-error" data-machine-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-machine>Cancel</button>
+            <button type="button" class="save-button" data-confirm-machine>Save machine</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-archive-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-archive type="button">×</button>
+        <h2>Archive stock</h2>
+        <p class="modal-hint">Remove expired, spoiled or damaged stock. It is kept in the archive records.</p>
+        <label class="modal-field">Item<select data-archive-item></select></label>
+        <label class="modal-field">Reason
+            <select data-archive-reason>
+                <option value="expired">Expired</option>
+                <option value="spoiled">Spoiled</option>
+                <option value="damaged">Damaged</option>
+            </select>
+        </label>
+        <label class="modal-field">Quantity to remove<input type="number" data-archive-qty min="1" step="1" value="1"></label>
+        <p class="modal-error" data-archive-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-archive>Cancel</button>
+            <button type="button" class="save-button" data-confirm-archive>Archive</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-stock-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-stock type="button">×</button>
+        <h2>Add to inventory</h2>
+        <p class="modal-hint" data-stock-info></p>
+        <input type="hidden" data-stock-id>
+        <label class="modal-field">Quantity to add now<input type="number" data-stock-qty min="1" step="1"></label>
+        <p class="modal-hint">Count what is actually on the shelf. If only part of the delivery is stocked, the rest stays on the receipt for later.</p>
+        <p class="modal-error" data-stock-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-stock>Cancel</button>
+            <button type="button" class="save-button" data-confirm-stock>Add to inventory</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-reason-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-reason type="button">×</button>
+        <h2 data-reason-title>Reason</h2>
+        <p class="modal-hint" data-reason-hint></p>
+        <label class="modal-field">Reason<input type="text" data-reason-input maxlength="200" placeholder="Type a short reason"></label>
+        <p class="modal-error" data-reason-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-reason>Cancel</button>
+            <button type="button" class="save-button" data-confirm-reason>Confirm</button>
+        </div>
+    </section>
+</div>
 
 <div class="modal-backdrop" data-add-user-modal hidden>
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
@@ -339,6 +539,7 @@
         <label class="modal-field">Role
             <select data-edit-user-role>
                 <option value="pending">Pending (no access)</option>
+                <option value="rejected">Rejected (no access)</option>
                 <option value="staff">Staff</option>
                 <option value="admin">Admin</option>
             </select>
@@ -393,9 +594,20 @@
         <label class="modal-field">Category
             <select data-new-item-category></select>
         </label>
-        <label class="modal-field">Unit<input type="text" data-new-item-unit placeholder="sachet, bottle…" value="pc"></label>
+        <label class="modal-field">Sold / counted by
+            <select data-new-item-unit>
+                <option value="piece">Piece</option>
+                <option value="sachet">Sachet</option>
+                <option value="bottle">Bottle</option>
+                <option value="pack">Pack</option>
+                <option value="box">Box</option>
+                <option value="can">Can</option>
+                <option value="liter">Liter</option>
+                <option value="kilogram">Kilogram</option>
+            </select>
+        </label>
         <label class="modal-field">Unit price (₱)<input type="number" data-new-item-price min="0" step="0.01" value="0"></label>
-        <label class="modal-field">Starting qty<input type="number" data-new-item-qty min="0" value="0"></label>
+        <label class="modal-field">Starting quantity<input type="number" data-new-item-qty min="0" value="0"></label>
         <label class="modal-field">Low-stock threshold<input type="number" data-new-item-threshold min="0" value="5"></label>
         <p class="modal-error" data-add-item-error hidden></p>
         <div class="modal-actions">
@@ -415,7 +627,18 @@
         <label class="modal-field">Category
             <select data-edit-item-category></select>
         </label>
-        <label class="modal-field">Unit<input type="text" data-edit-item-unit maxlength="40"></label>
+        <label class="modal-field">Sold / counted by
+            <select data-edit-item-unit>
+                <option value="piece">Piece</option>
+                <option value="sachet">Sachet</option>
+                <option value="bottle">Bottle</option>
+                <option value="pack">Pack</option>
+                <option value="box">Box</option>
+                <option value="can">Can</option>
+                <option value="liter">Liter</option>
+                <option value="kilogram">Kilogram</option>
+            </select>
+        </label>
         <label class="modal-field">Unit price (₱)<input type="number" data-edit-item-price min="0" step="0.01"></label>
         <label class="modal-field">Quantity on hand<input type="number" data-edit-item-qty min="0" step="1"></label>
         <label class="modal-field">Low-stock threshold<input type="number" data-edit-item-threshold min="0" step="1"></label>
@@ -464,7 +687,7 @@
     <section class="profile-modal action-modal admin-modal receive-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-procurement type="button">×</button>
         <h2>Record stock receipt</h2>
-        <p class="modal-hint">Enter what the invoice shows, then confirm the quantity you actually received. Inventory updates only after you save.</p>
+        <p class="modal-hint">Enter what the invoice shows, then confirm the quantity you actually received. This only logs the delivery; use Add to inventory on the receipt to update stock.</p>
         <label class="modal-field">Invoice number
             <input type="text" data-po-invoice placeholder="e.g. INV-2026-0142">
         </label>
@@ -492,7 +715,7 @@
         <p class="modal-error" data-po-error hidden></p>
         <div class="modal-actions">
             <button type="button" class="text-button" data-close-procurement>Cancel</button>
-            <button type="button" class="save-button" data-confirm-procurement>Confirm receipt &amp; update stock</button>
+            <button type="button" class="save-button" data-confirm-procurement>Save receipt</button>
         </div>
     </section>
 </div>

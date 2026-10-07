@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\FinanceTransaction;
+use App\Models\InventoryAdjustment;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\InventoryRestock;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
 use App\Models\Notification;
+use App\Models\Service;
 use App\Models\Staff;
 use App\Models\User;
 use Carbon\Carbon;
@@ -19,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class AdminApiController extends Controller
 {
@@ -143,13 +147,17 @@ class AdminApiController extends Controller
         $receiptsCount = (clone $receiptsInRange)->count();
         $receiptsSpend = (float) (clone $receiptsInRange)->sum('cost');
 
-        $machines = Machine::query()->orderBy('name')->get(['id', 'name', 'type', 'status']);
+        $machines = Machine::query()->withCount('transactions')->with('activeOrder.customer:id,name')->orderBy('name')->get()
+            ->each(fn (Machine $m) => $m->setAttribute('current_order', $m->activeOrder ? ['id' => $m->activeOrder->id, 'customer' => $m->activeOrder->customer?->name] : null));
         $machinesMaintenance = $machines->whereIn('status', ['maintenance', 'out_of_service'])->values();
 
         $inventory = InventoryItem::query()->where('status', 'active')->with('category:id,name')->orderBy('name')->get();
         $categories = InventoryCategory::query()->orderBy('name')->get();
-        $restocks = InventoryRestock::query()->with(['item:id,name', 'staff:id,name'])->latest()->limit(30)->get();
-        $users = User::query()->orderBy('name')->get(['id', 'name', 'email', 'role', 'email_verified_at', 'created_at']);
+        $services = Service::query()->withCount('transactions')->orderBy('name')->get();
+        $restocks = InventoryRestock::query()->with(['item:id,name,unit', 'staff:id,name'])->latest()->limit(200)->get();
+        $awaitingStock = InventoryRestock::query()->whereNull('voided_at')->whereColumn('stocked_quantity', '<', 'quantity_received')->count();
+        $movements = InventoryAdjustment::query()->with(['item:id,name,unit', 'staff:id,name'])->latest('id')->limit(300)->get();
+        $users = User::query()->orderBy('name')->get(['id', 'name', 'email', 'role', 'rejection_reason', 'email_verified_at', 'created_at']);
 
         // Daily sales series (paid laundry) for charts
         $paidInRange = LaundryTransaction::query()
@@ -276,6 +284,7 @@ class AdminApiController extends Controller
                 'cancelled_orders' => $cancelledCount,
                 'receipts_count' => $receiptsCount,
                 'receipts_spend' => round($receiptsSpend, 2),
+                'receipts_awaiting_stock' => $awaitingStock,
             ],
             'low_stock' => $lowStock,
             'recent_orders' => $recentOrders,
@@ -289,7 +298,10 @@ class AdminApiController extends Controller
             'machines_attention' => $machinesMaintenance,
             'inventory' => $inventory,
             'categories' => $categories,
+            'services' => $services,
             'restocks' => $restocks,
+            'movements' => $movements,
+            'archive_records' => InventoryAdjustment::archiveFeed(),
             'users' => $users,
             'analytics' => [
                 'sales_by_day' => $salesSeries,
@@ -353,6 +365,9 @@ class AdminApiController extends Controller
         ]);
 
         $item = InventoryItem::query()->create($data);
+        if ($item->quantity_on_hand > 0) {
+            $item->logMovement($item->quantity_on_hand, 'Opening stock', $this->staffId());
+        }
 
         $this->audit('inventory.item_created', ['item_id' => $item->id, 'name' => $item->name, 'unit_price' => (float) $item->unit_price]);
 
@@ -389,6 +404,104 @@ class AdminApiController extends Controller
         return response()->json(['item' => $item->fresh('category')]);
     }
 
+    /** Moves a recorded receipt into inventory (once). */
+    public function stockRestock(Request $request, InventoryRestock $restock): JsonResponse
+    {
+        $data = $request->validate(['quantity' => ['nullable', 'integer', 'min:1']]);
+
+        [$restock, $added] = DB::transaction(function () use ($restock, $data) {
+            $restock = InventoryRestock::query()->lockForUpdate()->findOrFail($restock->id);
+            if ($restock->voided_at) {
+                throw ValidationException::withMessages(['restock' => 'This receipt was voided.']);
+            }
+            $remaining = $restock->remaining_quantity;
+            if ($remaining <= 0) {
+                throw ValidationException::withMessages(['restock' => 'This receipt was already added to inventory.']);
+            }
+            $qty = (int) ($data['quantity'] ?? $remaining);
+            if ($qty > $remaining) {
+                throw ValidationException::withMessages(['quantity' => "Only {$remaining} left to add from this receipt."]);
+            }
+
+            $item = InventoryItem::query()->lockForUpdate()->findOrFail($restock->inventory_item_id);
+            $item->increment('quantity_on_hand', $qty);
+            $item->logMovement($qty, 'Received'.($restock->invoice_number ? ' · invoice '.$restock->invoice_number : ' · delivery #'.$restock->id), $this->staffId());
+            // Stock arrived: staff low-stock reports for this item are resolved.
+            Notification::query()->where('type', 'low_stock')->where('is_read', false)
+                ->where('notifiable_type', InventoryItem::class)->where('notifiable_id', $item->id)
+                ->update(['is_read' => true]);
+            if (($item->status ?? 'active') !== 'active') {
+                $item->update(['status' => 'active']);
+            }
+            $restock->stocked_quantity += $qty;
+            $restock->stocked_at = $restock->stocked_quantity >= $restock->quantity_received ? now() : null;
+            $restock->save();
+
+            return [$restock->load(['item', 'staff']), $qty];
+        });
+
+        $this->audit('inventory.restocked', ['restock_id' => $restock->id, 'item_id' => $restock->inventory_item_id, 'quantity' => $added]);
+
+        return response()->json([
+            'message' => $added.' added to '.$restock->item->name.'. '.($restock->remaining_quantity > 0 ? $restock->remaining_quantity.' still to add.' : 'Receipt fully stocked.'),
+            'restock' => $restock,
+        ]);
+    }
+
+    /** Cancels a receipt entered by mistake (only while none of it has been added to inventory); its expense is removed. */
+    public function voidRestock(Request $request, InventoryRestock $restock): JsonResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:200']]);
+
+        DB::transaction(function () use ($restock, $data) {
+            $restock = InventoryRestock::query()->lockForUpdate()->findOrFail($restock->id);
+            if ($restock->voided_at || $restock->stocked_quantity > 0) {
+                throw ValidationException::withMessages(['restock' => $restock->voided_at ? 'This receipt is already voided.' : 'Part of this receipt is already in inventory, so it cannot be voided. Correct the item quantity instead.']);
+            }
+            FinanceTransaction::query()->where('inventory_restock_id', $restock->id)->delete();
+            $restock->update(['voided_at' => now(), 'void_reason' => $data['reason']]);
+        });
+
+        $this->audit('inventory.receipt_voided', ['restock_id' => $restock->id, 'reason' => $data['reason']]);
+
+        return response()->json(['message' => 'Receipt voided and its expense removed.']);
+    }
+
+    /** Admin Activity Log: who did what, 8 per page, optional search. */
+    public function auditLog(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->query('q', ''));
+        $page = AuditLog::query()
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w->where('action', 'like', "%{$q}%")->orWhere('user_email', 'like', "%{$q}%")))
+            ->latest('id')
+            ->paginate(8);
+
+        return response()->json($page);
+    }
+
+    /** Full-range data for CSV/PDF exports (the dashboard only keeps the latest rows). */
+    public function reportData(Request $request): JsonResponse
+    {
+        $data = $request->validate(['from' => ['required', 'date'], 'to' => ['required', 'date']]);
+        $from = Carbon::parse($data['from'])->startOfDay();
+        $to = Carbon::parse($data['to'])->endOfDay();
+
+        $orders = LaundryTransaction::query()
+            ->with(['customer:id,name', 'basketTag:id,code', 'service:id,name'])
+            ->where('status', '!=', 'cancelled')
+            ->whereBetween('created_at', [$from, $to])
+            ->orderBy('created_at')->get();
+        $finance = FinanceTransaction::query()
+            ->with('staff:id,name')
+            ->where(fn ($q) => $q->whereNull('laundry_transaction_id')
+                ->orWhereNotIn('laundry_transaction_id', LaundryTransaction::query()->where('status', 'cancelled')->select('id')))
+            ->whereBetween('transaction_date', [$from->toDateString(), $to->toDateString()])
+            ->orderBy('transaction_date')->get();
+
+        return response()->json(['orders' => $orders, 'finance' => $finance]);
+    }
+
+    /** Records a delivery against an invoice. Inventory is NOT touched until the receipt is added to stock. */
     public function storeRestock(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -404,16 +517,7 @@ class AdminApiController extends Controller
         ]);
 
         $restock = DB::transaction(function () use ($data) {
-            $item = InventoryItem::query()->lockForUpdate()->findOrFail($data['inventory_item_id']);
-            $item->increment('quantity_on_hand', $data['quantity_received']);
-            // Stock arrived: staff low-stock reports for this item are resolved.
-            Notification::query()->where('type', 'low_stock')->where('is_read', false)
-                ->where('notifiable_type', InventoryItem::class)->where('notifiable_id', $item->id)
-                ->update(['is_read' => true]);
-            if (($item->status ?? 'active') !== 'active') {
-                $item->update(['status' => 'active']);
-            }
-
+            $item = InventoryItem::query()->findOrFail($data['inventory_item_id']);
             $receivedOn = $data['restocked_at'] ?? today();
             $invoiceRef = $data['invoice_number'] ?? null;
 
@@ -437,21 +541,22 @@ class AdminApiController extends Controller
                 }
                 FinanceTransaction::query()->create([
                     'type' => 'expense',
+                    'inventory_restock_id' => $row->id,
                     'description' => $desc,
                     'amount' => $data['cost'],
                     'staff_id' => $this->staffId(),
                     'transaction_date' => $receivedOn,
-                    'notes' => trim(($data['supplier'] ?? '').($data['notes'] ? ' · '.$data['notes'] : '')),
+                    'notes' => trim(($data['supplier'] ?? '').(! empty($data['notes']) ? ' · '.$data['notes'] : '')),
                 ]);
             }
 
             return $row->load(['item', 'staff']);
         });
 
-        $this->audit('inventory.restocked', ['restock_id' => $restock->id, 'item_id' => $restock->inventory_item_id, 'quantity' => $restock->quantity_received, 'cost' => $restock->cost]);
+        $this->audit('inventory.receipt_recorded', ['restock_id' => $restock->id, 'item_id' => $restock->inventory_item_id, 'quantity' => $restock->quantity_received, 'cost' => $restock->cost]);
 
         return response()->json([
-            'message' => 'Stock receipt recorded. Inventory quantity updated.',
+            'message' => 'Receipt saved. Use "Add to inventory" on it when the stock is put on the shelf.',
             'restock' => $restock,
         ], 201);
     }
@@ -493,7 +598,7 @@ class AdminApiController extends Controller
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:120'],
             'email' => ['sometimes', 'email', 'max:190', Rule::unique('users', 'email')->ignore($user->id), Rule::unique('staff', 'email')->ignore($user->email, 'email')],
-            'role' => ['sometimes', Rule::in(['admin', 'staff', 'pending'])],
+            'role' => ['sometimes', Rule::in(['admin', 'staff', 'pending', 'rejected'])],
             'password' => ['nullable', 'string', Password::defaults()],
         ]);
 
@@ -508,6 +613,9 @@ class AdminApiController extends Controller
         $user->fill(collect($data)->only(['name', 'email'])->all());
         if (isset($data['role'])) {
             $user->forceFill(['role' => $data['role']]);
+            if ($data['role'] !== 'rejected') {
+                $user->forceFill(['rejection_reason' => null]);
+            }
         }
         $user->save();
         $this->audit('user.updated', [
@@ -527,5 +635,93 @@ class AdminApiController extends Controller
         }
 
         return response()->json(['user' => $user]);
+    }
+
+    /** @return array<string, mixed> */
+    protected function serviceRules(?Service $service = null): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:80', Rule::unique('services', 'name')->ignore($service?->id)],
+            'base_price' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'rate_per_kg' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'is_active' => ['required', 'boolean'],
+        ];
+    }
+
+    public function storeService(Request $request): JsonResponse
+    {
+        $service = Service::query()->create($request->validate($this->serviceRules()));
+        $this->audit('service.created', ['service_id' => $service->id, 'name' => $service->name, 'base_price' => (float) $service->base_price, 'rate_per_kg' => $service->rate_per_kg]);
+
+        return response()->json(['service' => $service], 201);
+    }
+
+    /** Price changes apply to new orders only; past orders keep what was charged. */
+    public function updateService(Request $request, Service $service): JsonResponse
+    {
+        $before = ['base_price' => (float) $service->base_price, 'rate_per_kg' => $service->rate_per_kg];
+        $service->update($request->validate($this->serviceRules($service)));
+        $this->audit('service.updated', ['service_id' => $service->id, 'name' => $service->name, 'before' => json_encode($before), 'base_price' => (float) $service->base_price, 'rate_per_kg' => $service->rate_per_kg, 'active' => $service->is_active]);
+
+        return response()->json(['service' => $service]);
+    }
+
+    /** Declines a pending sign-up. The account is kept (as "rejected") with the reason, and cannot sign in until an admin approves it. */
+    public function rejectUser(Request $request, User $user): JsonResponse
+    {
+        if ($user->role !== 'pending') {
+            return response()->json(['message' => 'Only accounts waiting for approval can be rejected.'], 422);
+        }
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:200']]);
+
+        $user->forceFill(['role' => 'rejected', 'rejection_reason' => $data['reason']])->save();
+        $this->audit('user.rejected', ['target_user_id' => $user->id, 'target_email' => $user->email, 'reason' => $data['reason']]);
+
+        return response()->json(['message' => 'Account rejected.']);
+    }
+
+    /** @return array<string, mixed> */
+    protected function machineRules(?Machine $machine = null): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:60', Rule::unique('machines', 'name')->ignore($machine?->id)],
+            'type' => ['required', Rule::in(['washer', 'dryer'])],
+            'status' => ['required', Rule::in(['available', 'reserved', 'maintenance', 'out_of_service'])],
+        ];
+    }
+
+    public function storeMachine(Request $request): JsonResponse
+    {
+        $machine = Machine::query()->create($request->validate($this->machineRules()));
+        $this->audit('machine.created', ['machine_id' => $machine->id, 'name' => $machine->name]);
+
+        return response()->json(['machine' => $machine], 201);
+    }
+
+    public function updateMachine(Request $request, Machine $machine): JsonResponse
+    {
+        $data = $request->validate($this->machineRules($machine));
+
+        // A machine running an order keeps its status; it frees up when the order is marked ready or cancelled.
+        if ($machine->activeOrder()->exists()) {
+            $data['status'] = $machine->status;
+        }
+
+        $machine->update($data);
+        $this->audit('machine.updated', ['machine_id' => $machine->id, 'name' => $machine->name, 'status' => $machine->status]);
+
+        return response()->json(['machine' => $machine]);
+    }
+
+    public function destroyMachine(Machine $machine): JsonResponse
+    {
+        if ($machine->transactions()->exists()) {
+            return response()->json(['message' => "{$machine->name} has order history and cannot be deleted. Set it to Out of service instead."], 422);
+        }
+
+        $machine->delete();
+        $this->audit('machine.deleted', ['machine_id' => $machine->id, 'name' => $machine->name]);
+
+        return response()->json(['message' => 'Machine deleted.']);
     }
 }

@@ -69,7 +69,7 @@ class StaffApiController extends Controller
         $staffId = $this->staffId();
 
         $garments = GarmentType::query()->orderBy('name')->get(['id', 'name', 'is_custom']);
-        $services = Service::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'base_price']);
+        $services = Service::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'base_price', 'rate_per_kg']);
         $machines = Machine::query()->with('activeOrder.customer:id,name')->orderBy('name')->get(['id', 'name', 'type', 'status'])
             ->map(function (Machine $m) {
                 $order = $m->activeOrder;
@@ -135,7 +135,7 @@ class StaffApiController extends Controller
             $recentAttendance = StaffAttendance::query()
                 ->where('staff_id', $staffId)
                 ->orderByDesc('work_date')
-                ->limit(10)
+                ->limit(30)
                 ->get();
         }
 
@@ -199,6 +199,7 @@ class StaffApiController extends Controller
             'available_baskets' => $baskets->where('status', 'available')->reject(fn ($b) => isset($basketAssignments[$b->id]))->values(),
             'inventory' => $activeInventory->values(),
             'archived_inventory' => $archivedInventory->values(),
+            'archive_records' => InventoryAdjustment::archiveFeed(),
             'snacks' => $snacks,
             'detergents' => $detergents,
             'customers' => $customersWithStats,
@@ -317,9 +318,10 @@ class StaffApiController extends Controller
                     $subtotal = (float) Service::query()->whereKey($data['service_id'])->value('base_price');
                 } elseif ($data['transaction_type'] === 'self_service') {
                     $billableKg = max((float) $data['load_weight_kg'], 3);
-                    $validRate = collect([20, 25, 40])->contains(
-                        fn ($rate) => abs($rate * $billableKg - $subtotal) < 0.01
-                    );
+                    $rates = Service::query()->where('is_active', true)->whereNotNull('rate_per_kg')
+                        ->when(! empty($data['service_id']), fn ($q) => $q->whereKey($data['service_id']))
+                        ->pluck('rate_per_kg');
+                    $validRate = $rates->contains(fn ($rate) => abs((float) $rate * $billableKg - $subtotal) < 0.01);
                     if (! $validRate) {
                         throw ValidationException::withMessages([
                             'service_amount' => 'Service charge does not match the load weight. Please refresh and try again.',
@@ -402,6 +404,7 @@ class StaffApiController extends Controller
                         'line_total' => $unit * $qty,
                     ]);
                     $item->decrement('quantity_on_hand', $qty);
+                    $item->logMovement(-$qty, "Sold · order #{$txn->id}", $staffId);
                 }
 
                 if ($detergentId && $detergentQty > 0) {
@@ -413,6 +416,7 @@ class StaffApiController extends Controller
                             ]);
                         }
                         $det->decrement('quantity_on_hand', $detergentQty);
+                        $det->logMovement(-$detergentQty, "Used for order #{$txn->id}", $staffId);
                     }
                 }
 
@@ -599,9 +603,12 @@ class StaffApiController extends Controller
 
             foreach ($order->inventoryItems as $item) {
                 $item->increment('quantity_on_hand', (int) $item->pivot->quantity);
+                $item->logMovement((int) $item->pivot->quantity, "Returned · order #{$order->id} cancelled", $this->staffId());
             }
             if ($order->detergent_item_id && $order->detergent_quantity > 0) {
-                InventoryItem::query()->whereKey($order->detergent_item_id)->increment('quantity_on_hand', (int) $order->detergent_quantity);
+                $det = InventoryItem::query()->find($order->detergent_item_id);
+                $det?->increment('quantity_on_hand', (int) $order->detergent_quantity);
+                $det?->logMovement((int) $order->detergent_quantity, "Returned · order #{$order->id} cancelled", $this->staffId());
             }
             if ($order->basket_tag_id) {
                 BasketTag::query()->whereKey($order->basket_tag_id)->update(['status' => 'available']);
@@ -678,36 +685,17 @@ class StaffApiController extends Controller
         return response()->json(['message' => 'Clocked out', 'attendance' => $row->fresh()]);
     }
 
+    /** Removes expired/spoiled/damaged stock and keeps a record of how many were removed. */
     public function archiveItem(Request $request, InventoryItem $item): JsonResponse
     {
         $data = $request->validate([
             'reason' => ['required', 'in:expired,spoiled,damaged'],
-            'quantity' => ['nullable', 'integer', 'min:0'],
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
-        $staffId = $this->staffId();
-        $status = 'archived_'.$data['reason'];
+        $item->archiveStock($data['reason'], (int) $data['quantity'], $this->staffId());
 
-        DB::transaction(function () use ($item, $data, $staffId, $status) {
-            $qty = $data['quantity'] ?? $item->quantity_on_hand;
-            if ($qty > 0 && $qty <= $item->quantity_on_hand) {
-                $item->decrement('quantity_on_hand', $qty);
-                InventoryAdjustment::query()->create([
-                    'inventory_item_id' => $item->id,
-                    'staff_id' => $staffId,
-                    'quantity_change' => -$qty,
-                    'reason' => ucfirst($data['reason']).' / archived',
-                ]);
-            }
-            if ($item->fresh()->quantity_on_hand <= 0) {
-                $item->update(['status' => $status, 'quantity_on_hand' => 0]);
-            } else {
-                // partial archive still logs; keep active if stock remains
-                $item->update(['status' => 'active']);
-            }
-        });
-
-        $this->audit('inventory.archived', ['item_id' => $item->id, 'reason' => $data['reason'], 'quantity' => $data['quantity'] ?? null]);
+        $this->audit('inventory.archived', ['item_id' => $item->id, 'reason' => $data['reason'], 'quantity' => (int) $data['quantity']]);
 
         return response()->json(['message' => 'Item archived', 'item' => $item->fresh('category')]);
     }

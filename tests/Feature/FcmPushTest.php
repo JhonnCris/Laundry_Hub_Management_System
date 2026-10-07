@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\URL;
 
 uses(RefreshDatabase::class);
 
+// Ignore any real Firebase settings in .env: each test sets up its own.
+beforeEach(fn () => config([
+    'services.fcm.project_id' => null, 'services.fcm.credentials' => null, 'services.fcm.credentials_base64' => null,
+    'services.fcm.web' => ['apiKey' => null, 'authDomain' => null, 'messagingSenderId' => null, 'appId' => null, 'vapidKey' => null],
+]));
+
 function fcmConfigured(): void
 {
     // Windows PHP needs an openssl.cnf to generate a throwaway test key.

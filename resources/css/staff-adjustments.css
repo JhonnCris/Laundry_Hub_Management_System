@@ -1370,7 +1370,7 @@ input[type="date"].date-input,
     align-items: center;
 }
 [data-panel="archived"] .order-row {
-    grid-template-columns: 1.3fr 1fr 0.9fr 0.85fr !important;
+    grid-template-columns: 0.8fr 1.3fr 1fr 0.8fr 1fr !important;
     gap: 8px 12px;
     align-items: center;
 }
@@ -1649,7 +1649,7 @@ button.outline-action:hover,
 [data-panel="procurement"] .table-card .order-row,
 [data-panel="procurement"] .order-row {
     display: grid !important;
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.85fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.75fr) !important;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.6fr) minmax(0, 0.7fr) minmax(0, 1.2fr) !important;
     gap: 6px 8px !important;
     align-items: center !important;
 }
@@ -2110,3 +2110,77 @@ button.outline-action:hover,
 .help-item ul { list-style: disc; }
 .help-item p { margin: 0; padding: 12px 16px 14px; font-size: 0.9rem; line-height: 1.5; }
 @media print { .help-fab { display: none; } }
+
+
+/* ========== Boxed dropdowns, pie hover, machines module (Oct 2026) ========== */
+
+.modal-field select,
+.table-filters select {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 100%;
+    border: 1px solid var(--staff-input-border);
+    border-radius: 9px;
+    background-color: var(--staff-input-bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23647a6e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    color: var(--staff-input-text);
+    padding: 10px 34px 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+}
+.modal-field select:focus,
+.table-filters select:focus { border-color: var(--staff-accent); }
+
+/* Popular products donut: light shades, hover to inspect a slice */
+.pie-wrap { position: relative; }
+.pie-svg { width: 160px; height: 160px; flex: none; transform: rotate(-90deg); overflow: visible; }
+.pie-seg { fill: none; stroke-width: 26; cursor: pointer; transition: stroke-width .15s ease, opacity .15s ease; }
+.pie-wrap.is-hovering .pie-seg:not(.is-on) { opacity: .45; }
+.pie-seg.is-on { stroke-width: 32; }
+.pie-center { position: absolute; left: 4px; top: 8px; width: 160px; height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; font-weight: 700; font-size: 1.3rem; }
+.pie-center small { font-size: .7rem; font-weight: 400; color: var(--staff-muted); }
+.pie-legend li { border-radius: 6px; padding: 2px 4px; cursor: default; transition: background .15s ease; }
+.pie-legend li.is-on { background: var(--staff-row-head-bg); }
+.pie-tip { position: absolute; z-index: 5; pointer-events: none; padding: 7px 10px; border-radius: 8px; background: #143529; color: #fff; font-size: .78rem; line-height: 1.35; box-shadow: 0 6px 18px rgba(0,0,0,.25); white-space: nowrap; transform: translate(-50%, -110%); }
+.pie-tip[hidden] { display: none; }
+
+/* Manage Machines (admin) */
+.table-filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 20px 4px; align-items: center; }
+.table-filters .search-input { flex: 1 1 200px; width: auto; margin: 0; }
+.table-filters select { width: auto; min-width: 150px; }
+[data-panel="manage-machines"] .table-card .order-row,
+[data-panel="manage-machines"] .order-row {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.9fr) minmax(0, 0.6fr) minmax(0, 1.3fr) minmax(0, 1.1fr) !important;
+    gap: 6px 10px !important;
+    align-items: center !important;
+}
+[data-panel="manage-machines"] .order-row.order-head { white-space: nowrap !important; }
+[data-panel="manage-machines"] .order-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-panel="manage-machines"] .user-actions,
+[data-panel="manage-users"] .user-actions,
+[data-panel="procurement"] .user-actions { display: flex; gap: 6px; justify-content: flex-start; flex-wrap: nowrap; }
+[data-panel="manage-machines"] .user-actions button,
+[data-panel="procurement"] .user-actions button { padding: 5px 12px !important; font-size: 0.72rem !important; }
+.status.is-bad { background: #fde4e1; color: #a02a1f; }
+.status.is-warn { background: #fff0be; color: #805b00; }
+.action-btn-danger { border: 1.5px solid #c62828; border-radius: 999px; background: #c62828; color: #fff; font-weight: 700; cursor: pointer; padding: 5px 12px; font-size: 0.72rem; }
+.action-btn-danger:hover { background: #a61e1e; border-color: #a61e1e; }
+.status.is-wait { background: #fff0be; color: #805b00; }
+
+/* Receipts: status + actions in the last column */
+[data-panel="procurement"] .order-row { grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 0.5fr) minmax(0, 0.6fr) minmax(0, 2fr) !important; }
+[data-panel="procurement"] .order-row > .user-actions { overflow: visible; flex-wrap: wrap; white-space: normal !important; }
+[data-panel="manage-inventory"] .table-card .order-row:not(.inv5) { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 0.7fr) minmax(0, 1.6fr) minmax(0, 0.9fr) !important; }
+[data-panel="manage-inventory"] .order-row.pos-neg { }
+.order-row .num.pos { color: #17653e; font-weight: 700; }
+.order-row .num.neg { color: #a02a1f; font-weight: 700; }
+[data-panel="audit"] .order-row { display: grid !important; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) minmax(0, 1.1fr) minmax(0, 2fr) !important; gap: 6px 10px !important; align-items: center !important; }
+[data-panel="audit"] .order-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+[data-panel="manage-pricing"] .order-row { display: grid !important; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(0, 0.5fr) minmax(0, 0.7fr) !important; gap: 6px 10px !important; align-items: center !important; }
+[data-panel="manage-pricing"] .order-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-panel="manage-pricing"] .order-row.order-head { white-space: nowrap !important; }

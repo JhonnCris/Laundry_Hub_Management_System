@@ -93,7 +93,7 @@ export function toast(message, type = 'error') {
     setTimeout(() => el.remove(), type === 'error' ? 9000 : 5000);
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 8;
 
 /**
  * Show one page of the rows inside `box` and add Prev/Next controls after it.
@@ -129,6 +129,15 @@ export function paginate(box, { reset = false, size = PAGE_SIZE } = {}) {
     bar.querySelector('.pager-info').textContent = `Page ${box._page} of ${pages} · ${rows.length} rows`;
     bar.querySelector('[data-pager-prev]').disabled = box._page <= 1;
     bar.querySelector('[data-pager-next]').disabled = box._page >= pages;
+}
+
+/** "5 pieces", "1 sachet": a quantity with its unit spelled out (old "pc" values read as piece). */
+export function qtyUnit(qty, unit) {
+    let u = String(unit || '').trim().toLowerCase();
+    if (u === 'pc' || u === 'pcs') u = 'piece';
+    if (!u) return String(qty);
+    if (Number(qty) === 1 || u.endsWith('s')) return `${qty} ${u}`;
+    return `${qty} ${u}${/(x|ch|sh)$/.test(u) ? 'es' : 's'}`;
 }
 
 export function fmtTime(iso) {

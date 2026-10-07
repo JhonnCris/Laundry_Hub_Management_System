@@ -1,7 +1,7 @@
 /**
  * Staff bootstrap: load DB data + render module tables
  */
-import { api, errorText, esc, fmtDate, fmtTime, paginate } from './core.js';
+import { api, errorText, esc, fmtDate, fmtTime, paginate, qtyUnit } from './core.js';
 import { showScreen } from './navigation.js';
 import { statusLabel, statusClass } from './queue.js';
 
@@ -202,20 +202,17 @@ export function renderStaffLists(app, data) {
                       const alertCell = low
                           ? `<button type="button" class="outline-action notify-low-btn" data-notify-low="${i.id}" ${reported ? 'disabled' : ''} title="Tell the admin this item is running low">${reported ? 'Admin notified ✓' : 'Notify admin'}</button>`
                           : '<span></span>';
-                      return `<div class="order-row inv5${low ? ' is-low' : ''}"><strong>${low ? '<i class="low-dot" title="Low stock"></i>' : ''}${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit)}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em>${alertCell}</div>`;
+                      return `<div class="order-row inv5${low ? ' is-low' : ''}"><strong>${low ? '<i class="low-dot" title="Low stock"></i>' : ''}${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em>${alertCell}</div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
     }
     const ar = app.querySelector('[data-archived-rows]');
     if (ar) {
-        const list = data.archived_inventory || [];
+        const list = data.archive_records || [];
         ar.innerHTML = list.length
             ? list
-                  .map((i) => {
-                      const reason = (i.status || '').replace('archived_', '') || 'archived';
-                      return `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(reason)}</span><span>${i.quantity_on_hand}</span></div>`;
-                  })
+                  .map((r) => `<div class="order-row"><span>${esc(fmtDate(r.date))}</span><strong>${esc(r.item || '—')}</strong><span>${esc(r.category || '—')}</span><span>${esc(r.reason)}</span><span>${r.quantity == null ? 'not recorded' : esc(qtyUnit(r.quantity, r.unit))}</span></div>`)
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div>';
     }
@@ -244,15 +241,15 @@ export function renderStaffLists(app, data) {
         tickMachineTimers();
     }
 
-    ['[data-queue-rows]', '[data-customer-rows]', '[data-inventory-rows]', '[data-archived-rows]'].forEach((sel) => paginate(app.querySelector(sel)));
+    ['[data-queue-rows]', '[data-customer-rows]', '[data-inventory-rows]', '[data-archived-rows]', '[data-attendance-rows]'].forEach((sel) => paginate(app.querySelector(sel)));
 
     const fillSelect = (sel, items) => {
         if (!sel) return;
         sel.innerHTML = (items || [])
-            .map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${i.quantity_on_hand} ${esc(i.unit)})</option>`)
+            .map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(qtyUnit(i.quantity_on_hand, i.unit))})</option>`)
             .join('');
     };
-    fillSelect(document.querySelector('[data-archive-item]'), data.inventory);
+    fillSelect(document.querySelector('[data-archive-item]'), (data.inventory || []).filter((i) => Number(i.quantity_on_hand) > 0));
 
     renderAttendance(app, data);
 }
@@ -298,9 +295,19 @@ export function loadStaffBootstrap(app, updateFn) {
                     select.appendChild(o);
                 });
             });
-            app.querySelectorAll('[data-service-price][data-pricing="per_kg"] option[data-service-name]').forEach((o) => {
-                const match = (data.services || []).find((svc) => svc.name === o.dataset.serviceName);
-                if (match) o.dataset.serviceId = String(match.id);
+            app.querySelectorAll('[data-service-price][data-pricing="per_kg"]').forEach((select) => {
+                const metered = (data.services || []).filter((svc) => svc.rate_per_kg != null);
+                if (!metered.length) return;
+                select.innerHTML = '';
+                metered.forEach((svc) => {
+                    const o = document.createElement('option');
+                    o.value = String(svc.rate_per_kg);
+                    o.dataset.rate = String(svc.rate_per_kg);
+                    o.dataset.serviceId = String(svc.id);
+                    o.dataset.serviceName = svc.name;
+                    o.textContent = `${svc.name} · ₱${Number(svc.rate_per_kg)} / kg`;
+                    select.appendChild(o);
+                });
             });
             const machineSelect = app.querySelector('[data-machine]');
             if (machineSelect && (data.machines || []).length) {
@@ -351,7 +358,7 @@ export function loadStaffBootstrap(app, updateFn) {
                             Number(i.quantity_on_hand) <= Number(i.low_stock_threshold)
                     ).length
             );
-            setBadge('archived', (data.archived_inventory || []).length);
+            setBadge('archived', (data.archive_records || []).length);
 
             // Default basket: first available, not a hardcoded tag
             const basketInput = app.querySelector('[data-basket-tag]');

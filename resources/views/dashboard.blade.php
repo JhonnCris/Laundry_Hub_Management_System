@@ -264,7 +264,7 @@
 </select>
 </label>
 <label class="modal-field">Quantity to remove
-<input type="number" data-archive-qty min="1" value="1">
+<input type="number" data-archive-qty min="1" step="1" value="1">
 </label>
 <p class="modal-error" data-archive-error hidden></p>
 <div class="modal-actions">
@@ -401,9 +401,9 @@
 <div data-basket-rows></div>
 </section></section>
 <section class="prototype-panel" data-panel="archived">
-<div class="page-intro"><div><p class="eyebrow">Stock</p><h1>Archived</h1><p>Items removed from active stock as expired, spoiled, or damaged.</p></div></div>
+<div class="page-intro"><div><p class="eyebrow">Stock</p><h1>Archived</h1><p>Stock removed as expired, spoiled, or damaged, with how many were removed.</p></div></div>
 <section class="staff-card full-card table-card">
-<div class="order-row order-head"><span>Item</span><span>Category</span><span>Reason</span><span>Quantity</span></div>
+<div class="order-row order-head"><span>Date</span><span>Item</span><span>Category</span><span>Reason</span><span>Quantity removed</span></div>
 <div data-archived-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No archived items.</span></div></div>
 </section>
 </section>

@@ -1,7 +1,7 @@
 /**
  * Admin: dashboard KPIs, filters, export + stock receiving
  */
-import { api, esc, money, paginate } from './core.js';
+import { api, esc, money, paginate, qtyUnit } from './core.js';
 
 function statusLabel(st) {
     const map = {
@@ -85,9 +85,10 @@ function renderRankBars(container, items) {
         .join('');
 }
 
-const PIE_COLORS = ['#1a4d3e', '#2d6a4f', '#52b788', '#95d5b2', '#e9c46a', '#f4a261', '#e76f51', '#457b9d', '#8d99ae', '#b5838d'];
+// Light shades so the slices stay readable; each slice gets its own colour.
+const PIE_COLORS = ['#8fd3b0', '#f6d77f', '#9ec8f0', '#f4b6a6', '#c9b6ec', '#b7dd8a', '#f2a9c4', '#8ee0dc', '#f0c28c', '#c5d1d9'];
 
-/** Donut of units sold per product with a colour-keyed legend. */
+/** Donut of units sold per product. Hover a slice (or its legend row) to see its numbers. */
 function renderProductPie(container, items) {
     if (!container) return;
     const list = (items || []).filter((p) => Number(p.qty_sold) > 0);
@@ -95,20 +96,53 @@ function renderProductPie(container, items) {
         container.innerHTML = '<p class="chart-empty">No product sales in this range.</p>';
         return;
     }
-    const total = list.reduce((s, p) => s + Number(p.qty_sold), 0);
+    const total = list.reduce((sum, p) => sum + Number(p.qty_sold), 0);
+    const radius = 54;
+    const circ = 2 * Math.PI * radius;
+    const gap = list.length > 1 ? 2 : 0;
     let acc = 0;
-    const stops = list.map((p, i) => {
-        const from = (acc / total) * 100;
-        acc += Number(p.qty_sold);
-        return `${PIE_COLORS[i % PIE_COLORS.length]} ${from}% ${(acc / total) * 100}%`;
-    });
+    const segs = list
+        .map((p, i) => {
+            const len = Math.max((Number(p.qty_sold) / total) * circ - gap, 0.5);
+            const seg = `<circle class="pie-seg" data-pie-i="${i}" cx="80" cy="80" r="${radius}" stroke="${PIE_COLORS[i % PIE_COLORS.length]}" stroke-dasharray="${len} ${circ - len}" stroke-dashoffset="${-acc}"></circle>`;
+            acc += (Number(p.qty_sold) / total) * circ;
+            return seg;
+        })
+        .join('');
     const legend = list
         .map((p, i) => {
             const pct = Math.round((Number(p.qty_sold) / total) * 100);
-            return `<li><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i><span class="pie-name">${esc(p.name)}</span><span class="pie-val">${p.qty_sold} · ${pct}% · ${money(p.revenue)}</span></li>`;
+            return `<li data-pie-i="${i}"><i style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></i><span class="pie-name">${esc(p.name)}</span><span class="pie-val">${p.qty_sold} · ${pct}% · ${money(p.revenue)}</span></li>`;
         })
         .join('');
-    container.innerHTML = `<div class="pie-wrap"><div class="pie" role="img" aria-label="Units sold per product" style="background:conic-gradient(${stops.join(',')})"><span>${total}<small>sold</small></span></div><ul class="pie-legend">${legend}</ul></div>`;
+    container.innerHTML = `<div class="pie-wrap"><svg class="pie-svg" viewBox="0 0 160 160" role="img" aria-label="Units sold per product">${segs}</svg><div class="pie-center"><span>${total}</span><small>sold</small></div><ul class="pie-legend">${legend}</ul><div class="pie-tip" hidden></div></div>`;
+
+    const wrap = container.querySelector('.pie-wrap');
+    const tip = wrap.querySelector('.pie-tip');
+    const light = (i) => {
+        wrap.classList.toggle('is-hovering', i !== null);
+        wrap.querySelectorAll('[data-pie-i]').forEach((el) => el.classList.toggle('is-on', i !== null && el.dataset.pieI === String(i)));
+    };
+    wrap.addEventListener('mousemove', (e) => {
+        const el = e.target.closest('[data-pie-i]');
+        if (!el) {
+            light(null);
+            tip.hidden = true;
+            return;
+        }
+        const i = Number(el.dataset.pieI);
+        const p = list[i];
+        light(i);
+        tip.innerHTML = `<strong>${esc(p.name)}</strong><br>${p.qty_sold} sold · ${Math.round((Number(p.qty_sold) / total) * 100)}% · ${money(p.revenue)}`;
+        const box = wrap.getBoundingClientRect();
+        tip.style.left = `${e.clientX - box.left}px`;
+        tip.style.top = `${e.clientY - box.top - 6}px`;
+        tip.hidden = false;
+    });
+    wrap.addEventListener('mouseleave', () => {
+        light(null);
+        tip.hidden = true;
+    });
 }
 
 function rangeQuery(app) {
@@ -206,6 +240,139 @@ function renderServiceShare(container, mix, mode = 'orders') {
         .join('');
 }
 
+const MACHINE_STATUS = {
+    available: ['Available', 'ready'],
+    in_use: ['In use', 'processing'],
+    reserved: ['Reserved', 'pending'],
+    maintenance: ['Maintenance', 'is-bad'],
+    out_of_service: ['Out of service', 'is-bad'],
+};
+
+/** Manage Machines table: KPI cards, search + type/status filters, 8 per page. */
+function renderMachines(app, data, { resetPage = false } = {}) {
+    const all = data.machines || [];
+    const set = (sel, v) => {
+        const el = app.querySelector(sel);
+        if (el) el.textContent = String(v);
+    };
+    set('[data-mach-total]', all.length);
+    set('[data-mach-types]', `${all.filter((m) => m.type === 'washer').length} washers · ${all.filter((m) => m.type === 'dryer').length} dryers`);
+    set('[data-mach-available]', all.filter((m) => m.status === 'available').length);
+    set('[data-mach-inuse]', `${all.filter((m) => m.status === 'in_use').length} in use`);
+    set('[data-mach-attention]', all.filter((m) => ['maintenance', 'out_of_service'].includes(m.status)).length);
+
+    const rows = app.querySelector('[data-admin-machine-rows]');
+    if (!rows) return;
+    if (!app._machFiltersBound) {
+        app._machFiltersBound = true;
+        app.querySelectorAll('[data-mach-search], [data-mach-type], [data-mach-status]').forEach((el) => {
+            el.addEventListener(el.matches('input') ? 'input' : 'change', () => renderMachines(app, app._adminBootstrap || {}, { resetPage: true }));
+        });
+    }
+    const q = (app.querySelector('[data-mach-search]')?.value || '').trim().toLowerCase();
+    const type = app.querySelector('[data-mach-type]')?.value || '';
+    const status = app.querySelector('[data-mach-status]')?.value || '';
+    const list = all.filter((m) => (!q || m.name.toLowerCase().includes(q)) && (!type || m.type === type) && (!status || m.status === status));
+
+    rows.innerHTML = list.length
+        ? list
+              .map((m) => {
+                  const [label, cls] = MACHINE_STATUS[m.status] || [m.status, 'pending'];
+                  const running = m.current_order ? `Order #${m.current_order.id} · ${m.current_order.customer || '—'}` : '—';
+                  return `<div class="order-row"><strong>${esc(m.name)}</strong><span>${m.type === 'dryer' ? 'Dryer' : 'Washer'}</span><em class="status ${cls}">${esc(label)}</em><span class="num">${m.transactions_count ?? 0}</span><span>${esc(running)}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-machine="${m.id}">Edit</button><button type="button" class="action-btn-danger" data-delete-machine="${m.id}">Delete</button></span></div>`;
+              })
+              .join('')
+        : `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${all.length ? 'No machines match these filters.' : 'No machines yet. Click Add machine.'}</span></div>`;
+    paginate(rows, { reset: resetPage });
+}
+
+/** Stock movement ledger with search, 8 per page. */
+function renderMovements(app, data, { resetPage = false } = {}) {
+    const rows = app.querySelector('[data-admin-movement-rows]');
+    if (!rows) return;
+    const input = app.querySelector('[data-move-search]');
+    if (input && !input._bound) {
+        input._bound = true;
+        input.addEventListener('input', () => renderMovements(app, app._adminBootstrap || {}, { resetPage: true }));
+    }
+    const q = (input?.value || '').trim().toLowerCase();
+    const list = (data.movements || []).filter((m) => !q || `${m.item?.name || ''} ${m.reason || ''}`.toLowerCase().includes(q));
+    rows.innerHTML = list.length
+        ? list
+              .map((m) => {
+                  const ch = Number(m.quantity_change);
+                  return `<div class="order-row"><span>${esc(String(m.created_at || '').replace('T', ' ').slice(0, 16))}</span><strong>${esc(m.item?.name || '—')}</strong><span class="num ${ch < 0 ? 'neg' : 'pos'}">${ch > 0 ? '+' : ''}${ch}</span><span>${esc(m.reason || '')}</span><span>${esc(m.staff?.name || '—')}</span></div>`;
+              })
+              .join('')
+        : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No stock movements match.</span></div>';
+    paginate(rows, { reset: resetPage });
+}
+
+const ACTION_LABELS = {
+    'inventory.receipt_recorded': 'Recorded receipt',
+    'inventory.restocked': 'Added receipt to inventory',
+    'inventory.receipt_voided': 'Voided receipt',
+    'inventory.archived': 'Archived stock',
+    'inventory.item_created': 'Added item',
+    'inventory.item_updated': 'Edited item',
+    'user.created': 'Created user',
+    'user.updated': 'Updated user',
+    'user.rejected': 'Rejected sign-up',
+    'service.created': 'Added service',
+    'service.updated': 'Changed service prices',
+    'machine.created': 'Added machine',
+    'machine.updated': 'Edited machine',
+    'machine.deleted': 'Deleted machine',
+    'report.exported': 'Exported report',
+};
+
+function loadAudit(app, page = 1) {
+    const q = encodeURIComponent((app.querySelector('[data-audit-search]')?.value || '').trim());
+    const rows = app.querySelector('[data-audit-rows]');
+    const search = app.querySelector('[data-audit-search]');
+    if (search && !search._bound) {
+        search._bound = true;
+        let timer;
+        search.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => loadAudit(app, 1), 300);
+        });
+    }
+    return api(`/ajax/admin/audit?page=${page}&q=${q}`)
+        .then((r) => {
+            rows.innerHTML = r.data.length
+                ? r.data
+                      .map((l) => {
+                          const detail = Object.entries(l.context || {}).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ');
+                          return `<div class="order-row"><span>${esc(String(l.created_at || '').replace('T', ' ').slice(0, 16))}</span><span>${esc(l.user_email || '—')}</span><strong>${esc(ACTION_LABELS[l.action] || l.action)}</strong><span title="${esc(detail)}">${esc(detail)}</span></div>`;
+                      })
+                      .join('')
+                : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No activity found.</span></div>';
+            app._auditPage = r.current_page;
+            const pager = app.querySelector('[data-audit-pager]');
+            pager.hidden = r.last_page <= 1;
+            app.querySelector('[data-audit-info]').textContent = `Page ${r.current_page} of ${r.last_page} · ${r.total} entries`;
+            pager.querySelector('[data-audit-prev]').disabled = r.current_page <= 1;
+            pager.querySelector('[data-audit-next]').disabled = r.current_page >= r.last_page;
+        })
+        .catch((ex) => {
+            rows.innerHTML = `<div class="order-row"><span style="grid-column:1/-1;color:#af3b2c">${esc(ex.message)}</span></div>`;
+        });
+}
+
+/** Manage Pricing table. */
+function renderServices(app, data) {
+    const rows = app.querySelector('[data-admin-service-rows]');
+    if (!rows) return;
+    const list = data.services || [];
+    rows.innerHTML = list.length
+        ? list
+              .map((svc) => `<div class="order-row"><strong>${esc(svc.name)}</strong><span class="num">${money(svc.base_price)}</span><span class="num">${svc.rate_per_kg == null ? '—' : money(svc.rate_per_kg) + ' / kg'}</span><em class="status ${svc.is_active ? 'ready' : 'is-bad'}">${svc.is_active ? 'Active' : 'Inactive'}</em><span class="num">${svc.transactions_count ?? 0}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-service="${svc.id}">Edit</button></span></div>`)
+              .join('')
+        : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No services yet. Click Add service.</span></div>';
+    paginate(rows);
+}
+
 function renderUsers(app, data) {
     const users = data.users || [];
     const admins = users.filter((u) => u.role === 'admin').length;
@@ -224,12 +391,12 @@ function renderUsers(app, data) {
         rows.innerHTML = users.length
             ? users
                   .map((u) => {
-                      const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : 'Staff';
+                      const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : u.role === 'rejected' ? 'Rejected' : 'Staff';
                       const isPending = u.role === 'pending';
                       const approve = isPending
-                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button>`
+                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button><button type="button" class="action-btn-danger" data-reject-user="${u.id}" data-reject-name="${esc(u.name)}" title="Reject this sign-up">Reject</button>`
                           : '';
-                      return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${isPending ? 'pending' : 'ready'}">${isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button></span></div>`;
+                      return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${u.role === 'rejected' ? 'is-bad' : isPending ? 'pending' : 'ready'}" title="${esc(u.rejection_reason || '')}">${u.role === 'rejected' ? 'Rejected' : isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button></span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No users yet.</span></div>';
@@ -284,6 +451,7 @@ function renderDashboard(app, data) {
 
     const kpi = app._dashKpi || 'active';
     renderActivityTable(app, data, kpi);
+    paginate(app.querySelector('[data-dash-order-rows]'), { reset: true });
     renderAlerts(app, data);
     renderActivityModalList(app, data);
     renderBusyHoursChart(app, data);
@@ -325,7 +493,7 @@ function renderActivityTable(app, data, kpi) {
             ? items
                   .map(
                       (i) =>
-                          `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>${i.low_stock_threshold ?? '—'}</span><em class="status pending">Low stock</em></div>`
+                          `<div class="order-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><span>${i.low_stock_threshold ?? '—'}</span><em class="status pending">Low stock</em></div>`
                   )
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No low-stock items.</span></div>';
@@ -390,7 +558,7 @@ function renderAlerts(app, data) {
         alerts.push({
             level: 'urgent',
             title: `${out ? 'Out of stock' : 'Low stock'}: ${i.name}`,
-            body: out ? 'None left. Record a stock receipt as soon as it arrives.' : `${i.quantity_on_hand} ${i.unit || ''} left (threshold ${i.low_stock_threshold ?? '—'})`,
+            body: out ? 'None left. Record a stock receipt as soon as it arrives.' : `${qtyUnit(i.quantity_on_hand, i.unit)} left (threshold ${i.low_stock_threshold ?? '—'})`,
         });
     });
     (data.machines_attention || []).forEach((m) => {
@@ -448,7 +616,6 @@ function renderActivityModalList(app, data) {
     const orders = data.recent_orders || [];
     list.innerHTML = orders.length
         ? orders
-              .slice(0, 40)
               .map((tx) => {
                   const basket = tx.basket_tag?.code || '#' + tx.id;
                   const cust = tx.customer?.name || '—';
@@ -470,6 +637,7 @@ function renderActivityModalList(app, data) {
               })
               .join('')
         : '<div class="activity-row"><span style="grid-column:1/-1">No transactions in range.</span></div>';
+    paginate(list, { reset: true });
 }
 
 function buildActivityDetailHtml(tx) {
@@ -555,7 +723,10 @@ function openKpiDetailModal(title, hint, rowsHtml) {
     const b = document.querySelector('[data-kpi-detail-body]');
     if (t) t.textContent = title || 'Details';
     if (h) h.textContent = hint || '';
-    if (b) b.innerHTML = rowsHtml || '<div class="activity-row"><span style="grid-column:1/-1">No data.</span></div>';
+    if (b) {
+        b.innerHTML = rowsHtml || '<div class="activity-row"><span style="grid-column:1/-1">No data.</span></div>';
+        paginate(b, { reset: true });
+    }
     const el = document.querySelector('[data-kpi-detail-modal]');
     if (el) {
         el.hidden = false;
@@ -659,7 +830,7 @@ function showDashKpiModal(app, kpi) {
         const rows = items
             .map(
                 (i) =>
-                    `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>threshold ${i.low_stock_threshold ?? '—'}</span></div>`
+                    `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><span>threshold ${i.low_stock_threshold ?? '—'}</span></div>`
             )
             .join('');
         openKpiDetailModal(
@@ -851,8 +1022,8 @@ function renderInventoryAnalytics(app, data) {
                       const out = Number(i.quantity_on_hand) <= 0;
                       const qtyLabel =
                           mode === 'value'
-                              ? `${i.quantity_on_hand} ${i.unit || ''} · ${money((i.unit_price || 0) * (i.quantity_on_hand || 0))}`
-                              : `${i.quantity_on_hand} ${i.unit || ''}`;
+                              ? `${qtyUnit(i.quantity_on_hand, i.unit)} · ${money((i.unit_price || 0) * (i.quantity_on_hand || 0))}`
+                              : qtyUnit(i.quantity_on_hand, i.unit);
                       const badge = low
                           ? `<em class="status stock-badge-low">${out ? 'Out of stock' : 'Low stock'}</em>`
                           : '<em class="status ready">In stock</em>';
@@ -861,6 +1032,23 @@ function renderInventoryAnalytics(app, data) {
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
         paginate(rows);
+    }
+
+    renderMovements(app, data, { resetPage: false });
+    const arc = app.querySelector('[data-admin-archive-rows]');
+    if (arc) {
+        const recs = data.archive_records || [];
+        arc.innerHTML = recs.length
+            ? recs.map((r) => `<div class="order-row"><span>${esc(String(r.date || '').slice(0, 10))}</span><strong>${esc(r.item || '—')}</strong><span>${esc(r.category || '—')}</span><span>${esc(r.reason)}</span><span class="num">${r.quantity == null ? 'not recorded' : esc(qtyUnit(r.quantity, r.unit))}</span></div>`).join('')
+            : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Nothing archived yet.</span></div>';
+        paginate(arc);
+    }
+    const archSel = document.querySelector('[data-archive-item]');
+    if (archSel) {
+        archSel.innerHTML = (data.inventory || [])
+            .filter((i) => Number(i.quantity_on_hand) > 0)
+            .map((i) => `<option value="${esc(i.id)}">${esc(i.name)} (${esc(qtyUnit(i.quantity_on_hand, i.unit))})</option>`)
+            .join('');
     }
 
     renderRankBars(app.querySelector('[data-chart-top-products]'), (data.analytics || {}).popular_products || []);
@@ -883,8 +1071,7 @@ function exportMeta(app, report) {
     ];
 }
 
-function buildSalesReport(app) {
-    const data = app._adminBootstrap || {};
+function buildSalesReport(app, data) {
     const m = data.metrics || {};
     const from = data.range?.from || '';
     const to = data.range?.to || '';
@@ -921,8 +1108,7 @@ function buildSalesReport(app) {
     return { rows, name: `ssk-sales-report-${from}_to_${to}` };
 }
 
-function buildExpensesReport(app) {
-    const data = app._adminBootstrap || {};
+function buildExpensesReport(app, data) {
     const m = data.metrics || {};
     const rows = [
         ...exportMeta(app, 'expenses'),
@@ -971,13 +1157,13 @@ function printReportPdf(title, name, rows) {
     };
 }
 
-function deliverReport(app, report, format) {
+function deliverReport(app, report, format, data) {
     const built =
         report === 'sales'
-            ? buildSalesReport(app)
+            ? buildSalesReport(app, data)
             : report === 'expenses'
-              ? buildExpensesReport(app)
-              : buildFullReport(app, exportMeta(app, 'full'));
+              ? buildExpensesReport(app, data)
+              : buildFullReport(app, data, exportMeta(app, 'full'));
     if (format === 'pdf') printReportPdf(REPORT_LABELS[report], built.name, built.rows);
     else downloadCsv(`${built.name}.csv`, built.rows);
 }
@@ -996,8 +1182,7 @@ function openExportModal(app, preset) {
     if (err) err.hidden = true;
 }
 
-function buildFullReport(app, meta = []) {
-    const data = app._adminBootstrap || {};
+function buildFullReport(app, data, meta = []) {
     const m = data.metrics || {};
     const rows = [
         ...meta,
@@ -1049,6 +1234,16 @@ function buildFullReport(app, meta = []) {
     return { rows, name: `ssk-full-summary-${from}_to_${to}` };
 }
 
+/** Open the "type a reason" dialog; run(reason) must return a promise. */
+function askReason(app, showModal, { title, hint, run }) {
+    document.querySelector('[data-reason-title]').textContent = title;
+    document.querySelector('[data-reason-hint]').textContent = hint;
+    document.querySelector('[data-reason-input]').value = '';
+    document.querySelector('[data-reason-error]').hidden = true;
+    app._reasonRun = run;
+    showModal('[data-reason-modal]');
+}
+
 export function loadAdminBootstrap(app) {
     const q = rangeQuery(app);
     return api('/ajax/admin/bootstrap' + q)
@@ -1064,6 +1259,8 @@ export function loadAdminBootstrap(app) {
             renderSummaryAnalytics(app, data);
             renderInventoryAnalytics(app, data);
             renderUsers(app, data);
+            renderMachines(app, data);
+            renderServices(app, data);
 
             // Receiving table
             const restocks = data.restocks || [];
@@ -1077,11 +1274,20 @@ export function loadAdminBootstrap(app) {
                               const item = r.item?.name || '—';
                               const supplier = r.supplier || '—';
                               const invQty = r.quantity_invoiced ?? '—';
-                              const qty = r.quantity_received ?? '—';
-                              return `<div class="order-row"><strong>${date}</strong><span>${esc(inv)}</span><span>${esc(item)}</span><span>${esc(supplier)}</span><span class="num">${invQty}</span><span class="num">${qty}</span></div>`;
+                              const st = r.receipt_status || 'pending';
+                              const badge = {
+                                  pending: ['Not yet stocked', 'is-wait'],
+                                  partial: [`${r.stocked_quantity} of ${r.quantity_received} stocked`, 'is-wait'],
+                                  stocked: ['In inventory', 'ready'],
+                                  voided: ['Voided', 'is-bad'],
+                              }[st];
+                              const add = st === 'pending' || st === 'partial' ? `<button type="button" class="action-btn-primary" data-stock-restock="${r.id}" title="Add delivered stock to the inventory quantity">Add to inventory</button>` : '';
+                              const voidBtn = st === 'pending' ? `<button type="button" class="action-btn-danger" data-void-restock="${r.id}" title="Cancel a receipt entered by mistake">Void</button>` : '';
+                              const action = `<span class="user-actions"><em class="status ${badge[1]}" title="${esc(r.void_reason || '')}">${esc(badge[0])}</em>${add}${voidBtn}</span>`;
+                              return `<div class="order-row"><strong>${date}</strong><span>${esc(inv)}</span><span>${esc(item)}</span><span>${esc(supplier)}</span><span class="num">${invQty}</span><span class="num">${qty}</span>${action}</div>`;
                           })
                           .join('')
-                    : '<div class="order-row"><span style="grid-column:1/-1">No stock receipts yet. Click Record receipt to confirm deliveries from an invoice.</span></div>';
+                    : '<div class="order-row"><span style="grid-column:1/-1">No stock receipts yet. Click Record receipt to log a delivery, then Add to inventory.</span></div>';
                 paginate(rows);
             }
             const countEl = app.querySelector('[data-admin-restock-count]');
@@ -1097,6 +1303,8 @@ export function loadAdminBootstrap(app) {
                         (restocks[0].quantity_received || 0);
                 }
             }
+            const awaitingEl = app.querySelector('[data-admin-restock-sub]');
+            if (awaitingEl) awaitingEl.textContent = `${data.metrics?.receipts_awaiting_stock ?? 0} not yet in inventory`;
             const spendEl = app.querySelector('[data-admin-month-spend]');
             if (spendEl && data.metrics) {
                 spendEl.textContent = money(data.metrics.receipts_spend ?? 0);
@@ -1106,7 +1314,7 @@ export function loadAdminBootstrap(app) {
                 poSelect.innerHTML = data.inventory
                     .map(
                         (i) =>
-                            `<option value="${esc(i.id)}">${esc(i.name)} (${i.quantity_on_hand} ${esc(i.unit)})</option>`
+                            `<option value="${esc(i.id)}">${esc(i.name)} (${esc(qtyUnit(i.quantity_on_hand, i.unit))})</option>`
                     )
                     .join('');
             }
@@ -1181,7 +1389,7 @@ export function handleAdminClick(t, e, ctx) {
                 const rows = items
                     .map(
                         (i) =>
-                            `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${i.quantity_on_hand} ${esc(i.unit || '')}</span><span>${app._invKpi === 'value' ? money((i.unit_price || 0) * (i.quantity_on_hand || 0)) : (Number(i.quantity_on_hand) <= Number(i.low_stock_threshold) ? 'Low stock' : 'In stock')}</span></div>`
+                            `<div class="activity-row"><strong>${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><span>${app._invKpi === 'value' ? money((i.unit_price || 0) * (i.quantity_on_hand || 0)) : (Number(i.quantity_on_hand) <= Number(i.low_stock_threshold) ? 'Low stock' : 'In stock')}</span></div>`
                     )
                     .join('');
                 openKpiDetailModal(
@@ -1232,8 +1440,9 @@ export function handleAdminClick(t, e, ctx) {
             method: 'POST',
             body: JSON.stringify({ report, format, from: data.range?.from || null, to: data.range?.to || null }),
         })
-            .then(() => {
-                deliverReport(app, report, format);
+            .then(() => api(`/ajax/admin/report?from=${data.range?.from || ''}&to=${data.range?.to || ''}`))
+            .then((full) => {
+                deliverReport(app, report, format, { ...data, recent_orders: full.orders, finance: full.finance });
                 hideModal('[data-export-modal]');
                 if (format === 'csv') openNotice('Export started', `${REPORT_LABELS[report]} downloaded as CSV.`, 'success');
             })
@@ -1325,6 +1534,19 @@ export function handleAdminClick(t, e, ctx) {
                 loadAdminBootstrap(app);
             })
             .catch((ex) => openError('Approve user', ex));
+        return true;
+    }
+    const rejectBtn = t.closest('[data-reject-user]');
+    if (rejectBtn) {
+        e.preventDefault();
+        askReason(app, showModal, {
+            title: 'Reject this sign-up',
+            hint: `${rejectBtn.dataset.rejectName || 'This account'} will not be able to log in. The reason is kept on record, and you can approve them later from Edit.`,
+            run: (reason) => api(`/ajax/admin/users/${rejectBtn.dataset.rejectUser}/reject`, { method: 'POST', body: JSON.stringify({ reason }) }).then(() => {
+                openNotice('Sign-up rejected', 'The account was rejected and cannot log in.', 'success');
+                loadAdminBootstrap(app);
+            }),
+        });
         return true;
     }
     const editUserBtn = t.closest('[data-edit-user]');
@@ -1437,6 +1659,8 @@ export function handleAdminClick(t, e, ctx) {
         setVal('[data-edit-item-id]', item.id);
         setVal('[data-edit-item-name]', item.name);
         setVal('[data-edit-item-category]', item.inventory_category_id);
+        const unitSel = document.querySelector('[data-edit-item-unit]');
+        if (unitSel && ![...unitSel.options].some((o) => o.value === item.unit)) unitSel.add(new Option(item.unit, item.unit));
         setVal('[data-edit-item-unit]', item.unit);
         setVal('[data-edit-item-price]', item.unit_price);
         setVal('[data-edit-item-qty]', item.quantity_on_hand);
@@ -1504,7 +1728,7 @@ export function handleAdminClick(t, e, ctx) {
         e.preventDefault();
         const name = (document.querySelector('[data-new-item-name]')?.value || '').trim();
         const categoryId = Number(document.querySelector('[data-new-item-category]')?.value || 0);
-        const unit = (document.querySelector('[data-new-item-unit]')?.value || 'pc').trim();
+        const unit = (document.querySelector('[data-new-item-unit]')?.value || 'piece').trim();
         const price = Number(document.querySelector('[data-new-item-price]')?.value || 0);
         const qty = Number(document.querySelector('[data-new-item-qty]')?.value || 0);
         const thr = Number(document.querySelector('[data-new-item-threshold]')?.value || 0);
@@ -1538,6 +1762,203 @@ export function handleAdminClick(t, e, ctx) {
                     err.textContent = ex.message;
                 }
             });
+        return true;
+    }
+
+    if (t.closest('[data-open-add-machine]') || t.closest('[data-edit-machine]')) {
+        e.preventDefault();
+        const editId = t.closest('[data-edit-machine]')?.dataset.editMachine;
+        const m = editId ? ((app._adminBootstrap || {}).machines || []).find((x) => String(x.id) === editId) : null;
+        const setVal = (sel, v) => {
+            const el = document.querySelector(sel);
+            if (el) el.value = v;
+        };
+        const running = !!m?.current_order;
+        document.querySelector('[data-machine-modal-title]').textContent = m ? 'Edit machine' : 'Add machine';
+        setVal('[data-machine-form-id]', m?.id ?? '');
+        setVal('[data-machine-form-name]', m?.name ?? '');
+        setVal('[data-machine-form-type]', m?.type ?? 'washer');
+        setVal('[data-machine-form-status]', ['available', 'reserved', 'maintenance', 'out_of_service'].includes(m?.status) ? m.status : 'available');
+        document.querySelector('[data-machine-form-status]').disabled = running;
+        document.querySelector('[data-machine-running-note]').hidden = !running;
+        document.querySelector('[data-machine-error]').hidden = true;
+        showModal('[data-machine-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-machine]')) {
+        e.preventDefault();
+        hideModal('[data-machine-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-machine]')) {
+        e.preventDefault();
+        const val = (sel) => document.querySelector(sel)?.value ?? '';
+        const id = val('[data-machine-form-id]');
+        const body = { name: val('[data-machine-form-name]').trim(), type: val('[data-machine-form-type]'), status: val('[data-machine-form-status]') };
+        const err = document.querySelector('[data-machine-error]');
+        if (!body.name) {
+            err.hidden = false;
+            err.textContent = 'Enter a machine name (e.g. Washer 3).';
+            return true;
+        }
+        api(id ? `/ajax/admin/machines/${id}` : '/ajax/admin/machines', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) })
+            .then(() => {
+                hideModal('[data-machine-modal]');
+                openNotice(id ? 'Machine updated' : 'Machine added', body.name + ' was saved.', 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+    const delMachine = t.closest('[data-delete-machine]');
+    if (delMachine) {
+        e.preventDefault();
+        const m = ((app._adminBootstrap || {}).machines || []).find((x) => String(x.id) === delMachine.dataset.deleteMachine);
+        openConfirm('Delete machine?', `${m?.name || 'This machine'} will be removed. Machines with order history cannot be deleted; set them to Out of service instead.`, () => {
+            api(`/ajax/admin/machines/${delMachine.dataset.deleteMachine}`, { method: 'DELETE' })
+                .then(() => {
+                    openNotice('Machine deleted', (m?.name || 'The machine') + ' was removed.', 'success');
+                    loadAdminBootstrap(app);
+                })
+                .catch((ex) => openError('Delete machine', ex));
+        });
+        return true;
+    }
+
+    if (t.closest('[data-open-add-service]') || t.closest('[data-edit-service]')) {
+        e.preventDefault();
+        const editId = t.closest('[data-edit-service]')?.dataset.editService;
+        const svc = editId ? ((app._adminBootstrap || {}).services || []).find((x) => String(x.id) === editId) : null;
+        const setVal = (sel, v) => {
+            document.querySelector(sel).value = v;
+        };
+        document.querySelector('[data-service-modal-title]').textContent = svc ? 'Edit service' : 'Add service';
+        setVal('[data-service-id]', svc?.id ?? '');
+        setVal('[data-service-name]', svc?.name ?? '');
+        setVal('[data-service-price]', svc?.base_price ?? '');
+        setVal('[data-service-rate]', svc?.rate_per_kg ?? '');
+        setVal('[data-service-active]', svc && !svc.is_active ? '0' : '1');
+        document.querySelector('[data-service-error]').hidden = true;
+        showModal('[data-service-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-service]')) {
+        e.preventDefault();
+        hideModal('[data-service-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-service]')) {
+        e.preventDefault();
+        const val = (sel) => document.querySelector(sel).value;
+        const id = val('[data-service-id]');
+        const rate = val('[data-service-rate]');
+        const body = { name: val('[data-service-name]').trim(), base_price: Number(val('[data-service-price]')), rate_per_kg: rate === '' ? null : Number(rate), is_active: val('[data-service-active]') === '1' };
+        const err = document.querySelector('[data-service-error]');
+        if (!body.name || val('[data-service-price]') === '' || !(body.base_price >= 0)) {
+            err.hidden = false;
+            err.textContent = 'Enter a name and a drop-off price (0 or more).';
+            return true;
+        }
+        api(id ? `/ajax/admin/services/${id}` : '/ajax/admin/services', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(body) })
+            .then(() => {
+                hideModal('[data-service-modal]');
+                openNotice('Service saved', body.name + ' prices are updated for new orders.', 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+
+    const stockBtn = t.closest('[data-stock-restock]');
+    if (stockBtn) {
+        e.preventDefault();
+        const row = ((app._adminBootstrap || {}).restocks || []).find((x) => String(x.id) === stockBtn.dataset.stockRestock);
+        if (!row) return true;
+        document.querySelector('[data-stock-id]').value = row.id;
+        document.querySelector('[data-stock-info]').textContent = `${row.item?.name || 'Item'} · invoice ${row.invoice_number || '—'} · ${row.quantity_received} received, ${row.stocked_quantity} already in inventory, ${row.remaining_quantity} left to add.`;
+        const qtyEl = document.querySelector('[data-stock-qty]');
+        qtyEl.value = row.remaining_quantity;
+        qtyEl.max = row.remaining_quantity;
+        document.querySelector('[data-stock-error]').hidden = true;
+        showModal('[data-stock-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-stock]')) {
+        e.preventDefault();
+        hideModal('[data-stock-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-stock]')) {
+        e.preventDefault();
+        const err = document.querySelector('[data-stock-error]');
+        const qty = Number(document.querySelector('[data-stock-qty]').value);
+        const max = Number(document.querySelector('[data-stock-qty]').max);
+        if (!Number.isInteger(qty) || qty < 1 || qty > max) {
+            err.hidden = false;
+            err.textContent = `Enter a whole number from 1 to ${max}.`;
+            return true;
+        }
+        api(`/ajax/admin/procurement/${document.querySelector('[data-stock-id]').value}/stock`, { method: 'POST', body: JSON.stringify({ quantity: qty }) })
+            .then((r) => {
+                hideModal('[data-stock-modal]');
+                openNotice('Added to inventory', r.message, 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+    const voidBtn = t.closest('[data-void-restock]');
+    if (voidBtn) {
+        e.preventDefault();
+        askReason(app, showModal, {
+            title: 'Void this receipt',
+            hint: 'Use this only for a receipt entered by mistake that has not been added to inventory. Its expense is removed from the finance records.',
+            run: (reason) => api(`/ajax/admin/procurement/${voidBtn.dataset.voidRestock}/void`, { method: 'POST', body: JSON.stringify({ reason }) }).then((r) => {
+                openNotice('Receipt voided', r.message, 'success');
+                loadAdminBootstrap(app);
+            }),
+        });
+        return true;
+    }
+    if (t.closest('[data-close-reason]')) {
+        e.preventDefault();
+        hideModal('[data-reason-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-reason]')) {
+        e.preventDefault();
+        const err = document.querySelector('[data-reason-error]');
+        const reason = document.querySelector('[data-reason-input]').value.trim();
+        if (reason.length < 3) {
+            err.hidden = false;
+            err.textContent = 'Type a short reason (at least 3 letters).';
+            return true;
+        }
+        app._reasonRun(reason)
+            .then(() => hideModal('[data-reason-modal]'))
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+
+    if (t.closest('[data-screen="audit"]')) loadAudit(app, 1);
+    if (t.closest('[data-audit-prev]')) {
+        loadAudit(app, Math.max(1, (app._auditPage || 1) - 1));
+        return true;
+    }
+    if (t.closest('[data-audit-next]')) {
+        loadAudit(app, (app._auditPage || 1) + 1);
         return true;
     }
 
@@ -1590,8 +2011,8 @@ export function handleAdminClick(t, e, ctx) {
                 ? ` Invoice shows ${qtyInvoiced}; you confirmed ${qty}.`
                 : '';
         openConfirm(
-            'Confirm stock receipt?',
-            `Update inventory with ${qty} received${supplier ? ' from ' + supplier : ''}.${invoice ? ' Invoice ' + invoice + '.' : ''}${mismatch} This cannot be undone from here.`,
+            'Save this receipt?',
+            `Record ${qty} received${supplier ? ' from ' + supplier : ''}.${invoice ? ' Invoice ' + invoice + '.' : ''}${mismatch} Inventory is not changed until you click Add to inventory on it.`,
             () => {
                 api('/ajax/admin/procurement', {
                     method: 'POST',
@@ -1611,7 +2032,7 @@ export function handleAdminClick(t, e, ctx) {
                         hideModal('[data-procurement-modal]');
                         openNotice(
                             'Receipt recorded',
-                            r.message || 'Inventory stock updated from this invoice.',
+                            r.message || 'Receipt saved.',
                             'success'
                         );
                         loadAdminBootstrap(app);

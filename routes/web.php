@@ -30,7 +30,7 @@ Route::get('dashboard', function () {
         return redirect()->route('admin.dashboard');
     }
 
-    if ($role === 'pending') {
+    if (in_array($role, ['pending', 'rejected'], true)) {
         return view('pending-approval');
     }
 
@@ -82,6 +82,16 @@ Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('
     Route::post('inventory', [AdminApiController::class, 'storeInventoryItem']);
     Route::patch('inventory/{item}', [AdminApiController::class, 'updateInventoryItem']);
     Route::post('procurement', [AdminApiController::class, 'storeRestock']);
+    Route::post('procurement/{restock}/stock', [AdminApiController::class, 'stockRestock']);
+    Route::post('services', [AdminApiController::class, 'storeService']);
+    Route::patch('services/{service}', [AdminApiController::class, 'updateService']);
+    Route::post('machines', [AdminApiController::class, 'storeMachine']);
+    Route::patch('machines/{machine}', [AdminApiController::class, 'updateMachine']);
+    Route::delete('machines/{machine}', [AdminApiController::class, 'destroyMachine']);
+    Route::post('procurement/{restock}/void', [AdminApiController::class, 'voidRestock']);
+    Route::get('audit', [AdminApiController::class, 'auditLog']);
+    Route::get('report', [AdminApiController::class, 'reportData']);
+    Route::post('users/{user}/reject', [AdminApiController::class, 'rejectUser']);
     Route::post('users', [AdminApiController::class, 'storeUser']);
     Route::patch('users/{user}', [AdminApiController::class, 'updateUser']);
 });

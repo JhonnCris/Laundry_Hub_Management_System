@@ -90,12 +90,13 @@ class DatabaseSeeder extends Seeder
         // ── Services (flat base prices for drop-off packages) ─────────────────
         DB::table('services')->insert(
             collect([
-                ['Wash Only', 70],
-                ['Dry Only', 60],
-                ['Wash with Dry', 120],
+                ['Wash Only', 70, 25],
+                ['Dry Only', 60, 20],
+                ['Wash with Dry', 120, 40],
             ])->map(fn (array $service) => [
                 'name' => $service[0],
                 'base_price' => $service[1],
+                'rate_per_kg' => $service[2],
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,

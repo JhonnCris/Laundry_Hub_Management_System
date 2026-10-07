@@ -18,15 +18,39 @@ class InventoryRestock extends Model
         'cost',
         'notes',
         'restocked_at',
+        'stocked_at',
+        'stocked_quantity',
+        'voided_at',
+        'void_reason',
     ];
+
+    protected $appends = ['receipt_status', 'remaining_quantity'];
 
     protected function casts(): array
     {
         return [
             'restocked_at' => 'date',
+            'stocked_at' => 'datetime',
+            'voided_at' => 'datetime',
             'invoice_date' => 'date',
             'cost' => 'decimal:2',
         ];
+    }
+
+    /** pending | partial | stocked | voided */
+    public function getReceiptStatusAttribute(): string
+    {
+        return match (true) {
+            $this->voided_at !== null => 'voided',
+            $this->stocked_quantity >= $this->quantity_received => 'stocked',
+            $this->stocked_quantity > 0 => 'partial',
+            default => 'pending',
+        };
+    }
+
+    public function getRemainingQuantityAttribute(): int
+    {
+        return $this->voided_at ? 0 : max(0, $this->quantity_received - $this->stocked_quantity);
     }
 
     public function item(): BelongsTo

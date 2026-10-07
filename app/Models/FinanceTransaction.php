@@ -13,6 +13,7 @@ class FinanceTransaction extends Model
         'amount',
         'staff_id',
         'laundry_transaction_id',
+        'inventory_restock_id',
         'notes',
         'transaction_date',
     ];

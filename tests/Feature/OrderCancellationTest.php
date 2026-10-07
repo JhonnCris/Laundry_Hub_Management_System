@@ -2,6 +2,7 @@
 
 use App\Models\Customer;
 use App\Models\LaundryTransaction;
+use App\Models\Service;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -151,6 +152,7 @@ it('marks a machine in use for a self-service order and frees it when the order 
     $staff = User::factory()->create(['role' => 'staff']);
     $customer = Customer::create(['name' => 'Wash Day', 'contact_number' => '0922']);
     $machineId = DB::table('machines')->insertGetId(['name' => 'Washer 9', 'type' => 'washer', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
+    Service::create(['name' => 'Wash Only', 'base_price' => 70, 'rate_per_kg' => 25, 'is_active' => true]);
 
     $payload = [
         'customer_id' => $customer->id, 'transaction_type' => 'self_service', 'machine_id' => $machineId,

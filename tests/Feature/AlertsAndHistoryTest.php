@@ -41,13 +41,16 @@ it('refuses to flag an item that is not low', function () {
     $this->actingAs($staff)->postJson("/ajax/staff/inventory/{$itemId}/notify-low")->assertStatus(422);
 });
 
-it('resolves the staff report when the admin records a receipt, and lets admin dismiss alerts', function () {
+it('resolves the staff report when the admin adds a receipt to inventory, and lets admin dismiss alerts', function () {
     $staff = User::factory()->create(['role' => 'staff']);
     $admin = User::factory()->create(['role' => 'admin']);
     $itemId = lowItem();
     $this->actingAs($staff)->postJson("/ajax/staff/inventory/{$itemId}/notify-low")->assertOk();
 
-    $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $itemId, 'quantity_received' => 20])->assertCreated();
+    $restockId = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $itemId, 'quantity_received' => 20])->assertCreated()->json('restock.id');
+    expect(Notification::where('is_read', false)->count())->toBe(1);
+
+    $this->actingAs($admin)->postJson("/ajax/admin/procurement/{$restockId}/stock")->assertOk();
     expect(Notification::where('is_read', false)->count())->toBe(0);
 
     $note = Notification::create(['type' => 'low_stock', 'message' => 'x', 'is_read' => false]);

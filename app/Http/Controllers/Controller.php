@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -12,20 +13,18 @@ abstract class Controller
 
     /**
      * Record who did a sensitive action (never pass passwords or tokens).
+     * Saved to the audit_logs table (shown on the admin Activity Log) and the audit log file.
      *
      * @param  array<string, mixed>  $context
      */
     protected function audit(string $action, array $context = []): void
     {
-        if (app()->runningUnitTests()) {
-            return;
-        }
+        $who = ['user_id' => Auth::id(), 'user_email' => Auth::user()?->email, 'ip' => request()->ip()];
 
-        Log::channel('audit')->info($action, [
-            'user_id' => Auth::id(),
-            'user_email' => Auth::user()?->email,
-            'ip' => request()->ip(),
-            ...$context,
-        ]);
+        AuditLog::query()->create([...$who, 'action' => $action, 'context' => $context, 'created_at' => now()]);
+
+        if (! app()->runningUnitTests()) {
+            Log::channel('audit')->info($action, [...$who, ...$context]);
+        }
     }
 }

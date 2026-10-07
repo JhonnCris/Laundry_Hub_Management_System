@@ -51,6 +51,16 @@ new #[Layout('components.layouts.auth')] class extends Component {
             ]);
         }
 
+        if (Auth::user()->role === 'rejected') {
+            Auth::logout();
+            Session::invalidate();
+            Session::regenerateToken();
+
+            throw ValidationException::withMessages([
+                'email' => __('Your sign-up was not approved. Please contact the owner or an admin.'),
+            ]);
+        }
+
         Session::regenerate();
 
         // Separate UI by role: admin → admin console, staff → operations
