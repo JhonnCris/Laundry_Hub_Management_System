@@ -6,7 +6,7 @@ import { handleCustomerClick, handleCustomerSearch, renderCustomerContext } from
 import { handleAttendanceClick } from './attendance.js';
 import { handleInventoryClick } from './inventory.js';
 import { handleHistorySearch, handleQueueClick } from './queue.js';
-import { handleAdminClick, loadAdminBootstrap, renderFinanceFiltered } from './admin.js';
+import { handleAdminClick, loadAdminBootstrap, loadAudit, renderFinanceFiltered } from './admin.js';
 import { handleNavigationClick } from './navigation.js';
 import { loadStaffBootstrap, renderBaskets } from './bootstrap.js';
 import { toast } from './core.js';
@@ -55,6 +55,7 @@ export function bootStaffApp() {
         if (!(t instanceof Element)) return;
 
         if (t.closest('[data-screen="sales"]')) loadSales(app);
+        if (t.closest('[data-screen="audit"]')) loadAudit(app, 1);
         if (handleModalClick(t, e)) return;
         if (handleNavigationClick(t, e, ctx)) return;
         if (handleAttendanceClick(t, e, ctx)) return;

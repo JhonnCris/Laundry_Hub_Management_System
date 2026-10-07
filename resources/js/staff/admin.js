@@ -326,7 +326,7 @@ const ACTION_LABELS = {
     'report.exported': 'Exported report',
 };
 
-function loadAudit(app, page = 1) {
+export function loadAudit(app, page = 1) {
     const q = encodeURIComponent((app.querySelector('[data-audit-search]')?.value || '').trim());
     const rows = app.querySelector('[data-audit-rows]');
     const search = app.querySelector('[data-audit-search]');
@@ -393,8 +393,8 @@ function renderUsers(app, data) {
                   .map((u) => {
                       const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : u.role === 'rejected' ? 'Rejected' : 'Staff';
                       const isPending = u.role === 'pending';
-                      const approve = isPending
-                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button><button type="button" class="action-btn-danger" data-reject-user="${u.id}" data-reject-name="${esc(u.name)}" title="Reject this sign-up">Reject</button>`
+                      const approve = isPending || u.role === 'rejected'
+                          ? `<button type="button" class="action-btn-primary" data-approve-user="${u.id}" title="Approve as staff">Approve</button>${isPending ? `<button type="button" class="action-btn-danger" data-reject-user="${u.id}" data-reject-name="${esc(u.name)}" title="Reject this sign-up">Reject</button>` : ''}`
                           : '';
                       return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${u.role === 'rejected' ? 'is-bad' : isPending ? 'pending' : 'ready'}" title="${esc(u.rejection_reason || '')}">${u.role === 'rejected' ? 'Rejected' : isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button></span></div>`;
                   })
@@ -1953,7 +1953,6 @@ export function handleAdminClick(t, e, ctx) {
         return true;
     }
 
-    if (t.closest('[data-screen="audit"]')) loadAudit(app, 1);
     if (t.closest('[data-audit-prev]')) {
         loadAudit(app, Math.max(1, (app._auditPage || 1) - 1));
         return true;
