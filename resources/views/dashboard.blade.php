@@ -89,41 +89,18 @@
         </div>
     </label>
 </div>
+<label class="pay-later-field"><input type="checkbox" data-pay-later> <span>Customer pays when the laundry is released <small>(no cash taken now)</small></span></label>
 </div>
 <div data-workflow="self_service" hidden>
+<div class="machine-picker" data-machine-picker><p class="dash-empty">Loading machines…</p></div>
+<div class="machine-total" data-machine-total hidden></div>
 <div class="form-grid workflow-bottom field-align">
     <label class="field">
-        <span class="field-label">Load weight (kg) <span class="req-mark">*</span></span>
+        <span class="field-label">Load weight (kg) <small>(optional)</small></span>
         <input type="number" data-load-kg min="0" max="50" step="0.5" placeholder="e.g. 6.5" inputmode="decimal">
-        <small class="field-hint">Price is based on kg × rate. Min. 3 kg billed.</small>
+        <small class="field-hint" data-capacity-hint>Price is per machine, not per kg.</small>
     </label>
-    <label class="field">
-        <span class="field-label">Machine used</span>
-        <select data-machine>
-            <option>Loading machines…</option>
-        </select>
-        <small class="field-hint field-hint-spacer">&nbsp;</small>
-    </label>
-    <label class="field">
-        <span class="field-label">Cycle duration</span>
-        <select data-cycle-duration>
-            <option value="30">30 min · Light load (up to ~4 kg)</option>
-            <option value="45" selected>45 min · Regular load (~4–7 kg)</option>
-            <option value="60">60 min · Full load (~7–10 kg)</option>
-            <option value="75">75 min · Heavy / mixed (~10–13 kg)</option>
-            <option value="90">90 min · Bulky / beddings (13 kg+)</option>
-        </select>
-        <small class="field-hint" data-duration-hint>Suggested from weight when you enter kg.</small>
-    </label>
-    <label class="field">
-        <span class="field-label">Machine service (per kg)</span>
-        <select data-service-price data-pricing="per_kg">
-            <option value="40" data-rate="40" data-service-name="Wash with Dry">Wash with Dry · ₱40 / kg</option>
-            <option value="25" data-rate="25" data-service-name="Wash Only">Wash Only · ₱25 / kg</option>
-            <option value="20" data-rate="20" data-service-name="Dry Only">Dry Only · ₱20 / kg</option>
-        </select>
-        <small class="field-hint field-hint-spacer">&nbsp;</small>
-    </label>
+    <span></span>
     <label class="field">
         <span class="field-label">Detergent / Downy type</span>
         <select data-consumable>
@@ -139,7 +116,7 @@
         </div>
     </label>
 </div>
-<p class="kg-price-preview" data-kg-preview hidden>Load charge: <strong>—</strong></p>
+<p class="kg-price-preview" data-kg-preview hidden>Machine charge: <strong>—</strong></p>
 </div>
 </section>
 <section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading snacks from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
@@ -151,7 +128,7 @@
         <div data-row-service><dt>Service</dt><dd data-summary-service>—</dd></div>
         <div data-row-garments><dt>Garments</dt><dd><span data-summary-garments>0</span> pcs</dd></div>
         <div data-row-kg hidden><dt>Load weight</dt><dd data-summary-kg>—</dd></div>
-        <div data-row-duration hidden><dt>Cycle duration</dt><dd data-summary-duration>—</dd></div>
+        <div data-row-duration hidden><dt>Machines</dt><dd data-summary-duration>—</dd></div>
         <div data-row-service-type hidden><dt>Service type</dt><dd data-summary-service-type>—</dd></div>
         <div data-row-consumable hidden><dt>Consumable</dt><dd data-summary-consumable>—</dd></div>
     </dl>
@@ -196,11 +173,11 @@
 <div class="modal-backdrop" data-payment-modal hidden>
 <section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true">
 <button class="modal-close" data-close-payment type="button">×</button>
-<h2>Record payment</h2>
-<p class="modal-hint">Collect cash from the customer, then confirm to issue a receipt.</p>
+<h2 data-payment-title>Record payment</h2>
+<p class="modal-hint" data-payment-hint>Collect cash from the customer, then confirm to issue a receipt.</p>
 <div class="payment-summary" data-payment-summary></div>
 <label class="modal-field">Amount due<input type="text" data-payment-due readonly></label>
-<label class="modal-field">Cash received<input type="number" data-payment-cash min="0" step="0.01" placeholder="0.00" inputmode="decimal"></label>
+<label class="modal-field" data-payment-cash-field>Cash received<input type="number" data-payment-cash min="0" step="0.01" placeholder="0.00" inputmode="decimal"></label>
 <div class="payment-change" data-payment-change-row hidden>
     <span>Change</span>
     <strong data-payment-change>₱0.00</strong>
@@ -388,6 +365,7 @@
 <button class="action-btn-secondary" type="button" data-open-archive title="Mark stock as expired, spoiled, or damaged">Archive item →</button>
 </div></div>
 <section class="staff-card full-card table-card"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Supplies & consumables</h2></div>
+<div class="table-filters"><select data-staff-inv-category aria-label="Filter by category"><option value="">All categories</option></select></div>
 <div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Alert admin</span></div>
 <div data-inventory-rows></div>
 </section>

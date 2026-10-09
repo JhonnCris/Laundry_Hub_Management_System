@@ -33,6 +33,13 @@ class LaundryTransaction extends Model
         'sms_sent_at',
     ];
 
+    protected $appends = ['machine_summary'];
+
+    public function getMachineSummaryAttribute(): string
+    {
+        return $this->machineSummary();
+    }
+
     protected function casts(): array
     {
         return [
@@ -57,6 +64,32 @@ class LaundryTransaction extends Model
     public function machine(): BelongsTo
     {
         return $this->belongsTo(Machine::class);
+    }
+
+    public function machineUsages(): HasMany
+    {
+        return $this->hasMany(TransactionMachine::class);
+    }
+
+    /** e.g. "2 washers · 3 dryers"; empty when no machine was used. */
+    public function machineSummary(): string
+    {
+        $usages = $this->relationLoaded('machineUsages') ? $this->machineUsages : $this->machineUsages()->with('machine:id,type')->get();
+        $parts = [];
+        foreach (['washer' => 'washer', 'dryer' => 'dryer'] as $type => $word) {
+            $n = $usages->filter(fn ($u) => $u->machine?->type === $type)->count();
+            if ($n) {
+                $parts[] = $n.' '.$word.($n > 1 ? 's' : '');
+            }
+        }
+
+        return implode(' · ', $parts);
+    }
+
+    /** Free every machine this order used (call after it is ready or cancelled). */
+    public function releaseMachines(): void
+    {
+        $this->machineUsages()->with('machine')->get()->each(fn ($u) => $u->machine?->syncUsage());
     }
 
     public function timeSlot(): BelongsTo

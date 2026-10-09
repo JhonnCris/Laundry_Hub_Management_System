@@ -4,6 +4,7 @@ use App\Models\Customer;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -34,12 +35,14 @@ it('rejects a tampered total', function () {
         ->assertStatus(422);
 });
 
-it('rejects a self-service charge that does not match a known rate', function () {
+it('rejects a self-service charge that does not match the machine rates', function () {
+    $machineId = DB::table('machines')->insertGetId(['name' => 'Washer 1', 'type' => 'washer', 'size' => 'titan', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
+
     $this->actingAs(User::factory()->create(['role' => 'staff']))
         ->postJson('/ajax/staff/transactions', pricingPayload([
             'transaction_type' => 'self_service',
             'service_id' => null,
-            'load_weight_kg' => 5,
+            'machines' => [['machine_id' => $machineId]],
             'service_amount' => 1,
             'total_amount' => 1,
             'cash_tendered' => 1,

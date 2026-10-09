@@ -135,7 +135,9 @@ export function renderStaffLists(app, data) {
                       const basket = tx.basket_tag?.code || '#' + tx.id;
                       const cust = tx.customer?.name || '—';
                       const svc = tx.service?.name || tx.transaction_type || '—';
-                      const machine = tx.machine?.name ? `<br><small>${esc(tx.machine.name)}</small>` : '';
+                      const machine = tx.machine_summary ? `<br><small>${esc(tx.machine_summary)}</small>` : '';
+                      const unpaid = tx.payment_status === 'unpaid';
+                      const unpaidBadge = unpaid ? ' <em class="status pending">Unpaid</em>' : '';
                       const next =
                           tx.status === 'pending'
                               ? 'processing'
@@ -151,14 +153,14 @@ export function renderStaffLists(app, data) {
                                 ? 'processing'
                                 : null;
                       const forwardBtn = next
-                          ? `<button type="button" class="queue-action-btn${next === 'claimed' ? ' is-danger' : ''}" data-set-status="${tx.id}" data-next-status="${next}" title="Move to next status">Mark ${statusLabel(next)} →</button>`
+                          ? `<button type="button" class="queue-action-btn${next === 'claimed' ? ' is-danger' : ''}" data-set-status="${tx.id}" data-next-status="${next}"${next === 'claimed' && unpaid ? ` data-unpaid-total="${esc(tx.total_amount)}"` : ''} title="Move to next status">Mark ${statusLabel(next)} →</button>`
                           : '';
                       const undoBtn = prev
                           ? `<button type="button" class="queue-undo-btn" data-set-status="${tx.id}" data-next-status="${prev}" data-undo="1" title="Undo last status change">Undo → ${statusLabel(prev)}</button>`
                           : '';
                       const cancelBtn = `<button type="button" class="queue-cancel-btn" data-cancel-order="${tx.id}" title="Cancel this order and return its stock">Cancel order</button>`;
                       const actions = `${forwardBtn}${undoBtn}${cancelBtn}`;
-                      return `<div class="order-row"><strong>${esc(basket)}</strong><span>${esc(cust)}</span><span>${esc(svc)}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
+                      return `<div class="order-row"><strong>${esc(basket)}</strong><span>${esc(cust)}${unpaidBadge}</span><span>${esc(svc)}${machine}</span><span><em class="status ${statusClass(tx.status)}">${statusLabel(tx.status)}</em></span><span class="queue-action-cell">${actions}</span></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No active laundry orders.</span></div>';
@@ -193,7 +195,19 @@ export function renderStaffLists(app, data) {
 
     const ir = app.querySelector('[data-inventory-rows]');
     if (ir) {
-        const list = data.inventory || [];
+        const catSel = app.querySelector('[data-staff-inv-category]');
+        if (catSel) {
+            if (!catSel._bound) {
+                catSel._bound = true;
+                catSel.addEventListener('change', () => renderStaffLists(app, app._bootstrap || data));
+            }
+            const names = [...new Set((data.inventory || []).map((i) => i.category?.name).filter(Boolean))].sort();
+            const chosen = names.includes(catSel.value) ? catSel.value : '';
+            catSel.innerHTML = '<option value="">All categories</option>' + names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+            catSel.value = chosen;
+        }
+        const wanted = catSel?.value || '';
+        const list = (data.inventory || []).filter((i) => !wanted || i.category?.name === wanted);
         ir.innerHTML = list.length
             ? list
                   .map((i) => {
@@ -235,7 +249,7 @@ export function renderStaffLists(app, data) {
                 const btn = using
                     ? ''
                     : `<button type="button" class="action-btn-secondary" data-machine-status="${m.id}" data-set-machine="${avail ? 'maintenance' : 'available'}" title="Click to change machine status">${avail ? 'Set maintenance →' : 'Set available →'}</button>`;
-                return `<article class="staff-card" data-machine-id="${m.id}"><span>${esc(m.name)}</span><strong class="${avail ? 'available' : ''}">${esc(m.status.replace(/_/g, ' '))}</strong><small>${esc(m.type)}</small>${usage}${btn}</article>`;
+                return `<article class="staff-card" data-machine-id="${m.id}"><span>${esc(m.name)}</span><strong class="${avail ? 'available' : ''}">${esc(m.status.replace(/_/g, ' '))}</strong><small>${esc(m.size ? m.size.charAt(0).toUpperCase() + m.size.slice(1) + ' ' : '')}${esc(m.type)}</small>${usage}${btn}</article>`;
             })
             .join('');
         tickMachineTimers();
@@ -309,18 +323,6 @@ export function loadStaffBootstrap(app, updateFn) {
                     select.appendChild(o);
                 });
             });
-            const machineSelect = app.querySelector('[data-machine]');
-            if (machineSelect && (data.machines || []).length) {
-                machineSelect.innerHTML = '';
-                data.machines.filter((m) => m.status === 'available').forEach((m) => {
-                    const o = document.createElement('option');
-                    o.value = m.name;
-                    o.dataset.machineId = String(m.id);
-                    o.textContent = m.name;
-                    machineSelect.appendChild(o);
-                });
-                if (!machineSelect.options.length) machineSelect.innerHTML = '<option value="">No machine available</option>';
-            }
             const list = app.querySelector('[data-basket-list]');
             if (list) {
                 const avail = data.available_baskets || [];

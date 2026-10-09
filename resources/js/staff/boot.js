@@ -42,6 +42,7 @@ export function bootStaffApp() {
         loadStaffBootstrap: () => ctx.loadStaffBootstrap(),
     });
     ctx.update = tx.update;
+    ctx.collectOnRelease = tx.collectOnRelease;
     ctx.resetTransactionForm = tx.resetTransactionForm;
     ctx.loadStaffBootstrap = () => (app.dataset.role === 'admin' ? loadAdminBootstrap(app) : loadStaffBootstrap(app, tx.update));
 

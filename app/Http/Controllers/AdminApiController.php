@@ -10,6 +10,7 @@ use App\Models\InventoryItem;
 use App\Models\InventoryRestock;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
+use App\Models\MachineRate;
 use App\Models\Notification;
 use App\Models\Service;
 use App\Models\Staff;
@@ -96,7 +97,7 @@ class AdminApiController extends Controller
                 'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name,base_price',
-                'machine:id,name,type',
+                'machineUsages.machine:id,name,type',
                 'detergent:id,name,unit',
                 'handledBy:id,name',
                 'garmentTypes:id,name',
@@ -121,7 +122,7 @@ class AdminApiController extends Controller
                 'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name,base_price',
-                'machine:id,name,type',
+                'machineUsages.machine:id,name,type',
                 'detergent:id,name,unit',
                 'handledBy:id,name',
                 'garmentTypes:id,name',
@@ -295,6 +296,7 @@ class AdminApiController extends Controller
             'cancelled_orders' => $cancelledOrders,
             'finance' => $financeRows,
             'machines' => $machines,
+            'machine_rates' => MachineRate::query()->orderBy('size')->orderBy('kind')->orderBy('minutes')->get(),
             'machines_attention' => $machinesMaintenance,
             'inventory' => $inventory,
             'categories' => $categories,
@@ -320,7 +322,7 @@ class AdminApiController extends Controller
             'customer:id,name,contact_number,email',
             'basketTag:id,code',
             'service:id,name,base_price',
-            'machine:id,name,type',
+            'machineUsages.machine:id,name,type',
             'detergent:id,name,unit',
             'handledBy:id,name',
             'garmentTypes:id,name',
@@ -351,6 +353,36 @@ class AdminApiController extends Controller
         $notification->update(['is_read' => true]);
 
         return response()->json(['message' => 'Alert dismissed.']);
+    }
+
+    public function storeCategory(Request $request): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:60', 'unique:inventory_categories,name']]);
+        $category = InventoryCategory::query()->create($data);
+        $this->audit('inventory.category_created', ['category_id' => $category->id, 'name' => $category->name]);
+
+        return response()->json(['category' => $category], 201);
+    }
+
+    public function updateCategory(Request $request, InventoryCategory $category): JsonResponse
+    {
+        $data = $request->validate(['name' => ['required', 'string', 'max:60', Rule::unique('inventory_categories', 'name')->ignore($category->id)]]);
+        $before = $category->name;
+        $category->update($data);
+        $this->audit('inventory.category_renamed', ['category_id' => $category->id, 'before' => $before, 'name' => $category->name]);
+
+        return response()->json(['category' => $category]);
+    }
+
+    public function destroyCategory(InventoryCategory $category): JsonResponse
+    {
+        if ($category->items()->exists()) {
+            return response()->json(['message' => "{$category->name} still has products. Move or archive them first."], 422);
+        }
+        $category->delete();
+        $this->audit('inventory.category_deleted', ['category_id' => $category->id, 'name' => $category->name]);
+
+        return response()->json(['message' => 'Category deleted.']);
     }
 
     public function storeInventoryItem(Request $request): JsonResponse
@@ -687,6 +719,7 @@ class AdminApiController extends Controller
         return [
             'name' => ['required', 'string', 'max:60', Rule::unique('machines', 'name')->ignore($machine?->id)],
             'type' => ['required', Rule::in(['washer', 'dryer'])],
+            'size' => ['required', Rule::in(['giant', 'titan'])],
             'status' => ['required', Rule::in(['available', 'reserved', 'maintenance', 'out_of_service'])],
         ];
     }
@@ -712,6 +745,37 @@ class AdminApiController extends Controller
         $this->audit('machine.updated', ['machine_id' => $machine->id, 'name' => $machine->name, 'status' => $machine->status]);
 
         return response()->json(['machine' => $machine]);
+    }
+
+    /** Set the wash price per load (and capacity) or a dryer time price for one machine size. */
+    public function saveMachineRate(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'size' => ['required', Rule::in(['giant', 'titan'])],
+            'kind' => ['required', Rule::in(['wash', 'dry'])],
+            'minutes' => ['required_if:kind,dry', 'nullable', 'integer', 'min:10', 'max:120', 'multiple_of:10'],
+            'price' => ['required', 'numeric', 'min:0', 'max:100000'],
+            'capacity_kg' => ['nullable', 'numeric', 'min:0', 'max:100'],
+        ]);
+        $minutes = $data['kind'] === 'wash' ? 0 : (int) $data['minutes'];
+
+        $rate = MachineRate::query()->firstOrNew(['size' => $data['size'], 'kind' => $data['kind'], 'minutes' => $minutes]);
+        $before = $rate->exists ? (float) $rate->price : null;
+        $rate->fill(['price' => $data['price'], 'capacity_kg' => $data['kind'] === 'wash' ? ($data['capacity_kg'] ?? $rate->capacity_kg) : null])->save();
+        $this->audit('machine_rate.saved', ['size' => $rate->size, 'kind' => $rate->kind, 'minutes' => $rate->minutes, 'before' => $before, 'price' => (float) $rate->price]);
+
+        return response()->json(['rate' => $rate]);
+    }
+
+    public function destroyMachineRate(MachineRate $rate): JsonResponse
+    {
+        if ($rate->kind === 'wash') {
+            return response()->json(['message' => 'A wash price cannot be removed; change it instead.'], 422);
+        }
+        $rate->delete();
+        $this->audit('machine_rate.deleted', ['size' => $rate->size, 'minutes' => $rate->minutes]);
+
+        return response()->json(['message' => 'Drying time removed.']);
     }
 
     public function destroyMachine(Machine $machine): JsonResponse

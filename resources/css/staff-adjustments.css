@@ -2184,3 +2184,48 @@ button.outline-action:hover,
 [data-panel="manage-pricing"] .order-row { display: grid !important; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) minmax(0, 0.5fr) minmax(0, 0.7fr) !important; gap: 6px 10px !important; align-items: center !important; }
 [data-panel="manage-pricing"] .order-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-panel="manage-pricing"] .order-row.order-head { white-space: nowrap !important; }
+
+/* Self-service machine picker: tap tiles to add several washers and dryers to one order */
+.machine-picker { display: grid; gap: 16px; }
+.machine-group h3 { font-size: calc(12px * var(--text-scale)); color: var(--staff-muted); text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px; }
+.machine-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.machine-tile { display: grid; gap: 6px; }
+.machine-tile > button { display: grid; gap: 3px; align-content: start; text-align: left; padding: 12px 13px; min-height: 104px; transition: border-color .15s, background .15s, transform .1s; border: 2px solid var(--staff-input-border); border-radius: 12px; background: var(--staff-card-bg); color: var(--staff-text); cursor: pointer; font: inherit; }
+.machine-tile > button:not(:disabled):hover { border-color: var(--staff-accent); }
+.machine-tile > button:not(:disabled):active { transform: scale(.98); }
+.machine-tile > button:focus-visible { outline: 3px solid color-mix(in srgb, var(--staff-accent) 45%, transparent); outline-offset: 2px; }
+.machine-tile > button strong { font-size: calc(15px * var(--text-scale)); }
+.machine-tile .tile-price { font-size: calc(13px * var(--text-scale)); font-weight: 700; color: var(--staff-text); }
+.machine-tile > button small { font-size: calc(11px * var(--text-scale)); color: var(--staff-muted); }
+.machine-tile > button em { margin-top: auto; font-style: normal; font-size: calc(11px * var(--text-scale)); font-weight: 700; color: var(--staff-accent); }
+.machine-tile.is-selected > button { border-color: var(--staff-accent); background: var(--staff-row-head-bg); }
+.machine-tile.is-busy > button { opacity: .55; cursor: not-allowed; }
+.machine-tile.is-busy > button em { color: var(--staff-muted); text-transform: capitalize; }
+.machine-tile select { width: 100%; border: 1px solid var(--staff-input-border); border-radius: 9px; background: var(--staff-input-bg); color: var(--staff-input-text); padding: 8px 10px; font-size: calc(12px * var(--text-scale)); }
+.field-hint.is-error { color: #af3b2c; }
+.machine-total { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; padding: 11px 14px; border-radius: 12px; background: var(--staff-row-head-bg); font-size: calc(13px * var(--text-scale)); color: var(--staff-text); }
+.machine-total[hidden] { display: none; }
+.machine-total strong { font-size: calc(16px * var(--text-scale)); color: var(--staff-accent); }
+.pay-later-field { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding: 12px 14px; border: 1px dashed var(--staff-input-border); border-radius: 12px; font-size: calc(13px * var(--text-scale)); color: var(--staff-text); cursor: pointer; }
+.pay-later-field input { margin-top: 3px; width: 18px; height: 18px; }
+.pay-later-field small { display: block; color: var(--staff-muted); }
+[data-panel="manage-pricing"] .order-row.rate-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(150px, auto) !important; }
+[data-panel="manage-pricing"] .order-row.rate-row > * { overflow: visible; }
+[data-panel="manage-pricing"] .rate-row .user-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+[data-panel="manage-pricing"] .rate-row .user-actions button { padding: 5px 12px !important; font-size: 0.72rem !important; }
+.rate-capacity { display: flex; align-items: center; gap: 6px; }
+.rate-capacity input { width: 72px; }
+[data-panel="manage-inventory"] .table-card .order-row.cat-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(170px, auto) !important; }
+[data-panel="manage-inventory"] .cat-row .user-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+[data-panel="manage-inventory"] .cat-row .user-actions button { padding: 5px 12px !important; font-size: 0.72rem !important; }
+.section-heading-wrap { flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.rate-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(130px, auto); }
+.rate-row input, .rate-row select { border: 1px solid var(--staff-input-border); border-radius: 9px; background: var(--staff-input-bg); color: var(--staff-input-text); padding: 8px 10px; font-size: 13px; width: 100%; }
+.rate-row .user-actions { justify-content: flex-end; flex-wrap: wrap; }
+.rate-row .user-actions button { white-space: nowrap; }
+.cat-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(150px, auto); }
+.cat-row .user-actions { justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 640px) {
+    .rate-row, .cat-row { grid-template-columns: 1fr 1fr; }
+    .rate-row .user-actions, .cat-row .user-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}

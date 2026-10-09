@@ -279,7 +279,7 @@ function renderMachines(app, data, { resetPage = false } = {}) {
               .map((m) => {
                   const [label, cls] = MACHINE_STATUS[m.status] || [m.status, 'pending'];
                   const running = m.current_order ? `Order #${m.current_order.id} · ${m.current_order.customer || '—'}` : '—';
-                  return `<div class="order-row"><strong>${esc(m.name)}</strong><span>${m.type === 'dryer' ? 'Dryer' : 'Washer'}</span><em class="status ${cls}">${esc(label)}</em><span class="num">${m.transactions_count ?? 0}</span><span>${esc(running)}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-machine="${m.id}">Edit</button><button type="button" class="action-btn-danger" data-delete-machine="${m.id}">Delete</button></span></div>`;
+                  return `<div class="order-row"><strong>${esc(m.name)}</strong><span>${m.type === 'dryer' ? 'Dryer' : 'Washer'}<br><small>${m.size === 'titan' ? 'Titan' : 'Giant'}</small></span><em class="status ${cls}">${esc(label)}</em><span class="num">${m.transactions_count ?? 0}</span><span>${esc(running)}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-machine="${m.id}">Edit</button><button type="button" class="action-btn-danger" data-delete-machine="${m.id}">Delete</button></span></div>`;
               })
               .join('')
         : `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${all.length ? 'No machines match these filters.' : 'No machines yet. Click Add machine.'}</span></div>`;
@@ -321,6 +321,11 @@ const ACTION_LABELS = {
     'service.created': 'Added service',
     'service.updated': 'Changed service prices',
     'machine.created': 'Added machine',
+    'machine_rate.saved': 'Changed machine rate',
+    'machine_rate.deleted': 'Removed drying time',
+    'inventory.category_created': 'Added category',
+    'inventory.category_renamed': 'Renamed category',
+    'inventory.category_deleted': 'Deleted category',
     'machine.updated': 'Edited machine',
     'machine.deleted': 'Deleted machine',
     'report.exported': 'Exported report',
@@ -371,6 +376,57 @@ function renderServices(app, data) {
               .join('')
         : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No services yet. Click Add service.</span></div>';
     paginate(rows);
+}
+
+const RATE_SIZE = { giant: 'Giant', titan: 'Titan' };
+
+/** Machine rates: one row per wash price and per dryer time, editable in place. */
+function renderRates(app, data) {
+    const rows = app.querySelector('[data-admin-rate-rows]');
+    if (!rows) return;
+    const list = [...(data.machine_rates || [])].sort((a, b) => a.size.localeCompare(b.size) || (a.kind === 'wash' ? -1 : 1) - (b.kind === 'wash' ? -1 : 1) || a.minutes - b.minutes);
+    rows.innerHTML = list.length
+        ? list
+              .map((r) => {
+                  const wash = r.kind === 'wash';
+                  const attrs = `data-rate-size="${esc(r.size)}" data-rate-kind="${esc(r.kind)}" data-rate-minutes="${r.minutes}"`;
+                  const time = wash ? '38 min (fixed)' : `${r.minutes} min`;
+                  const capacity = wash ? `<span class="rate-capacity"><input type="number" data-rate-capacity min="0" step="0.5" value="${r.capacity_kg ?? ''}" aria-label="Capacity in kg"> kg</span>` : '<span>—</span>';
+                  return `<div class="order-row rate-row" ${attrs}><strong>${esc(RATE_SIZE[r.size] || r.size)}</strong><span>${wash ? 'Wash (per load)' : 'Dry'}</span><span>${time}</span>${capacity}<input type="number" data-rate-price min="0" step="0.01" value="${Number(r.price)}" aria-label="Price"><span class="user-actions"><button type="button" class="action-btn-secondary" data-save-rate>Save</button>${wash ? '' : '<button type="button" class="action-btn-danger" data-delete-rate="' + r.id + '">Remove</button>'}</span></div>`;
+              })
+              .join('')
+        : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No machine rates yet.</span></div>';
+}
+
+/** Product categories (with product counts) and the inventory category filter. */
+function renderCategories(app, data) {
+    const cats = data.categories || [];
+    const rows = app.querySelector('[data-admin-category-rows]');
+    if (rows) {
+        const counts = {};
+        (data.inventory || []).forEach((i) => {
+            counts[i.inventory_category_id] = (counts[i.inventory_category_id] || 0) + 1;
+        });
+        rows.innerHTML = cats.length
+            ? cats
+                  .map((c) => `<div class="order-row cat-row"><strong>${esc(c.name)}</strong><span class="num">${counts[c.id] || 0}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-category="${c.id}">Rename</button><button type="button" class="action-btn-danger" data-delete-category="${c.id}">Delete</button></span></div>`)
+                  .join('')
+            : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No categories yet.</span></div>';
+        paginate(rows);
+    }
+    const sel = app.querySelector('[data-inv-category-filter]');
+    if (sel) {
+        if (!app._invCatBound) {
+            app._invCatBound = true;
+            sel.addEventListener('change', () => {
+                app._invCategory = sel.value;
+                renderInventoryAnalytics(app, app._adminBootstrap || {});
+            });
+        }
+        sel.innerHTML = '<option value="">All categories</option>' + cats.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        sel.value = cats.some((c) => String(c.id) === app._invCategory) ? app._invCategory : '';
+        app._invCategory = sel.value;
+    }
 }
 
 function renderUsers(app, data) {
@@ -689,7 +745,7 @@ function buildActivityDetailHtml(tx) {
         <dt>Date</dt><dd>${created}</dd>
         <dt>Staff</dt><dd>${esc(tx.handled_by?.name || tx.handledBy?.name || '—')}</dd>
         <dt>Basket</dt><dd>${esc(tx.basket_tag?.code || '—')}</dd>
-        <dt>Machine</dt><dd>${esc(tx.machine?.name || '—')}</dd>
+        <dt>Machines</dt><dd>${esc(tx.machine_summary || '—')}${(tx.machine_usages || []).length ? '<br><small>' + (tx.machine_usages || []).map((u) => esc((u.machine?.name || 'Machine') + ' ' + u.minutes + ' min')).join(', ') + '</small>' : ''}</dd>
         <dt>Load (kg)</dt><dd>${tx.load_weight_kg != null ? tx.load_weight_kg : '—'}</dd>
         <dt>Payment</dt><dd>${esc(tx.payment_status || '—')} · Cash ${money(tx.cash_tendered || 0)} · Change ${money(tx.change_given || 0)}</dd>
       </dl>
@@ -1011,6 +1067,7 @@ function renderInventoryAnalytics(app, data) {
     } else {
         if (title) title.textContent = mode === 'value' ? 'All items (with value)' : 'All items';
     }
+    if (app._invCategory) items = items.filter((i) => String(i.inventory_category_id) === app._invCategory);
 
     const rows = app.querySelector('[data-admin-inventory-rows]');
     if (rows) {
@@ -1258,10 +1315,12 @@ export function loadAdminBootstrap(app) {
             if (!app._invKpi) app._invKpi = 'all';
             renderDashboard(app, data);
             renderSummaryAnalytics(app, data);
+            renderCategories(app, data);
             renderInventoryAnalytics(app, data);
             renderUsers(app, data);
             renderMachines(app, data);
             renderServices(app, data);
+            renderRates(app, data);
 
             // Receiving table
             const restocks = data.restocks || [];
@@ -1767,6 +1826,101 @@ export function handleAdminClick(t, e, ctx) {
         return true;
     }
 
+    const saveRate = t.closest('[data-save-rate]');
+    if (saveRate) {
+        e.preventDefault();
+        const row = saveRate.closest('[data-rate-size]');
+        const wash = row.dataset.rateKind === 'wash';
+        const cap = row.querySelector('[data-rate-capacity]')?.value;
+        const body = { size: row.dataset.rateSize, kind: row.dataset.rateKind, minutes: wash ? null : Number(row.dataset.rateMinutes), price: Number(row.querySelector('[data-rate-price]').value), capacity_kg: wash && cap !== '' ? Number(cap) : null };
+        api('/ajax/admin/machine-rates', { method: 'POST', body: JSON.stringify(body) })
+            .then(() => {
+                openNotice('Rate saved', 'New orders will use this price.', 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => openError('Machine rate', ex));
+        return true;
+    }
+    if (t.closest('[data-add-rate]')) {
+        e.preventDefault();
+        const val = (sel) => document.querySelector(sel)?.value ?? '';
+        const body = { size: val('[data-new-rate-size]'), kind: 'dry', minutes: Number(val('[data-new-rate-minutes]')), price: Number(val('[data-new-rate-price]')) };
+        const err = document.querySelector('[data-rate-error]');
+        api('/ajax/admin/machine-rates', { method: 'POST', body: JSON.stringify(body) })
+            .then(() => {
+                err.hidden = true;
+                document.querySelector('[data-new-rate-minutes]').value = '';
+                document.querySelector('[data-new-rate-price]').value = '';
+                openNotice('Drying time saved', `${body.minutes} min for ${RATE_SIZE[body.size]} dryers.`, 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+    const delRate = t.closest('[data-delete-rate]');
+    if (delRate) {
+        e.preventDefault();
+        openConfirm('Remove drying time?', 'Staff will no longer be able to pick this drying time. Past orders are not changed.', () => {
+            api(`/ajax/admin/machine-rates/${delRate.dataset.deleteRate}`, { method: 'DELETE' })
+                .then(() => loadAdminBootstrap(app))
+                .catch((ex) => openError('Machine rate', ex));
+        });
+        return true;
+    }
+
+    if (t.closest('[data-open-add-category]') || t.closest('[data-edit-category]')) {
+        e.preventDefault();
+        const editId = t.closest('[data-edit-category]')?.dataset.editCategory;
+        const c = editId ? ((app._adminBootstrap || {}).categories || []).find((x) => String(x.id) === editId) : null;
+        document.querySelector('[data-category-modal-title]').textContent = c ? 'Rename category' : 'Add category';
+        document.querySelector('[data-category-id]').value = c?.id ?? '';
+        document.querySelector('[data-category-name]').value = c?.name ?? '';
+        document.querySelector('[data-category-error]').hidden = true;
+        showModal('[data-category-modal]');
+        return true;
+    }
+    if (t.closest('[data-close-category]')) {
+        e.preventDefault();
+        hideModal('[data-category-modal]');
+        return true;
+    }
+    if (t.closest('[data-confirm-category]')) {
+        e.preventDefault();
+        const id = document.querySelector('[data-category-id]').value;
+        const name = document.querySelector('[data-category-name]').value.trim();
+        const err = document.querySelector('[data-category-error]');
+        if (!name) {
+            err.hidden = false;
+            err.textContent = 'Enter a category name.';
+            return true;
+        }
+        api(id ? `/ajax/admin/categories/${id}` : '/ajax/admin/categories', { method: id ? 'PATCH' : 'POST', body: JSON.stringify({ name }) })
+            .then(() => {
+                hideModal('[data-category-modal]');
+                openNotice('Category saved', name + ' was saved.', 'success');
+                loadAdminBootstrap(app);
+            })
+            .catch((ex) => {
+                err.hidden = false;
+                err.textContent = ex.message;
+            });
+        return true;
+    }
+    const delCat = t.closest('[data-delete-category]');
+    if (delCat) {
+        e.preventDefault();
+        const c = ((app._adminBootstrap || {}).categories || []).find((x) => String(x.id) === delCat.dataset.deleteCategory);
+        openConfirm('Delete category?', `${c?.name || 'This category'} will be removed. A category that still has products cannot be deleted.`, () => {
+            api(`/ajax/admin/categories/${delCat.dataset.deleteCategory}`, { method: 'DELETE' })
+                .then(() => loadAdminBootstrap(app))
+                .catch((ex) => openError('Delete category', ex));
+        });
+        return true;
+    }
+
     if (t.closest('[data-open-add-machine]') || t.closest('[data-edit-machine]')) {
         e.preventDefault();
         const editId = t.closest('[data-edit-machine]')?.dataset.editMachine;
@@ -1780,6 +1934,7 @@ export function handleAdminClick(t, e, ctx) {
         setVal('[data-machine-form-id]', m?.id ?? '');
         setVal('[data-machine-form-name]', m?.name ?? '');
         setVal('[data-machine-form-type]', m?.type ?? 'washer');
+        setVal('[data-machine-form-size]', m?.size ?? 'giant');
         setVal('[data-machine-form-status]', ['available', 'reserved', 'maintenance', 'out_of_service'].includes(m?.status) ? m.status : 'available');
         document.querySelector('[data-machine-form-status]').disabled = running;
         document.querySelector('[data-machine-running-note]').hidden = !running;
@@ -1796,7 +1951,7 @@ export function handleAdminClick(t, e, ctx) {
         e.preventDefault();
         const val = (sel) => document.querySelector(sel)?.value ?? '';
         const id = val('[data-machine-form-id]');
-        const body = { name: val('[data-machine-form-name]').trim(), type: val('[data-machine-form-type]'), status: val('[data-machine-form-status]') };
+        const body = { name: val('[data-machine-form-name]').trim(), type: val('[data-machine-form-type]'), size: val('[data-machine-form-size]'), status: val('[data-machine-form-status]') };
         const err = document.querySelector('[data-machine-error]');
         if (!body.name) {
             err.hidden = false;

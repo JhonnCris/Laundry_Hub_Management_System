@@ -2,7 +2,6 @@
 
 use App\Models\Customer;
 use App\Models\LaundryTransaction;
-use App\Models\Service;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -152,11 +151,10 @@ it('marks a machine in use for a self-service order and frees it when the order 
     $staff = User::factory()->create(['role' => 'staff']);
     $customer = Customer::create(['name' => 'Wash Day', 'contact_number' => '0922']);
     $machineId = DB::table('machines')->insertGetId(['name' => 'Washer 9', 'type' => 'washer', 'status' => 'available', 'created_at' => now(), 'updated_at' => now()]);
-    Service::create(['name' => 'Wash Only', 'base_price' => 70, 'rate_per_kg' => 25, 'is_active' => true]);
 
     $payload = [
-        'customer_id' => $customer->id, 'transaction_type' => 'self_service', 'machine_id' => $machineId,
-        'load_weight_kg' => 5, 'cycle_minutes' => 45, 'service_amount' => 125, 'total_amount' => 125, 'cash_tendered' => 200,
+        'customer_id' => $customer->id, 'transaction_type' => 'self_service', 'machines' => [['machine_id' => $machineId]],
+        'service_amount' => 65, 'total_amount' => 65, 'cash_tendered' => 100,
     ];
     $this->actingAs($staff)->postJson('/ajax/staff/transactions', $payload)->assertOk();
 

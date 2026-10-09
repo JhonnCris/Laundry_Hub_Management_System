@@ -261,8 +261,14 @@
         <div class="dash-panels">
             <section class="staff-card full-card table-card">
                 <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2 data-inv-table-title>All items</h2></div>
+                <div class="table-filters"><select data-inv-category-filter aria-label="Filter by category"><option value="">All categories</option></select></div>
                 <div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Action</span></div>
                 <div data-admin-inventory-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading inventory…</span></div></div>
+            </section>
+            <section class="staff-card full-card table-card">
+                <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2>Product categories</h2><button class="action-btn-primary" type="button" data-open-add-category>Add category →</button></div>
+                <div class="order-row order-head cat-row"><span>Category</span><span class="num">Products</span><span>Action</span></div>
+                <div data-admin-category-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading…</span></div></div>
             </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Top sellers</h2><small style="color:var(--staff-muted)">From paid orders in current range</small></div>
@@ -309,13 +315,26 @@
             <div>
                 <p class="eyebrow">Admin · Prices</p>
                 <h1>Manage Pricing</h1>
-                <p>Set the drop-off price and the self-service per-kg rate of each laundry service. Changes apply to new orders only.</p>
+                <p>Set the drop-off price of each laundry service and the self-service price of each machine size. Changes apply to new orders only.</p>
             </div>
             <button class="action-btn-primary" type="button" data-open-add-service>Add service →</button>
         </div>
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Service</span><span class="num">Drop-off price</span><span class="num">Per-kg rate</span><span>Status</span><span class="num">Orders</span><span>Action</span></div>
             <div data-admin-service-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading services…</span></div></div>
+        </section>
+        <section class="staff-card full-card table-card">
+            <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2>Machine rates</h2><small style="color:var(--staff-muted)">Self-service: washers are priced per load (38 min); dryers per drying time in 10-minute steps</small></div>
+            <div class="order-row order-head rate-row"><span>Size</span><span>Service</span><span>Time</span><span>Capacity</span><span>Price (₱)</span><span>Action</span></div>
+            <div data-admin-rate-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading rates…</span></div></div>
+            <div class="order-row rate-row" data-new-rate-row>
+                <select data-new-rate-size aria-label="Machine size"><option value="giant">Giant</option><option value="titan">Titan</option></select>
+                <span>Add drying time</span>
+                <input type="number" data-new-rate-minutes min="10" max="120" step="10" placeholder="minutes" aria-label="Drying minutes"><span></span>
+                <input type="number" data-new-rate-price min="0" step="0.01" placeholder="price" aria-label="Price">
+                <span class="user-actions"><button type="button" class="action-btn-primary" data-add-rate>Add</button></span>
+            </div>
+            <p class="modal-error" data-rate-error hidden style="margin:0 20px 16px"></p>
         </section>
     </section>
 
@@ -351,7 +370,7 @@
                     <option value="out_of_service">Out of service</option>
                 </select>
             </div>
-            <div class="order-row order-head"><span>Machine</span><span>Type</span><span>Status</span><span class="num">Orders</span><span>Now running</span><span>Action</span></div>
+            <div class="order-row order-head"><span>Machine</span><span>Type · size</span><span>Status</span><span class="num">Orders</span><span>Now running</span><span>Action</span></div>
             <div data-admin-machine-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading machines…</span></div></div>
         </section>
     </section>
@@ -422,6 +441,21 @@
     </section>
 </div>
 
+<div class="modal-backdrop" data-category-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-category type="button">×</button>
+        <h2 data-category-modal-title>Add category</h2>
+        <p class="modal-hint">Group products such as Detergent or Fabric conditioner so stock is easier to track.</p>
+        <input type="hidden" data-category-id>
+        <label class="modal-field">Name<input type="text" data-category-name maxlength="60" placeholder="e.g. Fabric conditioner"></label>
+        <p class="modal-error" data-category-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-category>Cancel</button>
+            <button type="button" class="save-button" data-confirm-category>Save category</button>
+        </div>
+    </section>
+</div>
+
 <div class="modal-backdrop" data-machine-modal hidden>
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-machine type="button">×</button>
@@ -433,6 +467,12 @@
             <select data-machine-form-type>
                 <option value="washer">Washer</option>
                 <option value="dryer">Dryer</option>
+            </select>
+        </label>
+        <label class="modal-field">Size
+            <select data-machine-form-size>
+                <option value="giant">Giant</option>
+                <option value="titan">Titan</option>
             </select>
         </label>
         <label class="modal-field">Status
@@ -692,7 +732,12 @@
             <input type="date" data-po-invoice-date>
         </label>
         <label class="modal-field">Supplier
-            <input type="text" data-po-supplier placeholder="Name on the invoice">
+            <input type="text" data-po-supplier list="po-suppliers" placeholder="Pick a supplier or type a name" autocomplete="off">
+            <datalist id="po-suppliers">
+                <option value="Unilever">
+                <option value="Procter &amp; Gamble">
+                <option value="South Davao Gasul Trade Corp">
+            </datalist>
         </label>
         <label class="modal-field">Inventory item
             <select data-po-item></select>

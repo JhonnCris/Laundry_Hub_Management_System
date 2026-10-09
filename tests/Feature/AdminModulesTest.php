@@ -75,10 +75,10 @@ it('rejects only pending accounts, keeps the reason and blocks their login', fun
 it('lets admin add, edit and delete machines, but not delete one with order history', function () {
     $admin = User::factory()->create(['role' => 'admin']);
 
-    $id = $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'Washer 9', 'type' => 'washer', 'status' => 'available'])->assertCreated()->json('machine.id');
-    $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'Washer 9', 'type' => 'washer', 'status' => 'available'])->assertStatus(422);
+    $id = $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'Washer 9', 'type' => 'washer', 'size' => 'giant', 'status' => 'available'])->assertCreated()->json('machine.id');
+    $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'Washer 9', 'type' => 'washer', 'size' => 'giant', 'status' => 'available'])->assertStatus(422);
 
-    $this->actingAs($admin)->patchJson("/ajax/admin/machines/{$id}", ['name' => 'Washer 9', 'type' => 'dryer', 'status' => 'maintenance'])->assertOk();
+    $this->actingAs($admin)->patchJson("/ajax/admin/machines/{$id}", ['name' => 'Washer 9', 'type' => 'dryer', 'size' => 'titan', 'status' => 'maintenance'])->assertOk();
     expect(Machine::find($id))->type->toBe('dryer')->status->toBe('maintenance');
 
     $listed = $this->actingAs($admin)->getJson('/ajax/admin/bootstrap')->json('machines');
@@ -91,7 +91,7 @@ it('lets admin add, edit and delete machines, but not delete one with order hist
 it('keeps machine management away from staff', function () {
     $staff = User::factory()->create(['role' => 'staff']);
 
-    $this->actingAs($staff)->postJson('/ajax/admin/machines', ['name' => 'X', 'type' => 'washer', 'status' => 'available'])->assertForbidden();
+    $this->actingAs($staff)->postJson('/ajax/admin/machines', ['name' => 'X', 'type' => 'washer', 'size' => 'giant', 'status' => 'available'])->assertForbidden();
 });
 
 it('adds a receipt to inventory in parts and logs each part in the stock ledger', function () {
@@ -133,7 +133,7 @@ it('lets admin archive stock too and shows the activity log with paging', functi
     $this->actingAs($admin)->postJson("/ajax/staff/inventory/{$item->id}/archive", ['reason' => 'damaged', 'quantity' => 2])->assertOk();
     expect($this->actingAs($admin)->getJson('/ajax/admin/bootstrap')->json('archive_records.0.quantity'))->toBe(2);
 
-    $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'W1', 'type' => 'washer', 'status' => 'available']);
+    $this->actingAs($admin)->postJson('/ajax/admin/machines', ['name' => 'W1', 'type' => 'washer', 'size' => 'giant', 'status' => 'available']);
     $log = $this->actingAs($admin)->getJson('/ajax/admin/audit?q=machine')->assertOk();
     expect($log->json('per_page'))->toBe(8)->and($log->json('data.0.action'))->toBe('machine.created');
 });
@@ -153,24 +153,13 @@ it('records sales and cancellations in the stock ledger', function () {
         ->and($item->fresh()->quantity_on_hand)->toBe(10);
 });
 
-it('lets admin change prices and bills new self-service orders at the new per-kg rate', function () {
+it('lets admin change service prices and hide an inactive service from staff', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $staff = User::factory()->create(['role' => 'staff']);
-    $customer = Customer::create(['name' => 'Rate Check', 'contact_number' => '0955']);
 
     $id = $this->actingAs($admin)->postJson('/ajax/admin/services', ['name' => 'Wash Only', 'base_price' => 70, 'rate_per_kg' => 25, 'is_active' => true])->assertCreated()->json('service.id');
-    $self = fn (float $amount) => [
-        'customer_id' => $customer->id, 'transaction_type' => 'self_service', 'service_id' => $id,
-        'load_weight_kg' => 4, 'service_amount' => $amount, 'total_amount' => $amount, 'cash_tendered' => 500,
-    ];
-
-    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $self(100))->assertOk();
-
-    $this->actingAs($admin)->patchJson("/ajax/admin/services/{$id}", ['name' => 'Wash Only', 'base_price' => 80, 'rate_per_kg' => 30, 'is_active' => true])->assertOk();
-    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $self(100))->assertStatus(422);
-    $this->actingAs($staff)->postJson('/ajax/staff/transactions', $self(120))->assertOk();
-
     $this->actingAs($admin)->patchJson("/ajax/admin/services/{$id}", ['name' => 'Wash Only', 'base_price' => 80, 'rate_per_kg' => 30, 'is_active' => false])->assertOk();
+
     expect($this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json('services'))->toBeEmpty();
     $this->actingAs($staff)->postJson('/ajax/admin/services', ['name' => 'X', 'base_price' => 1, 'is_active' => true])->assertForbidden();
 });

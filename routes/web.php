@@ -81,6 +81,11 @@ Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('
     Route::post('notifications/{notification}/read', [AdminApiController::class, 'readNotification']);
     Route::post('inventory', [AdminApiController::class, 'storeInventoryItem']);
     Route::patch('inventory/{item}', [AdminApiController::class, 'updateInventoryItem']);
+    Route::post('categories', [AdminApiController::class, 'storeCategory']);
+    Route::patch('categories/{category}', [AdminApiController::class, 'updateCategory']);
+    Route::delete('categories/{category}', [AdminApiController::class, 'destroyCategory']);
+    Route::post('machine-rates', [AdminApiController::class, 'saveMachineRate']);
+    Route::delete('machine-rates/{rate}', [AdminApiController::class, 'destroyMachineRate']);
     Route::post('procurement', [AdminApiController::class, 'storeRestock']);
     Route::post('procurement/{restock}/stock', [AdminApiController::class, 'stockRestock']);
     Route::post('services', [AdminApiController::class, 'storeService']);

@@ -12,12 +12,14 @@ use App\Models\InventoryAdjustment;
 use App\Models\InventoryItem;
 use App\Models\LaundryTransaction;
 use App\Models\Machine;
+use App\Models\MachineRate;
 use App\Models\Notification;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\TransactionGarment;
 use App\Models\TransactionItem;
+use App\Models\TransactionMachine;
 use App\Models\TransactionStatusLog;
 use App\Services\FcmService;
 use App\Services\SmsService;
@@ -70,20 +72,22 @@ class StaffApiController extends Controller
 
         $garments = GarmentType::query()->orderBy('name')->get(['id', 'name', 'is_custom']);
         $services = Service::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'base_price', 'rate_per_kg']);
-        $machines = Machine::query()->with('activeOrder.customer:id,name')->orderBy('name')->get(['id', 'name', 'type', 'status'])
+        $machines = Machine::query()->with('activeOrder.customer:id,name')->orderBy('name')->get(['id', 'name', 'type', 'size', 'status'])
             ->map(function (Machine $m) {
                 $order = $m->activeOrder;
-                $row = $m->only(['id', 'name', 'type', 'status']);
+                $row = $m->only(['id', 'name', 'type', 'size', 'status']);
+                $minutes = $order ? (int) TransactionMachine::query()->where('laundry_transaction_id', $order->id)->where('machine_id', $m->id)->value('minutes') : 0;
                 $row['current_order'] = $order ? [
                     'id' => $order->id,
                     'customer' => $order->customer?->name,
                     'started_at' => $order->created_at->toIso8601String(),
-                    'ends_at' => $order->cycle_minutes ? $order->created_at->copy()->addMinutes($order->cycle_minutes)->toIso8601String() : null,
-                    'cycle_minutes' => $order->cycle_minutes,
+                    'ends_at' => $minutes ? $order->created_at->copy()->addMinutes($minutes)->toIso8601String() : null,
+                    'cycle_minutes' => $minutes ?: null,
                 ] : null;
 
                 return $row;
             });
+        $machineRates = MachineRate::query()->orderBy('size')->orderBy('kind')->orderBy('minutes')->get(['size', 'kind', 'minutes', 'price', 'capacity_kg']);
         $baskets = BasketTag::query()->orderBy('code')->get(['id', 'code', 'status']);
         $inventory = InventoryItem::query()->with('category:id,name')->orderBy('name')->get();
         $activeInventory = $inventory->filter(fn ($i) => ($i->status ?? 'active') === 'active')->values();
@@ -99,7 +103,7 @@ class StaffApiController extends Controller
                 'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name',
-                'machine:id,name',
+                'machineUsages.machine:id,name,type',
                 'detergent:id,name,unit,unit_price',
                 'handledBy:id,name',
                 'garmentTypes:id,name',
@@ -189,6 +193,7 @@ class StaffApiController extends Controller
             'garment_types' => $garments,
             'services' => $services,
             'machines' => $machines,
+            'machine_rates' => $machineRates,
             'server_now' => now()->toIso8601String(),
             'baskets' => $baskets->map(fn ($b) => [
                 'id' => $b->id,
@@ -228,9 +233,11 @@ class StaffApiController extends Controller
             'basket_code' => ['nullable', 'string', 'max:20'],
             'service_id' => ['nullable', 'integer', 'exists:services,id'],
             'service_amount' => ['required', 'numeric', 'min:0', 'max:100000'],
-            'machine_id' => ['nullable', 'integer', 'exists:machines,id'],
+            'machines' => ['nullable', 'array', 'max:20'],
+            'machines.*.machine_id' => ['required', 'integer', 'distinct', 'exists:machines,id'],
+            'machines.*.minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
+            'pay_later' => ['nullable', 'boolean'],
             'load_weight_kg' => ['nullable', 'numeric', 'min:0', 'max:50'],
-            'cycle_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
             'detergent_item_id' => ['nullable', 'integer', 'exists:inventory_items,id'],
             'detergent_quantity' => ['nullable', 'integer', 'min:0', 'max:99'],
             'garments' => ['nullable', 'array'],
@@ -240,13 +247,13 @@ class StaffApiController extends Controller
             'items.*.inventory_item_id' => ['required_with:items', 'integer', 'exists:inventory_items,id'],
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1', 'max:99'],
             'notes' => ['nullable', 'string', 'max:1000'],
-            'cash_tendered' => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'cash_tendered' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'total_amount' => ['required', 'numeric', 'min:0', 'max:100000'],
             'client_token' => ['nullable', 'string', 'max:64'],
         ]);
 
-        if ($data['transaction_type'] === 'self_service' && (float) ($data['load_weight_kg'] ?? 0) <= 0) {
-            return response()->json(['message' => 'Load weight (kg) is required for self-service.'], 422);
+        if ($data['transaction_type'] === 'self_service' && empty($data['machines'])) {
+            return response()->json(['message' => 'Pick at least one machine for self-service.'], 422);
         }
 
         // Snacks/drinks only: no service, garments or detergent. Sold over the counter, never queued.
@@ -259,9 +266,14 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'Add a service or at least one snack/drink.'], 422);
         }
 
-        $cash = (float) $data['cash_tendered'];
+        $payLater = (bool) ($data['pay_later'] ?? false);
+        if ($payLater && ($data['transaction_type'] !== 'drop_off' || $purchaseOnly)) {
+            return response()->json(['message' => 'Only drop-off laundry can be paid on release.'], 422);
+        }
+
+        $cash = (float) ($data['cash_tendered'] ?? 0);
         $total = (float) $data['total_amount'];
-        if ($cash + 0.001 < $total) {
+        if (! $payLater && $cash + 0.001 < $total) {
             return response()->json(['message' => 'Cash tendered is less than total amount.'], 422);
         }
 
@@ -275,7 +287,7 @@ class StaffApiController extends Controller
         }
 
         try {
-            $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId, $purchaseOnly) {
+            $tx = DB::transaction(function () use ($data, $customer, $cash, $total, $staffId, $purchaseOnly, $payLater) {
                 $basketId = null;
                 if (! $purchaseOnly && ! empty($data['basket_code']) && $data['transaction_type'] === 'drop_off') {
                     $basket = BasketTag::query()->where('code', $data['basket_code'])->first();
@@ -295,14 +307,28 @@ class StaffApiController extends Controller
                     }
                 }
 
-                if ($data['transaction_type'] === 'self_service' && ! empty($data['machine_id'])) {
-                    $machine = Machine::query()->lockForUpdate()->findOrFail($data['machine_id']);
-                    if ($machine->status !== 'available') {
-                        throw ValidationException::withMessages([
-                            'machine_id' => "{$machine->name} is not available right now. Pick another machine.",
-                        ]);
+                $usages = [];
+                if ($data['transaction_type'] === 'self_service') {
+                    $rates = MachineRate::query()->get();
+                    foreach ($data['machines'] as $line) {
+                        $machine = Machine::query()->lockForUpdate()->findOrFail($line['machine_id']);
+                        if ($machine->status !== 'available') {
+                            throw ValidationException::withMessages([
+                                'machines' => "{$machine->name} is not available right now. Pick another machine.",
+                            ]);
+                        }
+                        $isWasher = $machine->type === 'washer';
+                        $minutes = $isWasher ? MachineRate::WASH_MINUTES : (int) ($line['minutes'] ?? 0);
+                        $rate = $rates->first(fn ($r) => $r->size === $machine->size
+                            && $r->kind === ($isWasher ? 'wash' : 'dry')
+                            && ($isWasher || $r->minutes === $minutes));
+                        if (! $rate) {
+                            throw ValidationException::withMessages([
+                                'machines' => "Pick a valid drying time for {$machine->name}.",
+                            ]);
+                        }
+                        $usages[] = ['machine' => $machine, 'type' => $machine->type, 'minutes' => $minutes, 'price' => (float) $rate->price];
                     }
-                    $machine->update(['status' => 'in_use']);
                 }
 
                 $detergentQty = (int) ($data['detergent_quantity'] ?? 0);
@@ -314,19 +340,18 @@ class StaffApiController extends Controller
                 // Never trust client-side prices: flat services use the stored price,
                 // per-kg self-service must match a known rate × billable kg.
                 $subtotal = (float) $data['service_amount'];
+                $serviceId = $data['service_id'] ?? null;
                 if ($data['transaction_type'] === 'drop_off' && ! empty($data['service_id'])) {
                     $subtotal = (float) Service::query()->whereKey($data['service_id'])->value('base_price');
                 } elseif ($data['transaction_type'] === 'self_service') {
-                    $billableKg = max((float) $data['load_weight_kg'], 3);
-                    $rates = Service::query()->where('is_active', true)->whereNotNull('rate_per_kg')
-                        ->when(! empty($data['service_id']), fn ($q) => $q->whereKey($data['service_id']))
-                        ->pluck('rate_per_kg');
-                    $validRate = $rates->contains(fn ($rate) => abs((float) $rate * $billableKg - $subtotal) < 0.01);
-                    if (! $validRate) {
+                    $subtotal = array_sum(array_column($usages, 'price'));
+                    if (abs($subtotal - (float) $data['service_amount']) > 0.01) {
                         throw ValidationException::withMessages([
-                            'service_amount' => 'Service charge does not match the load weight. Please refresh and try again.',
+                            'service_amount' => 'Machine charge does not match current rates. Please refresh and try again.',
                         ]);
                     }
+                    $types = collect($usages)->pluck('type')->unique();
+                    $serviceId = Service::query()->where('name', $types->count() > 1 ? 'Wash with Dry' : ($types->first() === 'washer' ? 'Wash Only' : 'Dry Only'))->value('id');
                 }
                 foreach ($data['items'] ?? [] as $line) {
                     $item = InventoryItem::query()->find($line['inventory_item_id']);
@@ -349,23 +374,33 @@ class StaffApiController extends Controller
                 $txn = LaundryTransaction::query()->create([
                     'customer_id' => $customer->id,
                     'basket_tag_id' => $basketId,
-                    'machine_id' => $data['machine_id'] ?? null,
+                    'machine_id' => $usages[0]['machine']->id ?? null,
                     'machine_time_slot_id' => null,
-                    'service_id' => $data['service_id'] ?? null,
+                    'service_id' => $serviceId,
                     'detergent_item_id' => $detergentId,
                     'detergent_quantity' => $detergentQty,
                     'handled_by' => $staffId,
                     'transaction_type' => $data['transaction_type'],
                     'status' => $purchaseOnly ? 'claimed' : ($data['transaction_type'] === 'self_service' ? 'processing' : 'pending'),
-                    'payment_status' => 'paid',
+                    'payment_status' => $payLater ? 'unpaid' : 'paid',
                     'subtotal' => $subtotal,
                     'total_amount' => $total,
-                    'cash_tendered' => $cash,
-                    'change_given' => $cash - $total,
+                    'cash_tendered' => $payLater ? null : $cash,
+                    'change_given' => $payLater ? null : $cash - $total,
                     'notes' => $data['notes'] ?? null,
                     'load_weight_kg' => $data['load_weight_kg'] ?? null,
-                    'cycle_minutes' => $data['cycle_minutes'] ?? null,
+                    'cycle_minutes' => $usages ? max(array_column($usages, 'minutes')) : null,
                 ]);
+
+                foreach ($usages as $u) {
+                    $u['machine']->update(['status' => 'in_use']);
+                    TransactionMachine::query()->create([
+                        'laundry_transaction_id' => $txn->id,
+                        'machine_id' => $u['machine']->id,
+                        'minutes' => $u['minutes'],
+                        'price' => $u['price'],
+                    ]);
+                }
 
                 foreach ($data['garments'] ?? [] as $g) {
                     if ((int) $g['quantity'] <= 0) {
@@ -427,16 +462,18 @@ class StaffApiController extends Controller
                     'changed_at' => now(),
                 ]);
 
-                FinanceTransaction::query()->create([
-                    'type' => 'income',
-                    'description' => ($purchaseOnly ? 'Snacks & drinks purchase #' : 'Laundry order #').$txn->id,
-                    'amount' => $total,
-                    'staff_id' => $staffId,
-                    'laundry_transaction_id' => $txn->id,
-                    'transaction_date' => today(),
-                ]);
+                if (! $payLater) {
+                    FinanceTransaction::query()->create([
+                        'type' => 'income',
+                        'description' => ($purchaseOnly ? 'Snacks & drinks purchase #' : 'Laundry order #').$txn->id,
+                        'amount' => $total,
+                        'staff_id' => $staffId,
+                        'laundry_transaction_id' => $txn->id,
+                        'transaction_date' => today(),
+                    ]);
+                }
 
-                return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes']);
+                return $txn->load(['customer', 'basketTag', 'service', 'inventoryItems', 'garmentTypes', 'machineUsages.machine:id,name,type']);
             });
         } catch (Throwable $e) {
             // The order was NOT saved (e.g. not enough stock): let the cashier fix it and retry.
@@ -465,6 +502,7 @@ class StaffApiController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', Rule::in(['pending', 'processing', 'ready_for_pickup', 'claimed'])],
+            'cash_tendered' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
         ]);
 
         if ($transaction->status === 'claimed') {
@@ -488,8 +526,30 @@ class StaffApiController extends Controller
 
         $staffId = $this->staffId();
 
-        DB::transaction(function () use ($transaction, $data, $staffId) {
+        // Laundry accepted without payment is paid when it is released to the customer.
+        $collect = $data['status'] === 'claimed' && $transaction->payment_status === 'unpaid';
+        $cash = (float) ($data['cash_tendered'] ?? 0);
+        if ($collect && $cash + 0.001 < (float) $transaction->total_amount) {
+            return response()->json(['message' => 'Collect the full amount of '.number_format((float) $transaction->total_amount, 2).' before releasing this laundry.', 'amount_due' => (float) $transaction->total_amount], 422);
+        }
+
+        DB::transaction(function () use ($transaction, $data, $staffId, $collect, $cash) {
             $transaction->update(['status' => $data['status']]);
+            if ($collect) {
+                $transaction->update([
+                    'payment_status' => 'paid',
+                    'cash_tendered' => $cash,
+                    'change_given' => $cash - (float) $transaction->total_amount,
+                ]);
+                FinanceTransaction::query()->create([
+                    'type' => 'income',
+                    'description' => 'Laundry order #'.$transaction->id.' (paid on release)',
+                    'amount' => $transaction->total_amount,
+                    'staff_id' => $staffId,
+                    'laundry_transaction_id' => $transaction->id,
+                    'transaction_date' => today(),
+                ]);
+            }
             TransactionStatusLog::query()->create([
                 'laundry_transaction_id' => $transaction->id,
                 'status' => $data['status'],
@@ -509,7 +569,7 @@ class StaffApiController extends Controller
             }
         });
 
-        $transaction->machine?->syncUsage();
+        $transaction->releaseMachines();
 
         $this->audit('order.status_changed', ['order_id' => $transaction->id, 'from' => $previousStatus, 'to' => $data['status']]);
 
@@ -517,7 +577,7 @@ class StaffApiController extends Controller
             ? $this->notifyCustomerReady($transaction->fresh(['customer', 'basketTag']))
             : null;
 
-        return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh(), 'notify' => $notify]);
+        return response()->json(['message' => 'Status updated', 'transaction' => $transaction->fresh(), 'notify' => $notify, 'change_given' => $collect ? (float) $transaction->fresh()->change_given : null]);
     }
 
     /**
@@ -626,7 +686,7 @@ class StaffApiController extends Controller
             ]);
         });
 
-        $transaction->machine?->syncUsage();
+        $transaction->releaseMachines();
 
         $this->audit('order.cancelled', ['order_id' => $transaction->id, 'reason' => $data['reason']]);
 
@@ -789,6 +849,7 @@ class StaffApiController extends Controller
                 'customer:id,name,contact_number,email',
                 'basketTag:id,code',
                 'service:id,name',
+                'machineUsages.machine:id,name,type',
                 'detergent:id,name,unit,unit_price',
                 'handledBy:id,name',
                 'garmentTypes:id,name',

@@ -146,7 +146,9 @@ export function handleQueueClick(t, e, ctx) {
                 openError('Status', err);
             });
 
-    if (next === 'claimed') {
+    if (next === 'claimed' && statusBtn.dataset.unpaidTotal) {
+        ctx.collectOnRelease?.(id, statusBtn.dataset.unpaidTotal);
+    } else if (next === 'claimed') {
         openConfirm(
             'Mark as claimed?',
             'Only continue if the customer already picked up this order. Claimed orders cannot be undone.',

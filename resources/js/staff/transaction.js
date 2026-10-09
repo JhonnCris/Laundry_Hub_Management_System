@@ -56,7 +56,76 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         return { amount: unit * qty, label: name, qty, unit };
     };
 
-    const MIN_BILLABLE_KG = 3;
+    const WASH_MINUTES = 38;
+    const SIZE_LABEL = { giant: 'Giant', titan: 'Titan' };
+    const rates = () => app._bootstrap?.machine_rates || [];
+    const machines = () => app._bootstrap?.machines || [];
+    const rateFor = (size, kind, minutes = 0) =>
+        rates().find((r) => r.size === size && r.kind === kind && Number(r.minutes) === Number(minutes));
+    const dryMinutesFor = (size) =>
+        rates()
+            .filter((r) => r.size === size && r.kind === 'dry')
+            .map((r) => Number(r.minutes))
+            .sort((a, b) => a - b);
+    const picked = () => (app._picked = app._picked || new Map());
+
+    /** Selected machines that are still free, each with its time and price. */
+    const pickedLines = () => {
+        const lines = [];
+        picked().forEach((minutes, id) => {
+            const m = machines().find((x) => x.id === id && x.status === 'available');
+            if (!m) return;
+            if (m.type === 'washer') {
+                const r = rateFor(m.size, 'wash');
+                lines.push({ id, name: m.name, type: 'washer', size: m.size, minutes: WASH_MINUTES, price: Number(r?.price || 0), capacity: Number(r?.capacity_kg || 0) });
+            } else {
+                const mins = dryMinutesFor(m.size).includes(minutes) ? minutes : dryMinutesFor(m.size)[0];
+                lines.push({ id, name: m.name, type: 'dryer', size: m.size, minutes: mins, price: Number(rateFor(m.size, 'dry', mins)?.price || 0), capacity: 0 });
+            }
+        });
+        return lines;
+    };
+
+    const machineSummaryText = (lines) => {
+        const w = lines.filter((l) => l.type === 'washer').length;
+        const d = lines.length - w;
+        return [w ? `${w} washer${w > 1 ? 's' : ''}` : '', d ? `${d} dryer${d > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+    };
+
+    const renderMachinePicker = () => {
+        const box = app.querySelector('[data-machine-picker]');
+        if (!box) return;
+        app._pickerFor = app._bootstrap;
+        const list = machines();
+        const free = new Set(list.filter((m) => m.status === 'available').map((m) => m.id));
+        picked().forEach((_, id) => {
+            if (!free.has(id)) picked().delete(id);
+        });
+        if (!list.length) {
+            box.innerHTML = '<p class="dash-empty">No machines set up yet. Ask the admin to add machines.</p>';
+            return;
+        }
+        const tile = (m) => {
+            const isFree = m.status === 'available';
+            const on = isFree && picked().has(m.id);
+            const r = m.type === 'washer' ? rateFor(m.size, 'wash') : null;
+            const info = `${SIZE_LABEL[m.size] || m.size}${r?.capacity_kg ? ` · up to ${Number(r.capacity_kg)} kg` : ' dryer'}`;
+            const price = m.type === 'washer' ? `${money(r?.price)} · ${WASH_MINUTES} min` : on ? 'Choose time below' : 'Priced by time';
+            const state = isFree ? (on ? 'Selected ✓' : 'Tap to add') : m.status.replace(/_/g, ' ');
+            const minutes = on && m.type === 'dryer'
+                ? `<select data-pick-minutes="${m.id}" aria-label="Drying time for ${esc(m.name)}">${dryMinutesFor(m.size)
+                      .map((min) => `<option value="${min}"${min === (pickedLines().find((l) => l.id === m.id)?.minutes) ? ' selected' : ''}>${min} min · ${money(rateFor(m.size, 'dry', min)?.price)}</option>`)
+                      .join('')}</select>`
+                : '';
+            return `<div class="machine-tile${on ? ' is-selected' : ''}${isFree ? '' : ' is-busy'}"><button type="button" data-pick-machine="${m.id}" aria-pressed="${on}" ${isFree ? '' : 'disabled'}><strong>${esc(m.name)}</strong><small>${esc(info)}</small><span class="tile-price">${esc(price)}</span><em>${esc(state)}</em></button>${minutes}</div>`;
+        };
+        box.innerHTML = [['washer', 'Washers'], ['dryer', 'Dryers']]
+            .map(([type, label]) => {
+                const tiles = list.filter((m) => m.type === type).map(tile).join('');
+                return `<div class="machine-group"><h3>${label}</h3><div class="machine-tiles">${tiles || '<p class="dash-empty">None set up.</p>'}</div></div>`;
+            })
+            .join('');
+    };
 
     const getLoadKg = (workflow) => {
         const input = workflow?.querySelector('[data-load-kg]');
@@ -65,34 +134,21 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         return raw;
     };
 
-    const suggestDuration = (kg) => {
-        if (kg <= 0) return null;
-        if (kg < 4) return 30;
-        if (kg < 7) return 45;
-        if (kg < 10) return 60;
-        if (kg < 13) return 75;
-        return 90;
-    };
-
     const getServiceCharge = (workflow, selfService) => {
         if (!workflow) return { amount: 0, label: '—', duration: null };
-        const priceSelect = workflow.querySelector('[data-service-price]');
-        const pricing = priceSelect?.dataset?.pricing;
-        const rate = Number(priceSelect?.value || 0);
-        const label = priceSelect?.selectedOptions?.[0]?.textContent?.trim() || '—';
-        if (selfService || pricing === 'per_kg') {
-            const kg = getLoadKg(workflow);
-            const billable = Math.max(kg, kg > 0 ? MIN_BILLABLE_KG : 0);
-            const durationSel = workflow.querySelector('[data-cycle-duration]');
-            const duration = durationSel ? Number(durationSel.value || 0) : suggestDuration(kg);
+        if (selfService) {
+            const lines = pickedLines();
             return {
-                amount: rate * billable,
-                label,
-                duration,
-                kg,
-                rate,
+                amount: lines.reduce((sum, l) => sum + l.price, 0),
+                label: machineSummaryText(lines) || '—',
+                duration: lines.length ? Math.max(...lines.map((l) => l.minutes)) : null,
+                kg: getLoadKg(workflow),
+                machines: lines,
             };
         }
+        const priceSelect = workflow.querySelector('[data-service-price]');
+        const rate = Number(priceSelect?.value || 0);
+        const label = priceSelect?.selectedOptions?.[0]?.textContent?.trim() || '—';
         return { amount: rate, label, duration: null, kg: getLoadKg(workflow), rate };
     };
 
@@ -105,8 +161,9 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const consumable = getConsumable(workflow);
         const service = getServiceCharge(workflow, selfService);
         const hasLaundry = selfService
-            ? service.kg > 0 || service.amount > 0
+            ? (service.machines || []).length > 0
             : garments > 0 || service.amount > 0;
+        const payLater = !selfService && hasLaundry && !!app.querySelector('[data-pay-later]')?.checked;
         const hasAddOns = addOnTotal > 0;
         const total = service.amount + consumable.amount + addOnTotal;
         return {
@@ -121,12 +178,15 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             serviceAmount: service.amount,
             kg: service.kg || 0,
             duration: service.duration,
+            machines: service.machines || [],
+            payLater,
             total,
             customer: customerFullName(app),
         };
     };
 
     const update = () => {
+        if (app._pickerFor !== app._bootstrap) renderMachinePicker();
         const s = buildSummary();
         app._lastSummary = s;
 
@@ -158,14 +218,14 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         toggle('[data-row-basket]', !s.selfService);
         toggle('[data-row-garments]', !s.selfService);
         toggle('[data-row-kg]', s.kg > 0);
-        toggle('[data-row-duration]', s.selfService && !!s.duration);
-        toggle('[data-row-service-type]', s.service.amount > 0);
+        toggle('[data-row-duration]', s.selfService && s.machines.length > 0);
+        toggle('[data-row-service-type]', !s.selfService && s.service.amount > 0);
         toggle('[data-row-consumable]', s.consumable.qty > 0);
 
         set('[data-summary-tag]', app.querySelector('[data-basket-tag]')?.value || '—');
         set('[data-summary-service]', s.selfService ? 'Self Service' : 'Drop Off');
         set('[data-summary-kg]', s.kg ? `${s.kg} kg` : '—');
-        set('[data-summary-duration]', s.duration ? `${s.duration} min` : '—');
+        set('[data-summary-duration]', s.machines.length ? machineSummaryText(s.machines) : '—');
         set('[data-summary-service-type]', s.service.label || '—');
         set('[data-summary-consumable]', s.consumable.qty > 0 ? `${s.consumable.label} × ${s.consumable.qty}` : '—');
         set('[data-total]', money(s.total));
@@ -179,23 +239,30 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
 
         const preview = app.querySelector('[data-kg-preview]');
         if (preview) {
-            preview.hidden = !(s.selfService && s.kg > 0);
+            preview.hidden = !(s.selfService && s.machines.length);
             const strong = preview.querySelector('strong');
             if (strong) {
-                const billable = Math.max(s.kg, MIN_BILLABLE_KG);
-                strong.textContent = `${money(s.service.amount)} (${billable} kg × ${money(s.service.rate)})`;
+                strong.textContent = `${money(s.service.amount)} (${s.machines.map((l) => `${l.name} ${l.minutes} min ${money(l.price)}`).join(' + ')})`;
             }
         }
-        const hint = app.querySelector('[data-duration-hint]');
+        const bar = app.querySelector('[data-machine-total]');
+        if (bar) {
+            bar.hidden = !(s.selfService && s.machines.length);
+            bar.innerHTML = `<span>${esc(machineSummaryText(s.machines))}</span><strong>${money(s.service.amount)}</strong>`;
+        }
+        const hint = app.querySelector('[data-capacity-hint]');
         if (hint) {
-            const sel = app.querySelector('[data-workflow="self_service"] [data-cycle-duration]');
-            hint.textContent = sel?.dataset.userSet ? 'Duration set manually.' : 'Suggested from weight when you enter kg.';
+            const cap = s.machines.reduce((sum, l) => sum + l.capacity, 0);
+            hint.classList.toggle('is-error', cap > 0 && s.kg > cap);
+            hint.textContent = cap > 0 && s.kg > cap
+                ? `Heavier than the selected washers hold (${cap} kg). Add another washer or lighten the load.`
+                : cap > 0 ? `Selected washers hold up to ${cap} kg.` : 'Price is per machine, not per kg.';
         }
 
         const saveBtn = app.querySelector('[data-save]');
         if (saveBtn) {
             saveBtn.disabled = !(s.hasLaundry || s.hasAddOns);
-            saveBtn.textContent = s.hasLaundry ? 'Save Transaction' : 'Save Purchase';
+            saveBtn.textContent = s.payLater ? 'Save (pay on release)' : s.hasLaundry ? 'Save Transaction' : 'Save Purchase';
         }
     };
 
@@ -219,10 +286,10 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         });
         const notes = app.querySelector('.notes-card textarea');
         if (notes) notes.value = '';
-        app.querySelectorAll('[data-cycle-duration]').forEach((el) => {
-            delete el.dataset.userSet;
-            el.value = '45';
-        });
+        picked().clear();
+        const later = app.querySelector('[data-pay-later]');
+        if (later) later.checked = false;
+        renderMachinePicker();
         const basketTag = app.querySelector('[data-basket-tag]');
         if (basketTag) {
             const used = basketTag.value;
@@ -259,8 +326,6 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const detergentQty = Number(workflow?.querySelector('[data-consumable-qty]')?.value || 0);
         const serviceSelect = workflow?.querySelector('[data-service-price]');
         const serviceId = Number(serviceSelect?.selectedOptions?.[0]?.dataset?.serviceId || 0) || null;
-        const machineId =
-            Number(workflow?.querySelector('[data-machine]')?.selectedOptions?.[0]?.dataset?.machineId || 0) || null;
         const customer = getSelectedCustomer(app);
         return {
             customer_id: customer?.id || null,
@@ -268,15 +333,15 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             basket_code: selfService ? null : app.querySelector('[data-basket-tag]')?.value || null,
             service_id: serviceId,
             service_amount: s.serviceAmount || 0,
-            machine_id: selfService ? machineId : null,
+            machines: selfService ? s.machines.map((l) => ({ machine_id: l.id, minutes: l.minutes })) : [],
+            pay_later: !!s.payLater,
             load_weight_kg: s.kg || null,
-            cycle_minutes: s.duration ? Number(s.duration) : null,
             detergent_item_id: detergentItemId,
             detergent_quantity: detergentQty,
             garments,
             items,
             notes: (app.querySelector('.notes-card textarea')?.value || '').trim(),
-            cash_tendered: cash,
+            cash_tendered: s.payLater ? null : cash,
             total_amount: s.total,
             client_token: app._payToken || null,
         };
@@ -296,10 +361,14 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const detail = (text) => rows.push(`<tr class="receipt-detail"><td colspan="2">${esc(text)}</td></tr>`);
 
         if (s.hasLaundry) {
-            line(`${s.selfService ? 'Self Service' : 'Drop Off'} – ${plain(s.service.label)}`, s.serviceAmount);
+            if (s.selfService) {
+                s.machines.forEach((l) => line(`${l.name} (${SIZE_LABEL[l.size] || l.size}) · ${l.minutes} min`, l.price));
+                detail(`Machines used: ${machineSummaryText(s.machines)}`);
+            } else {
+                line(`Drop Off – ${plain(s.service.label)}`, s.serviceAmount);
+            }
             if (s.kg) detail(`Load: ${s.kg} kg`);
             if (!s.selfService && s.garments) detail(`Garments: ${s.garments} pcs`);
-            if (s.selfService && s.duration) detail(`Cycle: ${s.duration} min`);
         }
         if (s.consumable.qty > 0) {
             line(`${plain(s.consumable.label)} × ${s.consumable.qty}`, s.consumable.amount);
@@ -316,26 +385,30 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             <hr>
             <table class="receipt-totals">
                 <tr class="receipt-grand"><td>Total</td><td>${money(s.total)}</td></tr>
-                <tr><td>Cash</td><td>${money(s.cashReceived)}</td></tr>
-                <tr><td>Change</td><td>${money(s.change)}</td></tr>
+                ${s.payLater ? '' : `<tr><td>Cash</td><td>${money(s.cashReceived)}</td></tr><tr><td>Change</td><td>${money(s.change)}</td></tr>`}
             </table>
-            <div class="receipt-paid">PAID</div>
+            <div class="receipt-paid">${s.payLater ? 'UNPAID – pay on release' : 'PAID'}</div>
             ${s.hasLaundry && !s.selfService ? `<div class="receipt-ready"><strong>Ready: ${esc(readyAt.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))}</strong><span>Please bring this receipt at pickup and claim within ${shop.claimDays} days.</span></div>` : ''}
             <p class="receipt-footer">Thank you for choosing ${esc(shop.name)}!</p>
             ${s.notifyUrl && s.hasLaundry && !s.selfService ? `<div class="receipt-notify"><img alt="QR code" width="110" height="110" loading="lazy" decoding="async" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(s.notifyUrl)}"><small>Scan for a pickup notification.</small></div>` : ''}
         </div>`;
     };
 
+    const payDue = () => (app._payMode === 'claim' ? Number(app._claim?.total || 0) : Number(app._lastSummary?.total || 0));
+
     const recalcPaymentChange = () => {
-        const s = app._lastSummary;
         const cashInput = document.querySelector('[data-payment-cash]');
         const changeEl = document.querySelector('[data-payment-change]');
         const err = document.querySelector('[data-payment-error]');
         const btn = document.querySelector('[data-confirm-payment]');
-        if (!s || !cashInput) return;
+        if (!cashInput) return;
+        if (app._payMode === 'later') {
+            if (btn) btn.disabled = false;
+            return;
+        }
         const cash = Number(cashInput.value);
-        const due = Number(s.total);
-        const ok = !Number.isNaN(cash) && cash + 1e-9 >= due;
+        const due = payDue();
+        const ok = !Number.isNaN(cash) && cashInput.value !== '' && cash + 1e-9 >= due;
         if (changeEl) changeEl.textContent = ok ? money(cash - due) : '—';
         const changeRow = document.querySelector('[data-payment-change-row]');
         if (changeRow) changeRow.hidden = !ok;
@@ -346,24 +419,44 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (btn) btn.disabled = !ok;
     };
 
-    const openPaymentModal = () => {
+    /** mode: 'new' (cash now) | 'later' (save unpaid) | 'claim' (collect when releasing). */
+    const openPaymentModal = (mode = 'new') => {
         const s = app._lastSummary;
-        if (!s) return;
+        if (mode !== 'claim' && !s) return;
+        app._payMode = mode;
+        const text = (sel, v) => {
+            const el = document.querySelector(sel);
+            if (el) el.textContent = v;
+        };
+        text('[data-payment-title]', { new: 'Record payment', later: 'Save without payment', claim: 'Collect payment' }[mode]);
+        text('[data-payment-hint]', {
+            new: 'Collect cash from the customer, then confirm to issue a receipt.',
+            later: 'No cash is taken now. The customer pays when the laundry is released, and it cannot be released until it is paid.',
+            claim: 'This laundry is unpaid. Collect the cash now, then it will be released to the customer.',
+        }[mode]);
+        const confirmBtn = document.querySelector('[data-confirm-payment]');
+        if (confirmBtn) confirmBtn.textContent = { new: 'Confirm payment', later: 'Save order', claim: 'Collect & release' }[mode];
+        const cashField = document.querySelector('[data-payment-cash-field]');
+        if (cashField) cashField.hidden = mode === 'later';
         const due = document.querySelector('[data-payment-due]');
-        if (due) due.value = money(s.total);
+        if (due) due.value = money(payDue());
         const summaryEl = document.querySelector('[data-payment-summary]');
         if (summaryEl) {
             const rows = [];
-            if (s.customer) rows.push(`<div><strong>Customer</strong><span>${esc(s.customer)}</span></div>`);
-            if (s.hasLaundry) {
-                rows.push(`<div><strong>Service</strong><span>${s.selfService ? 'Self Service' : 'Drop Off'} · ${esc(s.service.label)}</span></div>`);
+            if (mode === 'claim') {
+                rows.push(`<div><strong>Order #${esc(app._claim.id)}</strong><span>${money(app._claim.total)}</span></div>`);
+            } else {
+                if (s.customer) rows.push(`<div><strong>Customer</strong><span>${esc(s.customer)}</span></div>`);
+                if (s.hasLaundry) {
+                    rows.push(`<div><strong>Service</strong><span>${s.selfService ? 'Self Service' : 'Drop Off'} · ${esc(s.service.label)}</span></div>`);
+                }
+                if (s.consumable.qty > 0) {
+                    rows.push(`<div><strong>${esc(s.consumable.label)} × ${s.consumable.qty}</strong><span>${money(s.consumable.amount)}</span></div>`);
+                }
+                s.addOns.forEach((i) => {
+                    rows.push(`<div><strong>${esc(i.name)} × ${i.qty}</strong><span>${money(i.qty * i.price)}</span></div>`);
+                });
             }
-            if (s.consumable.qty > 0) {
-                rows.push(`<div><strong>${esc(s.consumable.label)} × ${s.consumable.qty}</strong><span>${money(s.consumable.amount)}</span></div>`);
-            }
-            s.addOns.forEach((i) => {
-                rows.push(`<div><strong>${esc(i.name)} × ${i.qty}</strong><span>${money(i.qty * i.price)}</span></div>`);
-            });
             summaryEl.innerHTML = rows.join('');
         }
         const changeRow = document.querySelector('[data-payment-change-row]');
@@ -372,21 +465,54 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (cash) cash.value = '';
         const err = document.querySelector('[data-payment-error]');
         if (err) err.hidden = true;
-        const btn = document.querySelector('[data-confirm-payment]');
-        if (btn) btn.disabled = true;
+        if (confirmBtn) confirmBtn.disabled = mode !== 'later';
         app._payToken = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
         const changeEl = document.querySelector('[data-payment-change]');
         if (changeEl) changeEl.textContent = '—';
         showModal('[data-payment-modal]');
     };
 
+    const showPayError = (message) => {
+        const payErr = document.querySelector('[data-payment-error]');
+        if (payErr) {
+            payErr.hidden = false;
+            payErr.textContent = message;
+        }
+    };
+
+    /** Collect payment for an unpaid order as it is released to the customer. */
+    const confirmClaim = async () => {
+        const cashInput = document.querySelector('[data-payment-cash]');
+        const cash = Number(cashInput?.value);
+        const due = payDue();
+        if (Number.isNaN(cash) || cash + 1e-9 < due) return recalcPaymentChange();
+        const confirmBtn = document.querySelector('[data-confirm-payment]');
+        if (confirmBtn) confirmBtn.disabled = true;
+        try {
+            const r = await api(`/ajax/staff/transactions/${app._claim.id}/status`, { method: 'PATCH', body: JSON.stringify({ status: 'claimed', cash_tendered: cash }) });
+            hideModal('[data-payment-modal]');
+            openNotice('Paid and released', `Order #${app._claim.id} is paid. Change ${money(r.change_given ?? cash - due)}.`, 'success');
+            if (typeof loadStaffBootstrap === 'function') loadStaffBootstrap();
+        } catch (err) {
+            showPayError(err.message || 'Could not release this order.');
+            if (confirmBtn) confirmBtn.disabled = false;
+        }
+    };
+
+    const collectOnRelease = (id, total) => {
+        app._claim = { id, total: Number(total) };
+        openPaymentModal('claim');
+    };
+
     const confirmPayment = async () => {
+        if (app._payMode === 'claim') return confirmClaim();
         const s = app._lastSummary;
         const cashInput = document.querySelector('[data-payment-cash]');
         if (!s || !cashInput) return;
-        const cash = Number(cashInput.value);
+        const later = app._payMode === 'later';
+        const cash = later ? 0 : Number(cashInput.value);
         const due = Number(s.total);
-        if (Number.isNaN(cash) || cash + 1e-9 < due) {
+        if (!later && (Number.isNaN(cash) || cash + 1e-9 < due)) {
             recalcPaymentChange();
             return;
         }
@@ -399,7 +525,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
                 body: JSON.stringify(payload),
             });
             s.cashReceived = cash;
-            s.change = result.change_given ?? cash - due;
+            s.change = later ? 0 : result.change_given ?? cash - due;
             if (result.transaction?.id) s.receiptId = result.transaction.id;
             s.createdAt = result.transaction?.created_at || new Date().toISOString();
             app._receiptTransactionId = s.receiptId;
@@ -421,20 +547,18 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             showModal('[data-receipt-modal]');
             const notice = app.querySelector('[data-save-notice]');
             if (notice) {
-                notice.textContent = s.hasLaundry
-                    ? `Saved #${result.transaction?.id || ''} · paid · change ${money(s.change)}`
-                    : `Purchase saved · change ${money(s.change)}`;
+                notice.textContent = later
+                    ? `Saved #${result.transaction?.id || ''} · unpaid · collect ${money(s.total)} on release`
+                    : s.hasLaundry
+                      ? `Saved #${result.transaction?.id || ''} · paid · change ${money(s.change)}`
+                      : `Purchase saved · change ${money(s.change)}`;
                 notice.classList.remove('is-error');
             }
             resetTransactionForm();
             if (typeof loadStaffBootstrap === 'function') loadStaffBootstrap();
             if (confirmBtn) confirmBtn.disabled = false;
         } catch (err) {
-            const payErr = document.querySelector('[data-payment-error]');
-            if (payErr) {
-                payErr.hidden = false;
-                payErr.textContent = err.message || 'Could not save transaction.';
-            }
+            showPayError(err.message || 'Could not save transaction.');
             // A failed attempt saved nothing, so the retry gets a fresh payment token.
             app._payToken = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
             if (confirmBtn) confirmBtn.disabled = false;
@@ -455,7 +579,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         if (!s || (!s.hasLaundry && !s.hasAddOns)) {
             if (notice) {
                 notice.textContent = isSelfService()
-                    ? 'Enter load weight (kg) or add snacks before saving.'
+                    ? 'Pick a machine or add snacks before saving.'
                     : 'Add garments or snacks before saving.';
                 notice.classList.add('is-error');
             }
@@ -468,9 +592,9 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             }
             return;
         }
-        if (s.selfService && !(s.kg > 0)) {
+        if (s.selfService && !s.machines.length) {
             if (notice) {
-                notice.textContent = 'Enter load weight in kg for self-service pricing.';
+                notice.textContent = 'Pick at least one washer or dryer.';
                 notice.classList.add('is-error');
             }
             return;
@@ -479,7 +603,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             notice.textContent = '';
             notice.classList.remove('is-error');
         }
-        openPaymentModal();
+        openPaymentModal(s.payLater ? 'later' : 'new');
     };
 
     /** Transaction UI clicks (garments, service toggle, basket, payment, etc.) */
@@ -494,6 +618,21 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             app.querySelectorAll('[data-workflow]').forEach((w) => {
                 w.hidden = w.dataset.workflow !== mode;
             });
+            update();
+            return true;
+        }
+
+        const pick = t.closest('[data-pick-machine]');
+        if (pick) {
+            e.preventDefault();
+            const id = Number(pick.dataset.pickMachine);
+            if (picked().has(id)) {
+                picked().delete(id);
+            } else {
+                const m = machines().find((x) => x.id === id);
+                picked().set(id, m?.type === 'dryer' ? dryMinutesFor(m.size)[0] : WASH_MINUTES);
+            }
+            renderMachinePicker();
             update();
             return true;
         }
@@ -682,21 +821,18 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             const n = Math.floor(Number(t.value));
             t.value = String(Number.isFinite(n) ? Math.min(99, Math.max(0, n)) : 0);
         }
+        if (t.matches('[data-pick-minutes]')) {
+            picked().set(Number(t.dataset.pickMinutes), Number(t.value));
+            update();
+            return true;
+        }
         if (
             t.matches('[data-load-kg]') ||
             t.matches('[data-consumable]') ||
             t.matches('[data-consumable-qty]') ||
             t.matches('[data-service-price]') ||
-            t.matches('[data-cycle-duration]')
+            t.matches('[data-pay-later]')
         ) {
-            const workflow = t.closest('[data-workflow]');
-            const durationSel = workflow?.querySelector('[data-cycle-duration]');
-            if (t.matches('[data-cycle-duration]')) {
-                t.dataset.userSet = '1';
-            } else if (t.matches('[data-load-kg]') && durationSel && !durationSel.dataset.userSet) {
-                const suggested = suggestDuration(getLoadKg(workflow));
-                if (suggested) durationSel.value = String(suggested);
-            }
             update();
             return true;
         }
@@ -713,5 +849,6 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         handleTransactionClick,
         handleTransactionInput,
         activeWorkflow,
+        collectOnRelease,
     };
 }
