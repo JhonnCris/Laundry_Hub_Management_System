@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\BillStatement;
 use App\Models\FinanceTransaction;
 use App\Models\InventoryAdjustment;
 use App\Models\InventoryCategory;
@@ -260,6 +261,15 @@ class AdminApiController extends Controller
                 ->values();
         }
 
+        $expensesByCategory = FinanceTransaction::query()->where('type', 'expense')
+            ->whereBetween('transaction_date', [$fromDate->toDateString(), $toDate->toDateString()])
+            ->get(['category', 'amount'])
+            ->groupBy(fn ($f) => $f->category ?? 'other')
+            ->map(fn ($rows, $category) => ['category' => $category, 'amount' => round((float) $rows->sum('amount'), 2)])
+            ->sortByDesc('amount')->values();
+
+        $billsAttention = BillStatement::needingAttention()->map->toRow();
+
         $inventoryValue = $inventory->sum(fn ($i) => (float) $i->unit_price * (int) $i->quantity_on_hand);
 
         return response()->json([
@@ -298,6 +308,7 @@ class AdminApiController extends Controller
             'machines' => $machines,
             'machine_rates' => MachineRate::query()->orderBy('size')->orderBy('kind')->orderBy('minutes')->get(),
             'machines_attention' => $machinesMaintenance,
+            'bills_attention' => $billsAttention,
             'inventory' => $inventory,
             'categories' => $categories,
             'services' => $services,
@@ -308,6 +319,7 @@ class AdminApiController extends Controller
             'analytics' => [
                 'sales_by_day' => $salesSeries,
                 'expenses_by_day' => $expenseByDay,
+                'expenses_by_category' => $expensesByCategory,
                 'service_mix' => $serviceMix,
                 'type_mix' => $typeMix,
                 'popular_products' => $popularProducts,
@@ -573,6 +585,7 @@ class AdminApiController extends Controller
                 }
                 FinanceTransaction::query()->create([
                     'type' => 'expense',
+                    'category' => 'stock',
                     'inventory_restock_id' => $row->id,
                     'description' => $desc,
                     'amount' => $data['cost'],

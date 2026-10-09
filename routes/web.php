@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminApiController;
+use App\Http\Controllers\BillsApiController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotifyController;
 use App\Http\Controllers\StaffApiController;
@@ -81,6 +82,12 @@ Route::middleware(['auth', 'verified', 'can:admin', 'throttle:120,1'])->prefix('
     Route::post('notifications/{notification}/read', [AdminApiController::class, 'readNotification']);
     Route::post('inventory', [AdminApiController::class, 'storeInventoryItem']);
     Route::patch('inventory/{item}', [AdminApiController::class, 'updateInventoryItem']);
+    Route::get('bills', [BillsApiController::class, 'index']);
+    Route::post('bills', [BillsApiController::class, 'storeBill']);
+    Route::patch('bills/{bill}', [BillsApiController::class, 'updateBill']);
+    Route::post('bill-statements/{statement}/payments', [BillsApiController::class, 'storePayment']);
+    Route::post('expenses', [BillsApiController::class, 'storeExpense']);
+    Route::post('expenses/{expense}/void', [BillsApiController::class, 'voidExpense']);
     Route::post('categories', [AdminApiController::class, 'storeCategory']);
     Route::patch('categories/{category}', [AdminApiController::class, 'updateCategory']);
     Route::delete('categories/{category}', [AdminApiController::class, 'destroyCategory']);

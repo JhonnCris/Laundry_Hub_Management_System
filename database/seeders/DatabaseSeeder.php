@@ -129,7 +129,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // ── Inventory categories & items ─────────────────────────────────────
-        DB::table('inventory_categories')->insert(
+        DB::table('inventory_categories')->insertOrIgnore(
             collect(['Detergent', 'Consumable', 'Snack/Drink', 'Supply'])
                 ->map(fn (string $name) => [
                     'name' => $name,

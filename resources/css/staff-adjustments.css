@@ -2218,6 +2218,23 @@ button.outline-action:hover,
 [data-panel="manage-inventory"] .table-card .order-row.cat-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(170px, auto) !important; }
 [data-panel="manage-inventory"] .cat-row .user-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
 [data-panel="manage-inventory"] .cat-row .user-actions button { padding: 5px 12px !important; font-size: 0.72rem !important; }
+.bills-month { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; }
+.bills-month input[type="month"] { border: 1px solid var(--staff-input-border); border-radius: 9px; background: var(--staff-input-bg); color: var(--staff-input-text); padding: 8px 12px; font-size: 13px; }
+.bills-month .pager-btn { min-width: 38px; }
+[data-panel="bills"] .bill-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, .6fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, .9fr) minmax(0, .9fr) minmax(90px, auto); }
+[data-panel="bills"] .exp-row { grid-template-columns: minmax(0, .6fr) minmax(0, 1.8fr) minmax(0, .8fr) minmax(0, .9fr) minmax(0, .9fr) minmax(90px, auto); }
+[data-panel="bills"] .tpl-row { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, .9fr) minmax(0, .7fr) minmax(70px, auto); }
+[data-panel="bills"] .bill-row > strong small { display: block; font-weight: 400; color: var(--staff-muted); font-size: .75rem; margin-top: 2px; }
+[data-panel="bills"] .bill-row .user-actions, [data-panel="bills"] .exp-row .user-actions, [data-panel="bills"] .tpl-row .user-actions { display: flex; gap: 6px; justify-content: flex-end; }
+[data-panel="bills"] .bill-row .user-actions button, [data-panel="bills"] .exp-row .user-actions button, [data-panel="bills"] .tpl-row .user-actions button { padding: 5px 12px !important; font-size: 0.72rem !important; }
+.rank-fill.is-expense { background: #e0a56f; }
+@media (max-width: 860px) {
+    [data-panel="bills"] .bill-row, [data-panel="bills"] .exp-row, [data-panel="bills"] .tpl-row { grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+    [data-panel="bills"] .bill-row.order-head, [data-panel="bills"] .exp-row.order-head, [data-panel="bills"] .tpl-row.order-head { display: none; }
+    [data-panel="bills"] .bill-row > strong, [data-panel="bills"] .exp-row > strong, [data-panel="bills"] .tpl-row > strong { grid-column: 1 / -1; }
+    [data-panel="bills"] .bill-row > [data-label]::before, [data-panel="bills"] .exp-row > [data-label]::before, [data-panel="bills"] .tpl-row > [data-label]::before { content: attr(data-label); display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--staff-muted); }
+    [data-panel="bills"] .bill-row .num, [data-panel="bills"] .exp-row .num, [data-panel="bills"] .tpl-row .num { text-align: left; }
+}
 .section-heading-wrap { flex-wrap: wrap; gap: 4px 16px; align-items: center; }
 .rate-row { grid-template-columns: minmax(0, .8fr) minmax(0, 1.1fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(130px, auto); }
 .rate-row input, .rate-row select { border: 1px solid var(--staff-input-border); border-radius: 9px; background: var(--staff-input-bg); color: var(--staff-input-text); padding: 8px 10px; font-size: 13px; width: 100%; }
@@ -2229,3 +2246,5 @@ button.outline-action:hover,
     .rate-row, .cat-row { grid-template-columns: 1fr 1fr; }
     .rate-row .user-actions, .cat-row .user-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+[data-panel="bills"] .order-row { gap: 6px 18px; }

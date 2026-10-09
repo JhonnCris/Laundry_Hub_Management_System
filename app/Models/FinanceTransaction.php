@@ -10,6 +10,9 @@ class FinanceTransaction extends Model
     protected $fillable = [
         'type',
         'description',
+        'category',
+        'bill_statement_id',
+        'reference_no',
         'amount',
         'staff_id',
         'laundry_transaction_id',

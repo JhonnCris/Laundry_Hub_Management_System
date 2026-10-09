@@ -329,6 +329,11 @@ const ACTION_LABELS = {
     'machine.updated': 'Edited machine',
     'machine.deleted': 'Deleted machine',
     'report.exported': 'Exported report',
+    'bill.created': 'Added bill',
+    'bill.updated': 'Edited bill',
+    'bill.payment_recorded': 'Paid a bill',
+    'expense.recorded': 'Added expense',
+    'expense.voided': 'Removed expense',
 };
 
 export function loadAudit(app, page = 1) {
@@ -623,6 +628,15 @@ function renderAlerts(app, data) {
             level: 'urgent',
             title: `Machine: ${m.name}`,
             body: `Status: ${(m.status || '').replace(/_/g, ' ')} · ${m.type || ''}`,
+        });
+    });
+    (data.bills_attention || []).forEach((b) => {
+        const overdue = b.timing === 'overdue';
+        const left = b.balance == null ? 'amount not entered yet' : `${money(b.balance)} left`;
+        alerts.push({
+            level: 'urgent',
+            title: `${overdue ? 'Overdue' : 'Due soon'}: ${b.name}`,
+            body: `${left} · due ${b.due_date}`,
         });
     });
     const m = data.metrics || {};
@@ -946,9 +960,30 @@ function openActivityDetail(app, txId) {
 }
 
 
+const EXPENSE_CATEGORY = { utilities: 'Utilities', rent: 'Rent', tax: 'Tax', supplies: 'Supplies', repairs: 'Repairs', other: 'Other', stock: 'Stock' };
+
+/** Horizontal bars of expenses per category, biggest first. */
+function renderCategoryBars(container, items) {
+    if (!container) return;
+    if (!items || !items.length) {
+        container.innerHTML = '<p class="chart-empty">No expenses in this range.</p>';
+        return;
+    }
+    const max = Math.max(...items.map((i) => Number(i.amount) || 0), 1);
+    const total = items.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+    container.innerHTML = items
+        .map((i, n) => {
+            const w = Math.max(3, Math.round(((Number(i.amount) || 0) / max) * 100));
+            const name = EXPENSE_CATEGORY[i.category] || i.category;
+            return `<div class="rank-row"><span class="rank-no">${n + 1}</span><span class="rank-name" title="${esc(name)}">${esc(name)}</span><div class="rank-track"><div class="rank-fill is-expense" style="width:${w}%"></div></div><span class="rank-qty">${money(i.amount)} · ${Math.round(((Number(i.amount) || 0) / total) * 100)}%</span></div>`;
+        })
+        .join('');
+}
+
 function renderSummaryAnalytics(app, data) {
     const m = data.metrics || {};
     const an = data.analytics || {};
+    renderCategoryBars(app.querySelector('[data-sum-expense-categories]'), an.expenses_by_category);
     const set = (sel, val) => {
         const el = app.querySelector(sel);
         if (el) el.textContent = val;
@@ -1172,10 +1207,13 @@ function buildExpensesReport(app, data) {
         ...exportMeta(app, 'expenses'),
         ['Total expenses', m.period_expenses ?? 0],
         [],
-        H(['Expense records', 'Description', 'Recorded by', 'Amount']),
+        H(['Expense records', 'Description', 'Category', 'Recorded by', 'Amount']),
         ...(data.finance || [])
             .filter((f) => f.type === 'expense')
-            .map((f) => ['Expense', f.description || '', f.staff?.name || '', f.amount ?? 0]),
+            .map((f) => ['Expense', f.description || '', EXPENSE_CATEGORY[f.category] || 'Other', f.staff?.name || '', f.amount ?? 0]),
+        [],
+        H(['Expenses by category', 'Amount']),
+        ...((data.analytics || {}).expenses_by_category || []).map((c) => [EXPENSE_CATEGORY[c.category] || c.category, c.amount]),
         [],
         H(['Expenses by day', 'Amount']),
         ...((data.analytics || {}).expenses_by_day || []).map((d) => [d.date, d.amount]),

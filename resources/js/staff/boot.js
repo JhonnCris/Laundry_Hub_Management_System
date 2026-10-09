@@ -8,6 +8,7 @@ import { handleInventoryClick } from './inventory.js';
 import { handleHistorySearch, handleQueueClick } from './queue.js';
 import { handleAdminClick, loadAdminBootstrap, loadAudit, renderFinanceFiltered } from './admin.js';
 import { handleNavigationClick } from './navigation.js';
+import { handleBillsClick, loadBills } from './bills.js';
 import { loadStaffBootstrap, renderBaskets } from './bootstrap.js';
 import { toast } from './core.js';
 import { applyLocale, currentLocale } from './i18n.js';
@@ -57,11 +58,13 @@ export function bootStaffApp() {
 
         if (t.closest('[data-screen="sales"]')) loadSales(app);
         if (t.closest('[data-screen="audit"]')) loadAudit(app, 1);
+        if (t.closest('[data-screen="bills"]')) loadBills(app);
         if (handleModalClick(t, e)) return;
         if (handleNavigationClick(t, e, ctx)) return;
         if (handleAttendanceClick(t, e, ctx)) return;
         if (handleCustomerClick(t, e, ctx)) return;
         if (handleAdminClick(t, e, ctx)) return;
+        if (handleBillsClick(t, e, ctx)) return;
         if (handleInventoryClick(t, e, ctx)) return;
         if (handleQueueClick(t, e, ctx)) return;
         if (handleSalesClick(t, e, app, showModal)) return;

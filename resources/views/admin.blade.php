@@ -27,6 +27,10 @@
             <svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12zM6 6L5 3H2M9 20a1 1 0 100-2 1 1 0 000 2zm8 0a1 1 0 100-2 1 1 0 000 2z"/></svg>
             <span>Stock Receiving</span>
         </button>
+        <button data-screen="bills" type="button">
+            <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></svg>
+            <span>Bills &amp; Expenses</span>
+        </button>
         <button data-screen="manage-pricing" type="button">
             <svg viewBox="0 0 24 24"><path d="M20 12l-8 8-9-9V3h8zM7.5 7.5h.01"/></svg>
             <span>Manage Pricing</span>
@@ -211,6 +215,11 @@
             </section>
         </div>
 
+        <section class="staff-card full-card" style="margin-top:18px">
+            <div class="section-heading"><h2>Expenses by category</h2><small style="color:var(--staff-muted)">Where the money went in this range</small></div>
+            <div data-sum-expense-categories><p class="chart-empty">Loading expenses…</p></div>
+        </section>
+
         <section class="staff-card full-card table-card" data-sum-finance-card style="margin-top:18px">
             <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
                 <h2 data-sum-finance-title style="margin:0">Finance activity</h2>
@@ -306,6 +315,43 @@
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span class="num">Invoiced</span><span class="num">Received qty</span><span>Inventory</span></div>
             <div data-admin-restock-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading receipts…</span></div></div>
+        </section>
+    </section>
+
+    {{-- Admin: Bills & Expenses --}}
+    <section class="prototype-panel" data-panel="bills">
+        <div class="page-intro">
+            <div>
+                <p class="eyebrow">Admin · Expenses</p>
+                <h1>Bills &amp; Expenses</h1>
+                <p>Monthly bills such as electricity, water, rent and tax. Each bill is due on the last day of the month and can be paid in parts. Payments count as expenses in Sales &amp; Summary.</p>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="action-btn-secondary" type="button" data-open-add-expense>Add expense →</button><button class="action-btn-primary" type="button" data-open-add-bill>Add bill →</button></div>
+        </div>
+        <div class="bills-month">
+            <button type="button" class="pager-btn" data-bills-prev aria-label="Previous month">‹</button>
+            <input type="month" data-bills-month aria-label="Month">
+            <button type="button" class="pager-btn" data-bills-next aria-label="Next month">›</button>
+        </div>
+        <div class="metric-grid">
+            <article><span>Billed this month</span><strong data-bills-billed>—</strong><small>Total of bills with an amount</small></article>
+            <article><span>Paid so far</span><strong data-bills-paid>—</strong><small>Payments on these bills</small></article>
+            <article><span>Left to pay</span><strong data-bills-left>—</strong><small>Due on the last day of the month</small></article>
+        </div>
+        <section class="staff-card full-card table-card">
+            <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2 data-bills-heading>Bills this month</h2></div>
+            <div class="order-row order-head bill-row"><span>Bill</span><span>Due</span><span class="num">Billed</span><span class="num">Paid</span><span class="num">Left</span><span>Status</span><span>Action</span></div>
+            <div data-bill-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Open this screen to load bills…</span></div></div>
+        </section>
+        <section class="staff-card full-card table-card" style="margin-top:18px">
+            <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2>Expenses this month</h2><small data-expenses-total style="color:var(--staff-muted)"></small></div>
+            <div class="order-row order-head exp-row"><span>Date</span><span>Description</span><span>Category</span><span>Reference</span><span class="num">Amount</span><span>Action</span></div>
+            <div data-expense-rows></div>
+        </section>
+        <section class="staff-card full-card table-card" style="margin-top:18px">
+            <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2>Manage bills</h2><small style="color:var(--staff-muted)">Stopped bills no longer appear on new months</small></div>
+            <div class="order-row order-head tpl-row"><span>Bill</span><span>Payee</span><span>Category</span><span class="num">Usual amount</span><span>Status</span><span>Action</span></div>
+            <div data-bill-template-rows></div>
         </section>
     </section>
 
@@ -437,6 +483,97 @@
         <div class="modal-actions">
             <button type="button" class="text-button" data-close-service>Cancel</button>
             <button type="button" class="save-button" data-confirm-service>Save service</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-pay-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-pay type="button">×</button>
+        <h2 data-pay-title>Record payment</h2>
+        <p class="modal-hint" data-pay-hint></p>
+        <input type="hidden" data-pay-statement-id>
+        <label class="modal-field">Amount on the bill (₱)<input type="number" data-pay-billed min="0" step="0.01" inputmode="decimal"></label>
+        <label class="modal-field">Paying now (₱)<input type="number" data-pay-amount min="0" step="0.01" inputmode="decimal"></label>
+        <label class="modal-field">Date paid<input type="date" data-pay-date></label>
+        <label class="modal-field">Reference / OR number <small>(optional)</small><input type="text" data-pay-reference maxlength="80"></label>
+        <label class="modal-field">Notes <small>(optional)</small><input type="text" data-pay-notes maxlength="255"></label>
+        <p class="modal-error" data-pay-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-pay>Cancel</button>
+            <button type="button" class="save-button" data-confirm-pay>Record payment</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-bill-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-bill type="button">×</button>
+        <h2 data-bill-modal-title>Add bill</h2>
+        <p class="modal-hint">A bill that repeats every month and is due on the last day of the month.</p>
+        <input type="hidden" data-bill-id>
+        <label class="modal-field">Name<input type="text" data-bill-name maxlength="120" placeholder="e.g. Internet"></label>
+        <label class="modal-field">Payee <small>(optional)</small><input type="text" data-bill-payee maxlength="120"></label>
+        <label class="modal-field">Category
+            <select data-bill-category>
+                <option value="utilities">Utilities</option>
+                <option value="rent">Rent</option>
+                <option value="tax">Tax</option>
+                <option value="supplies">Supplies</option>
+                <option value="repairs">Repairs</option>
+                <option value="other">Other</option>
+            </select>
+        </label>
+        <label class="modal-field">Usual amount (₱) <small>(leave empty if it changes every month)</small><input type="number" data-bill-usual min="0" step="0.01" inputmode="decimal"></label>
+        <label class="modal-field">Status
+            <select data-bill-active><option value="1">Active</option><option value="0">Stopped</option></select>
+        </label>
+        <p class="modal-error" data-bill-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-bill>Cancel</button>
+            <button type="button" class="save-button" data-confirm-bill>Save bill</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-expense-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-expense type="button">×</button>
+        <h2>Add expense</h2>
+        <p class="modal-hint">For one-time costs that are not a monthly bill, such as a repair or supplies.</p>
+        <label class="modal-field">What was paid for<input type="text" data-exp-description maxlength="160" placeholder="e.g. Hose replacement"></label>
+        <label class="modal-field">Category
+            <select data-exp-category>
+                <option value="supplies">Supplies</option>
+                <option value="repairs">Repairs</option>
+                <option value="utilities">Utilities</option>
+                <option value="rent">Rent</option>
+                <option value="tax">Tax</option>
+                <option value="other">Other</option>
+            </select>
+        </label>
+        <label class="modal-field">Amount (₱)<input type="number" data-exp-amount min="0" step="0.01" inputmode="decimal"></label>
+        <label class="modal-field">Date paid<input type="date" data-exp-date></label>
+        <label class="modal-field">Reference / OR number <small>(optional)</small><input type="text" data-exp-reference maxlength="80"></label>
+        <p class="modal-error" data-exp-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-expense>Cancel</button>
+            <button type="button" class="save-button" data-confirm-expense>Save expense</button>
+        </div>
+    </section>
+</div>
+
+<div class="modal-backdrop" data-void-modal hidden>
+    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
+        <button class="modal-close" data-close-void type="button">×</button>
+        <h2>Remove this entry?</h2>
+        <p class="modal-hint">Use this for a payment or expense entered by mistake. It is removed from expenses and the reason is kept in the Activity Log.</p>
+        <input type="hidden" data-void-id>
+        <label class="modal-field">Reason<input type="text" data-void-reason maxlength="200" placeholder="e.g. Entered twice"></label>
+        <p class="modal-error" data-void-error hidden></p>
+        <div class="modal-actions">
+            <button type="button" class="text-button" data-close-void>Cancel</button>
+            <button type="button" class="action-btn-danger" data-confirm-void>Remove entry</button>
         </div>
     </section>
 </div>
