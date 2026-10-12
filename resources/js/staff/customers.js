@@ -71,7 +71,7 @@ export function goToTransactionsForCustomer(app, customer, updateFn) {
  * @returns {boolean} true if event handled
  */
 export function handleCustomerClick(t, e, ctx) {
-    const { app, showModal, hideModal, openNotice, update } = ctx;
+    const { app, showModal, hideModal, openNotice, openConfirm, update } = ctx;
 
     if (t.closest('[data-change-customer]')) {
         e.preventDefault();
@@ -121,7 +121,7 @@ export function handleCustomerClick(t, e, ctx) {
             }
             return true;
         }
-        api('/ajax/staff/customers', {
+        const save = (confirmShared = false) => api('/ajax/staff/customers', {
             method: 'POST',
             body: JSON.stringify({
                 first_name: first,
@@ -130,6 +130,7 @@ export function handleCustomerClick(t, e, ctx) {
                 contact_number: phone,
                 email: email || null,
                 address: address || null,
+                confirm_shared_phone: confirmShared,
             }),
         })
             .then((r) => {
@@ -144,11 +145,27 @@ export function handleCustomerClick(t, e, ctx) {
                 ctx.loadStaffBootstrap?.();
             })
             .catch((ex) => {
+                const code = ex.body?.code;
+                if (code === 'duplicate') {
+                    // Same person already on file: offer to use that record instead of creating another.
+                    const existing = ex.body.customer;
+                    openConfirm('Customer already exists', `${ex.message} Open their record and start a transaction?`, () => {
+                        hideModal('[data-add-customer-modal]');
+                        goToTransactionsForCustomer(app, existing, update);
+                    });
+                    return;
+                }
+                if (code === 'phone_shared') {
+                    // Different person, same number (e.g. family): allowed, but staff must confirm.
+                    openConfirm('Phone number already used', `${ex.message} Add this as a separate customer anyway?`, () => save(true));
+                    return;
+                }
                 if (err) {
                     err.hidden = false;
                     err.textContent = ex.message;
                 }
             });
+        save();
         return true;
     }
 

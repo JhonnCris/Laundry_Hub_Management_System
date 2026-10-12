@@ -20,9 +20,10 @@ const STATUS_HELP = {
 
 /** Error with a message that is safe to show to staff, plus the HTTP status (0 = no connection). */
 export class ApiError extends Error {
-    constructor(message, status = 0) {
+    constructor(message, status = 0, body = null) {
         super(message);
         this.status = status;
+        this.body = body;
     }
 }
 
@@ -60,7 +61,7 @@ export async function api(url, options = {}) {
         const msg = res.status >= 500
             ? 'Something went wrong on the server. Please try again; if it keeps happening, tell the admin.'
             : STATUS_HELP[res.status === 403 && explained ? 0 : res.status] || explained || `Request failed (${res.status}). Please try again.`;
-        throw new ApiError(msg, res.status);
+        throw new ApiError(msg, res.status, body);
     }
     if (body === null) {
         throw new ApiError(`The server sent an unreadable reply (status ${res.status}). Please refresh; if it keeps happening, check the server logs.`, res.status);

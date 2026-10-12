@@ -46,3 +46,36 @@ it('still accepts a customer created with only a display name (older records)', 
 
     expect($customer->fresh()->name)->toBe('Legacy Customer')->and($customer->first_name)->toBeNull();
 });
+
+it('refuses a customer who already exists, even when the phone is written differently', function () {
+    $staff = staffForNames();
+    $first = $this->actingAs($staff)->postJson('/ajax/staff/customers', ['first_name' => 'Ana', 'last_name' => 'Reyes', 'contact_number' => '09171234567'])->assertCreated();
+
+    $this->actingAs($staff)->postJson('/ajax/staff/customers', ['first_name' => ' ana ', 'last_name' => 'REYES', 'contact_number' => '+63 917 123 4567'])
+        ->assertStatus(409)
+        ->assertJsonPath('code', 'duplicate')
+        ->assertJsonPath('customer.id', $first->json('customer.id'));
+
+    expect(Customer::count())->toBe(1);
+});
+
+it('asks for confirmation when a different person uses the same phone, then allows it', function () {
+    $staff = staffForNames();
+    $this->actingAs($staff)->postJson('/ajax/staff/customers', ['first_name' => 'Ana', 'last_name' => 'Reyes', 'contact_number' => '09171234567'])->assertCreated();
+    $other = ['first_name' => 'Ben', 'last_name' => 'Reyes', 'contact_number' => '09171234567'];
+
+    $this->actingAs($staff)->postJson('/ajax/staff/customers', $other)->assertStatus(409)->assertJsonPath('code', 'phone_shared');
+    expect(Customer::count())->toBe(1);
+
+    $this->actingAs($staff)->postJson('/ajax/staff/customers', $other + ['confirm_shared_phone' => true])->assertCreated();
+    expect(Customer::count())->toBe(2);
+});
+
+it('lists duplicate customers without changing anything', function () {
+    Customer::create(['first_name' => 'Ana', 'last_name' => 'Reyes', 'contact_number' => '09171234567']);
+    Customer::create(['first_name' => 'Ana', 'last_name' => 'Reyes', 'contact_number' => '+639171234567']);
+    Customer::create(['first_name' => 'Ben', 'last_name' => 'Reyes', 'contact_number' => '09171234567']);
+
+    $this->artisan('customers:duplicates')->expectsOutputToContain('Ana Reyes')->assertSuccessful();
+    expect(Customer::count())->toBe(3);
+});

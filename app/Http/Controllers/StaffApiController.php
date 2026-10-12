@@ -894,8 +894,37 @@ class StaffApiController extends Controller
             'address' => ['nullable', 'string', 'max:255'],
         ]);
 
-        // `name` (the display name) is rebuilt from the three parts by the Customer model.
-        $customer = Customer::query()->create($data);
+        $request->validate(['confirm_shared_phone' => ['nullable', 'boolean']]);
+        $key = Customer::phoneKey($data['contact_number']);
+
+        // Two staff saving the same person at the same moment must not both get through.
+        $outcome = Cache::lock('customer-add:'.($key ?? uniqid()), 5)->block(3, function () use ($data, $key, $request) {
+            $sameNumber = $key ? Customer::query()->where('phone_key', $key)->get() : collect();
+            $norm = fn (?string $v) => mb_strtolower(trim((string) $v));
+            $display = collect([$data['first_name'], $data['middle_name'] ?? null, $data['last_name']])->filter()->implode(' ');
+
+            $same = $sameNumber->first(fn (Customer $c) => ($norm($c->first_name) === $norm($data['first_name']) && $norm($c->last_name) === $norm($data['last_name'])) || $norm($c->name) === $norm($display));
+            if ($same) {
+                return response()->json([
+                    'code' => 'duplicate',
+                    'message' => "{$same->name} is already a customer with this phone number.",
+                    'customer' => $same->only(['id', 'name', 'contact_number', 'email']),
+                ], 409);
+            }
+            if ($sameNumber->isNotEmpty() && ! $request->boolean('confirm_shared_phone')) {
+                return response()->json([
+                    'code' => 'phone_shared',
+                    'message' => 'This phone number is already used by '.$sameNumber->pluck('name')->implode(', ').'.',
+                ], 409);
+            }
+
+            // `name` (the display name) is rebuilt from the three parts by the Customer model.
+            return Customer::query()->create($data);
+        });
+        if ($outcome instanceof JsonResponse) {
+            return $outcome;
+        }
+        $customer = $outcome;
 
         return response()->json([
             'message' => 'Customer created',
