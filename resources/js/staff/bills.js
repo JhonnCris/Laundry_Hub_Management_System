@@ -37,8 +37,23 @@ function render(app, data) {
     if (input) input.value = data.month;
 
     const rows = app.querySelector('[data-bill-rows]');
-    rows.innerHTML = data.statements.length
-        ? data.statements
+    const billsKpi = app._billsKpi || 'all';
+    const statements = data.statements.filter((statement) => {
+        if (billsKpi === 'billed') return statement.amount_due != null;
+        if (billsKpi === 'paid') return Number(statement.paid) > 0;
+        if (billsKpi === 'outstanding') return Number(statement.balance) > 0;
+        return true;
+    });
+    const emptyBillsMessage =
+        billsKpi === 'paid'
+            ? 'No bills have payments this month.'
+            : billsKpi === 'outstanding'
+              ? 'No bills have a remaining balance this month.'
+              : billsKpi === 'billed'
+                ? 'No bills have an amount this month.'
+                : 'No bills for this month. Click Add bill to set one up.';
+    rows.innerHTML = statements.length
+        ? statements
               .map((s) => {
                   const [label, cls] = statusBadge(s);
                   const left = s.balance == null ? '—' : money(s.balance);
@@ -46,7 +61,7 @@ function render(app, data) {
                   return `<div class="order-row bill-row"><strong>${esc(s.name)}<small>${esc(CATEGORY[s.category] || s.category)}${s.payee ? ' · ' + esc(s.payee) : ''}</small></strong><span data-label="Due">${esc(dayLabel(s.due_date))}</span><span class="num" data-label="Billed">${s.amount_due == null ? '—' : money(s.amount_due)}</span><span class="num" data-label="Paid">${money(s.paid)}</span><span class="num" data-label="Left">${left}</span><em class="status ${cls}">${label}</em>${action}</div>`;
               })
               .join('')
-        : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No bills for this month. Click Add bill to set one up.</span></div>';
+        : `<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">${emptyBillsMessage}</span></div>`;
     paginate(rows);
 
     const exp = app.querySelector('[data-expense-rows]');
@@ -96,6 +111,17 @@ const showError = (sel, message) => {
 export function handleBillsClick(t, e, ctx) {
     const { app, showModal, hideModal, openNotice } = ctx;
     const refresh = () => Promise.all([loadBills(app), ctx.loadStaffBootstrap?.()]);
+
+    const billsKpi = t.closest('[data-bills-kpi]');
+    if (billsKpi) {
+        e.preventDefault();
+        e.stopPropagation();
+        app._billsKpi = billsKpi.dataset.billsKpi;
+        app.querySelectorAll('[data-bills-kpi]').forEach((el) => el.classList.toggle('is-active', el === billsKpi));
+        if (app._bills) render(app, app._bills);
+        app.querySelector('[data-bill-rows]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return true;
+    }
 
     const monthInput = app.querySelector('[data-bills-month]');
     if (monthInput && !monthInput._bound) {

@@ -15,6 +15,7 @@ use App\Models\MachineRate;
 use App\Models\Notification;
 use App\Models\Service;
 use App\Models\Staff;
+use App\Models\StaffAttendance;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -160,6 +161,13 @@ class AdminApiController extends Controller
         $awaitingStock = InventoryRestock::query()->whereNull('voided_at')->whereColumn('stocked_quantity', '<', 'quantity_received')->count();
         $movements = InventoryAdjustment::query()->with(['item:id,name,unit', 'staff:id,name'])->latest('id')->limit(300)->get();
         $users = User::query()->orderBy('name')->get(['id', 'name', 'email', 'role', 'rejection_reason', 'email_verified_at', 'created_at']);
+        $staffAttendance = StaffAttendance::query()
+            ->with('staff:id,name,email')
+            ->whereHas('staff', fn ($query) => $query->where('role', 'staff'))
+            ->orderByDesc('work_date')
+            ->orderByDesc('clock_in')
+            ->limit(100)
+            ->get();
 
         // Daily sales series (paid laundry) for charts
         $paidInRange = LaundryTransaction::query()
@@ -316,6 +324,7 @@ class AdminApiController extends Controller
             'movements' => $movements,
             'archive_records' => InventoryAdjustment::archiveFeed(),
             'users' => $users,
+            'staff_attendance' => $staffAttendance,
             'analytics' => [
                 'sales_by_day' => $salesSeries,
                 'expenses_by_day' => $expenseByDay,

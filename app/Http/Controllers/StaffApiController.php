@@ -135,10 +135,12 @@ class StaffApiController extends Controller
             $attendance = StaffAttendance::query()
                 ->where('staff_id', $staffId)
                 ->whereDate('work_date', today())
+                ->orderByDesc('id')
                 ->first();
             $recentAttendance = StaffAttendance::query()
                 ->where('staff_id', $staffId)
                 ->orderByDesc('work_date')
+                ->orderByDesc('id')
                 ->limit(30)
                 ->get();
         }
@@ -256,14 +258,14 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'Pick at least one machine for self-service.'], 422);
         }
 
-        // Snacks/drinks only: no service, garments or detergent. Sold over the counter, never queued.
+        // Purchase-only transactions have no service or garments and are never queued.
         $purchaseOnly = $data['transaction_type'] === 'drop_off'
             && empty($data['service_id'])
             && (float) $data['service_amount'] == 0.0
             && (int) ($data['detergent_quantity'] ?? 0) <= 0
             && collect($data['garments'] ?? [])->sum('quantity') <= 0;
         if ($purchaseOnly && empty($data['items'])) {
-            return response()->json(['message' => 'Add a service or at least one snack/drink.'], 422);
+            return response()->json(['message' => 'Add a service or at least one inventory item.'], 422);
         }
 
         $payLater = (bool) ($data['pay_later'] ?? false);
@@ -465,7 +467,7 @@ class StaffApiController extends Controller
                 if (! $payLater) {
                     FinanceTransaction::query()->create([
                         'type' => 'income',
-                        'description' => ($purchaseOnly ? 'Snacks & drinks purchase #' : 'Laundry order #').$txn->id,
+                        'description' => ($purchaseOnly ? 'Inventory purchase #' : 'Laundry order #').$txn->id,
                         'amount' => $total,
                         'staff_id' => $staffId,
                         'laundry_transaction_id' => $txn->id,
@@ -700,25 +702,32 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'No staff record linked to this user email.'], 422);
         }
 
-        $row = StaffAttendance::query()->firstOrCreate(
-            [
+        $row = DB::transaction(function () use ($staffId) {
+            Staff::query()->whereKey($staffId)->lockForUpdate()->firstOrFail();
+
+            $activeAttendance = StaffAttendance::query()
+                ->where('staff_id', $staffId)
+                ->whereDate('work_date', today())
+                ->whereNotNull('clock_in')
+                ->whereNull('clock_out')
+                ->latest('id')
+                ->first();
+
+            if ($activeAttendance) {
+                return $activeAttendance;
+            }
+
+            return StaffAttendance::query()->create([
                 'staff_id' => $staffId,
                 'work_date' => today()->toDateString(),
-            ],
-            [
                 'clock_in' => now(),
-            ]
-        );
+            ]);
+        });
 
-        if ($row->clock_out) {
-            return response()->json(['message' => 'Already completed attendance for today.', 'attendance' => $row], 422);
-        }
-
-        if (! $row->wasRecentlyCreated && $row->clock_in) {
-            return response()->json(['message' => 'Already clocked in.', 'attendance' => $row]);
-        }
-
-        return response()->json(['message' => 'Clocked in', 'attendance' => $row]);
+        return response()->json([
+            'message' => $row->wasRecentlyCreated ? 'Clocked in' : 'Already clocked in.',
+            'attendance' => $row,
+        ]);
     }
 
     public function clockOut(): JsonResponse
@@ -728,21 +737,31 @@ class StaffApiController extends Controller
             return response()->json(['message' => 'No staff record linked to this user email.'], 422);
         }
 
-        $row = StaffAttendance::query()
-            ->where('staff_id', $staffId)
-            ->whereDate('work_date', today())
-            ->first();
+        $row = DB::transaction(function () use ($staffId) {
+            Staff::query()->whereKey($staffId)->lockForUpdate()->firstOrFail();
 
-        if (! $row || ! $row->clock_in) {
+            $activeAttendance = StaffAttendance::query()
+                ->where('staff_id', $staffId)
+                ->whereDate('work_date', today())
+                ->whereNotNull('clock_in')
+                ->whereNull('clock_out')
+                ->latest('id')
+                ->first();
+
+            if (! $activeAttendance) {
+                return null;
+            }
+
+            $activeAttendance->update(['clock_out' => now()]);
+
+            return $activeAttendance->fresh();
+        });
+
+        if (! $row) {
             return response()->json(['message' => 'Clock in first.'], 422);
         }
-        if ($row->clock_out) {
-            return response()->json(['message' => 'Already clocked out.', 'attendance' => $row]);
-        }
 
-        $row->update(['clock_out' => now()]);
-
-        return response()->json(['message' => 'Clocked out', 'attendance' => $row->fresh()]);
+        return response()->json(['message' => 'Clocked out', 'attendance' => $row]);
     }
 
     /** Removes expired/spoiled/damaged stock and keeps a record of how many were removed. */

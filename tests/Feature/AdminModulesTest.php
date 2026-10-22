@@ -5,6 +5,8 @@ use App\Models\FinanceTransaction;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\Machine;
+use App\Models\Staff;
+use App\Models\StaffAttendance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -19,6 +21,32 @@ function stockItem(int $qty = 10): InventoryItem
         'unit_price' => 20, 'quantity_on_hand' => $qty, 'low_stock_threshold' => 2,
     ]);
 }
+
+it('shows database-backed staff attendance in the admin bootstrap', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $staff = Staff::query()->create([
+        'name' => 'Attendance Staff',
+        'email' => 'attendance@example.com',
+        'password' => 'password',
+        'role' => 'staff',
+    ]);
+    StaffAttendance::query()->create([
+        'staff_id' => $staff->id,
+        'work_date' => '2026-10-20',
+        'clock_in' => '2026-10-20 09:00:00',
+        'clock_out' => '2026-10-20 17:00:00',
+    ]);
+
+    $attendance = $this->actingAs($admin)
+        ->getJson('/ajax/admin/bootstrap')
+        ->assertOk()
+        ->json('staff_attendance.0');
+
+    expect($attendance['staff']['name'])->toBe('Attendance Staff')
+        ->and($attendance['work_date'])->toBe('2026-10-20')
+        ->and($attendance['clock_in'])->toContain('2026-10-20')
+        ->and($attendance['clock_out'])->toContain('2026-10-20');
+});
 
 it('keeps how many were archived in the archive records', function () {
     $staff = User::factory()->create(['role' => 'staff']);

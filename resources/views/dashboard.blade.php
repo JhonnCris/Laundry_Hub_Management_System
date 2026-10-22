@@ -20,7 +20,7 @@
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
 </aside>
 <section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button">☰</button><strong>SSK Laba Dami</strong></header>
-<section class="prototype-panel" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record every garment clearly before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
+<section class="prototype-panel" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record laundry services and add-ons before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
 <div class="customer-context" data-customer-context>
     <div class="customer-context-empty" data-customer-empty>
         <p><strong>No customer selected.</strong> Open <button type="button" class="text-button" data-screen="customers">Manage Customer</button> and click <em>Do Laundry</em>, or add a new customer first.</p>
@@ -54,13 +54,6 @@
         </div>
     </div>
 </div>
-<div class="garment-heading"><div><strong>Garment separation & count</strong><small>Count each type separately for transparent recording.</small></div><b><span data-summary-garments>0</span> pcs total</b></div>
-<div class="garment-grid" data-garment-grid>
-    <div class="garment-counter"><span>Shirts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
-    <div class="garment-counter"><span>Shorts</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
-    <div class="garment-counter"><span>Beddings</span><div><button data-garment-decrease type="button">−</button><output data-garment-count>0</output><button data-garment-increase type="button">+</button></div></div>
-    <button class="add-garment" type="button" data-add-garment>Add type <b>+</b></button>
-</div>
 <div class="form-grid workflow-bottom field-align">
     <label class="field">
         <span class="field-label">Load weight (kg)</span>
@@ -74,22 +67,13 @@
         </select>
         <small class="field-hint field-hint-spacer">&nbsp;</small>
     </label>
-    <label class="field">
-        <span class="field-label">Detergent / Downy type</span>
-        <select data-consumable>
-            <option value="0" data-unit-price="0">None</option>
-        </select>
-    </label>
-    <label class="field">
-        <span class="field-label">Quantity used</span>
-        <div class="qty-field">
-            <button type="button" data-consumable-decrease>−</button>
-            <input type="number" data-consumable-qty value="0" min="0" max="99" step="1" inputmode="numeric">
-            <button type="button" data-consumable-increase>+</button>
+    <div class="field detergent-selector-field">
+        <span class="field-label">Detergent / Downy (optional)</span>
+        <div class="detergent-selector" data-detergent-list>
+            <p class="dash-empty">Loading detergent inventory…</p>
         </div>
-    </label>
+    </div>
 </div>
-<label class="pay-later-field"><input type="checkbox" data-pay-later> <span>Customer pays when the laundry is released <small>(no cash taken now)</small></span></label>
 </div>
 <div data-workflow="self_service" hidden>
 <div class="machine-picker" data-machine-picker><p class="dash-empty">Loading machines…</p></div>
@@ -101,20 +85,12 @@
         <small class="field-hint" data-capacity-hint>Price is per machine, not per kg.</small>
     </label>
     <span></span>
-    <label class="field">
-        <span class="field-label">Detergent / Downy type</span>
-        <select data-consumable>
-            <option value="0" data-unit-price="0">None</option>
-        </select>
-    </label>
-    <label class="field">
-        <span class="field-label">Quantity used</span>
-        <div class="qty-field">
-            <button type="button" data-consumable-decrease>−</button>
-            <input type="number" data-consumable-qty value="0" min="0" max="99" step="1" inputmode="numeric">
-            <button type="button" data-consumable-increase>+</button>
+    <div class="field detergent-selector-field" data-self-service-detergent>
+        <span class="field-label">Detergent / Downy (optional)</span>
+        <div class="detergent-selector" data-detergent-list>
+            <p class="dash-empty">Loading detergent inventory…</p>
         </div>
-    </label>
+    </div>
 </div>
 <p class="kg-price-preview" data-kg-preview hidden>Machine charge: <strong>—</strong></p>
 </div>
@@ -122,15 +98,13 @@
 <section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading snacks from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
 <div class="summary-top">
     <p data-summary-title>Summary</p>
-    <p class="summary-empty" data-summary-empty>Nothing recorded yet. Add garments or snacks to see a summary.</p>
+    <p class="summary-empty" data-summary-empty>Nothing recorded yet. Choose a service or add snacks to see a summary.</p>
     <dl data-summary-service-block hidden>
         <div data-row-basket><dt>Basket tag</dt><dd data-summary-tag>—</dd></div>
         <div data-row-service><dt>Service</dt><dd data-summary-service>—</dd></div>
-        <div data-row-garments><dt>Garments</dt><dd><span data-summary-garments>0</span> pcs</dd></div>
         <div data-row-kg hidden><dt>Load weight</dt><dd data-summary-kg>—</dd></div>
         <div data-row-duration hidden><dt>Machines</dt><dd data-summary-duration>—</dd></div>
         <div data-row-service-type hidden><dt>Service type</dt><dd data-summary-service-type>—</dd></div>
-        <div data-row-consumable hidden><dt>Consumable</dt><dd data-summary-consumable>—</dd></div>
     </dl>
     <dl data-summary-items-block data-summary-items hidden></dl>
 </div>
@@ -154,21 +128,6 @@
 </section>
 </div>
 
-<div class="modal-backdrop" data-garment-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-garment-modal type="button">×</button>
-<h2>Add garment type</h2>
-<p class="modal-hint">Enter a type not listed (e.g. Towels, Jackets, Uniforms).</p>
-<label class="modal-field">Garment name<input type="text" data-new-garment-name placeholder="e.g. Towels" maxlength="40"></label>
-<label class="modal-field">Starting count<input type="number" data-new-garment-qty value="0" min="0" max="999"></label>
-<p class="modal-error" data-garment-modal-error hidden></p>
-<div class="modal-actions">
-<button type="button" class="text-button" data-close-garment-modal>Cancel</button>
-<button type="button" class="save-button" data-confirm-garment>Add garment</button>
-</div>
-</section>
-</div>
-
 <!-- Payment modal: Transaction → Payment → Receipt -->
 <div class="modal-backdrop" data-payment-modal hidden>
 <section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true">
@@ -176,6 +135,11 @@
 <h2 data-payment-title>Record payment</h2>
 <p class="modal-hint" data-payment-hint>Collect cash from the customer, then confirm to issue a receipt.</p>
 <div class="payment-summary" data-payment-summary></div>
+<fieldset class="payment-methods" data-payment-methods hidden>
+    <legend>Payment option</legend>
+    <label><input type="radio" name="payment-mode" value="new" data-payment-mode="new" checked><span><strong>Pay now</strong><small>Collect payment before saving.</small></span></label>
+    <label><input type="radio" name="payment-mode" value="later" data-payment-mode="later"><span><strong>Pay later upon receiving</strong><small>Collect payment when the customer picks up the laundry.</small></span></label>
+</fieldset>
 <label class="modal-field">Amount due<input type="text" data-payment-due readonly></label>
 <label class="modal-field" data-payment-cash-field>Cash received<input type="number" data-payment-cash min="0" step="0.01" placeholder="0.00" inputmode="decimal"></label>
 <div class="payment-change" data-payment-change-row hidden>
@@ -366,7 +330,7 @@
 </div></div>
 <section class="staff-card full-card table-card"><div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Supplies & consumables</h2></div>
 <div class="table-filters"><select data-staff-inv-category aria-label="Filter by category"><option value="">All categories</option></select></div>
-<div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Alert admin</span></div>
+<div class="order-row order-head inv4"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span></div>
 <div data-inventory-rows></div>
 </section>
 <section class="staff-card full-card table-card" style="margin-top:18px">
@@ -408,9 +372,9 @@
     <button class="action-btn-primary" type="button" data-guide-customers>Go to Manage Customer →</button>
 </section>
 <div class="metric-grid">
-    <article><span>Status today</span><strong data-att-status>—</strong><small data-att-status-sub>Not clocked in</small></article>
-    <article><span>Hours so far</span><strong data-att-hours>—</strong><small>Updates on clock out</small></article>
-    <article><span>Records</span><strong data-att-count>0</strong><small>Most recent 10 shown</small></article>
+    <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-attendance-rows]" title="Show your recent attendance"><span>Status today</span><strong data-att-status>—</strong><small data-att-status-sub>Not clocked in</small></article>
+    <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-attendance-rows]" title="Show your recent attendance"><span>Hours so far</span><strong data-att-hours>—</strong><small>Updates on clock out</small></article>
+    <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-attendance-rows]" title="Show your recent attendance records"><span>Records</span><strong data-att-count>0</strong><small>Most recent 10 shown</small></article>
 </div>
 <section class="staff-card full-card table-card">
     <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0"><h2>Recent attendance</h2></div>

@@ -21,12 +21,13 @@ function applyDutyState(app, onDuty) {
 export function renderAttendance(app, data) {
     const today = data.attendance_today;
     const recent = data.attendance_recent || [];
+    const onDuty = !!(today && today.clock_in && !today.clock_out);
     const st = app.querySelector('[data-att-status]');
     const sub = app.querySelector('[data-att-status-sub]');
     const hours = app.querySelector('[data-att-hours]');
     const count = app.querySelector('[data-att-count]');
     if (count) count.textContent = String(recent.length);
-    if (today && today.clock_in && !today.clock_out) {
+    if (onDuty) {
         if (st) st.textContent = 'On duty';
         if (sub) sub.textContent = 'Clocked in ' + fmtTime(today.clock_in);
         if (hours) hours.textContent = '—';
@@ -44,19 +45,17 @@ export function renderAttendance(app, data) {
         if (sub) sub.textContent = 'Not clocked in';
         if (hours) hours.textContent = '—';
     }
-    const clockedIn = !!(today && today.clock_in);
-    const clockedOut = !!(today && today.clock_out);
     const inBtn = app.querySelector('[data-clock-in]');
     const outBtn = app.querySelector('[data-clock-out]');
     if (inBtn) {
-        inBtn.disabled = clockedIn;
-        inBtn.title = clockedIn ? 'Already clocked in today' : 'Start your shift';
+        inBtn.disabled = onDuty;
+        inBtn.title = onDuty ? 'Already clocked in' : 'Start your shift';
     }
     if (outBtn) {
-        outBtn.disabled = !clockedIn || clockedOut;
-        outBtn.title = !clockedIn ? 'Clock in first' : clockedOut ? 'Already clocked out today' : 'End your shift';
+        outBtn.disabled = !onDuty;
+        outBtn.title = onDuty ? 'End your shift' : 'Clock in first';
     }
-    applyDutyState(app, clockedIn && !clockedOut);
+    applyDutyState(app, onDuty);
     const rows = app.querySelector('[data-attendance-rows]');
     if (rows) {
         if (!recent.length) {
@@ -212,11 +211,7 @@ export function renderStaffLists(app, data) {
             ? list
                   .map((i) => {
                       const low = i.quantity_on_hand <= i.low_stock_threshold;
-                      const reported = (data.reported_low_stock_ids || []).includes(i.id);
-                      const alertCell = low
-                          ? `<button type="button" class="outline-action notify-low-btn" data-notify-low="${i.id}" ${reported ? 'disabled' : ''} title="Tell the admin this item is running low">${reported ? 'Admin notified ✓' : 'Notify admin'}</button>`
-                          : '<span></span>';
-                      return `<div class="order-row inv5${low ? ' is-low' : ''}"><strong>${low ? '<i class="low-dot" title="Low stock"></i>' : ''}${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em>${alertCell}</div>`;
+                      return `<div class="order-row inv4${low ? ' is-low' : ''}"><strong>${low ? '<i class="low-dot" title="Low stock"></i>' : ''}${esc(i.name)}</strong><span>${esc(i.category?.name || '—')}</span><span>${esc(qtyUnit(i.quantity_on_hand, i.unit))}</span><em class="status ${low ? 'pending' : 'ready'}">${low ? 'Low stock' : 'In stock'}</em></div>`;
                   })
                   .join('')
             : '<div class="order-row"><span style="grid-column:1/-1">No items.</span></div>';
@@ -287,16 +282,19 @@ export function loadStaffBootstrap(app, updateFn) {
                           .join('')
                     : '<p class="dash-empty" style="padding:8px 0;margin:0">No snacks/drinks in inventory yet.</p>';
             }
-            app.querySelectorAll('[data-consumable]').forEach((select) => {
-                select.innerHTML = '<option value="0" data-unit-price="0">None</option>';
-                (data.detergents || []).forEach((d) => {
-                    const o = document.createElement('option');
-                    o.value = String(d.unit_price);
-                    o.dataset.unitPrice = String(d.unit_price);
-                    o.dataset.itemId = String(d.id);
-                    o.textContent = `${d.name} · ₱${d.unit_price} each · ${d.quantity_on_hand} left`;
-                    select.appendChild(o);
-                });
+            app.querySelectorAll('[data-detergent-list]').forEach((list) => {
+                const detergents = data.detergents || [];
+                list.innerHTML = detergents.length
+                    ? detergents
+                          .map(
+                              (item) =>
+                                  `<div class="add-on" data-detergent-item data-item-id="${item.id}" data-price="${item.unit_price}">
+                                    <div><strong>${esc(item.name)}</strong><small>₱${item.unit_price} · ${esc(item.unit)} · ${item.quantity_on_hand} stock</small></div>
+                                    <div class="quantity-control"><button data-decrease type="button" aria-label="Decrease ${esc(item.name)} quantity">−</button><output>0</output><button data-increase type="button" aria-label="Increase ${esc(item.name)} quantity">+</button></div>
+                                  </div>`
+                          )
+                          .join('')
+                    : '<p class="dash-empty">No detergent or Downy items in inventory.</p>';
             });
             app.querySelectorAll('[data-service-price][data-pricing="flat"]').forEach((select) => {
                 if (!(data.services || []).length) return;

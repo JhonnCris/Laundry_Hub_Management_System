@@ -266,13 +266,24 @@ function renderMachines(app, data, { resetPage = false } = {}) {
     if (!app._machFiltersBound) {
         app._machFiltersBound = true;
         app.querySelectorAll('[data-mach-search], [data-mach-type], [data-mach-status]').forEach((el) => {
-            el.addEventListener(el.matches('input') ? 'input' : 'change', () => renderMachines(app, app._adminBootstrap || {}, { resetPage: true }));
+            el.addEventListener(el.matches('input') ? 'input' : 'change', () => {
+                app._machKpi = '';
+                app.querySelectorAll('[data-mach-kpi]').forEach((card) => card.classList.remove('is-active'));
+                renderMachines(app, app._adminBootstrap || {}, { resetPage: true });
+            });
         });
     }
     const q = (app.querySelector('[data-mach-search]')?.value || '').trim().toLowerCase();
     const type = app.querySelector('[data-mach-type]')?.value || '';
     const status = app.querySelector('[data-mach-status]')?.value || '';
-    const list = all.filter((m) => (!q || m.name.toLowerCase().includes(q)) && (!type || m.type === type) && (!status || m.status === status));
+    const kpi = app._machKpi || '';
+    const list = all.filter(
+        (m) =>
+            (!q || m.name.toLowerCase().includes(q)) &&
+            (!type || m.type === type) &&
+            (!status || m.status === status) &&
+            (!kpi || kpi === 'all' || (kpi === 'available' && m.status === 'available') || (kpi === 'attention' && ['maintenance', 'out_of_service'].includes(m.status)))
+    );
 
     rows.innerHTML = list.length
         ? list
@@ -449,8 +460,10 @@ function renderUsers(app, data) {
     set('[data-users-pending]', pending ? `${pending} pending approval` : 'Accounts');
     const rows = app.querySelector('[data-admin-user-rows]');
     if (rows) {
-        rows.innerHTML = users.length
-            ? users
+        const roleFilter = app._usersKpi || 'all';
+        const visibleUsers = users.filter((user) => roleFilter === 'all' || user.role === roleFilter);
+        rows.innerHTML = visibleUsers.length
+            ? visibleUsers
                   .map((u) => {
                       const role = u.role === 'admin' ? 'Admin' : u.role === 'pending' ? 'Pending' : u.role === 'rejected' ? 'Rejected' : 'Staff';
                       const isPending = u.role === 'pending';
@@ -461,8 +474,28 @@ function renderUsers(app, data) {
                       return `<div class="order-row"><strong>${esc(u.name)}</strong><span>${esc(u.email)}</span><span>${esc(role)}</span><em class="status ${u.role === 'rejected' ? 'is-bad' : isPending ? 'pending' : 'ready'}" title="${esc(u.rejection_reason || '')}">${u.role === 'rejected' ? 'Rejected' : isPending ? 'Pending approval' : 'Active'}</em><span class="user-actions">${rejected ? '<small style="color:var(--staff-muted)">Not eligible</small>' : `${approve}<button type="button" class="action-btn-secondary" data-edit-user="${u.id}" title="Edit user">Edit</button>`}</span></div>`;
                   })
                   .join('')
-            : '<div class="order-row"><span style="grid-column:1/-1">No users yet.</span></div>';
+            : `<div class="order-row"><span style="grid-column:1/-1">${users.length ? 'No accounts in this role.' : 'No users yet.'}</span></div>`;
         paginate(rows);
+    }
+    const attendanceRows = app.querySelector('[data-admin-attendance-rows]');
+    if (attendanceRows) {
+        const attendance = data.staff_attendance || [];
+        const formatTime = (value) => {
+            if (!value) return '—';
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? '—' : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        };
+        attendanceRows.innerHTML = attendance.length
+            ? attendance
+                  .map((record) => {
+                      const clockedOut = Boolean(record.clock_out);
+                      const date = String(record.work_date || '').slice(0, 10) || '—';
+                      const status = clockedOut ? 'Completed' : 'On duty';
+                      return `<div class="order-row"><strong>${esc(record.staff?.name || 'Unknown staff')}</strong><span>${esc(date)}</span><span>${esc(formatTime(record.clock_in))}</span><span>${esc(formatTime(record.clock_out))}</span><em class="status ${clockedOut ? 'ready' : 'processing'}">${status}</em></div>`;
+                  })
+                  .join('')
+            : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No staff attendance records yet.</span></div>';
+        paginate(attendanceRows);
     }
     document.querySelectorAll('[data-new-item-category], [data-edit-item-category]').forEach((catSel) => {
         if ((data.categories || []).length) {
@@ -991,6 +1024,7 @@ function renderSummaryAnalytics(app, data) {
     set('[data-sum-sales]', money(m.period_sales ?? 0));
     set('[data-sum-expenses]', money(m.period_expenses ?? 0));
     set('[data-sum-net]', money(m.net ?? 0));
+    set('[data-sum-cancelled]', String(m.cancelled_orders ?? 0));
     set('[data-sum-sales-sub]', `${m.paid_orders || 0} paid orders`);
     set('[data-sum-expenses-sub]', 'Includes stock receipts');
     set('[data-sum-net-sub]', 'Sales − expenses');
@@ -1046,15 +1080,11 @@ export function renderFinanceFiltered(app, data, kpi) {
     app.querySelectorAll('[data-sum-kpi]').forEach((el) => {
         el.classList.toggle('is-active', el.dataset.sumKpi === kpi);
     });
-    const typeSelect = app.querySelector('[data-sum-type-filter]');
-    if (typeSelect) typeSelect.value = kpi === 'sales' ? 'revenue' : kpi === 'expenses' ? 'expenses' : kpi === 'cancelled' ? 'cancelled' : 'all';
     const showCancelled = kpi === 'cancelled';
     const finCard = app.querySelector('[data-sum-finance-card]');
     const canCard = app.querySelector('[data-sum-cancelled-card]');
     if (finCard) finCard.hidden = showCancelled;
     if (canCard) canCard.hidden = !showCancelled;
-    const expBox = app.querySelector('[data-sum-show-expenses]');
-    if (expBox) expBox.checked = kpi === 'net';
     const body = app.querySelector('[data-admin-finance-rows]');
     const title = app.querySelector('[data-sum-finance-title]');
     if (!body || showCancelled) return;
@@ -1427,6 +1457,7 @@ export function loadAdminBootstrap(app) {
             empty('[data-admin-inventory-rows]', 'Could not load inventory. ' + (err.message || 'Try refresh.'));
             empty('[data-admin-restock-rows]', 'Could not load receipts. ' + (err.message || 'Try refresh.'));
             empty('[data-admin-user-rows]', 'Could not load users. ' + (err.message || 'Try refresh.'));
+            empty('[data-admin-attendance-rows]', 'Could not load staff attendance. ' + (err.message || 'Try refresh.'));
             empty('[data-dash-order-rows]', 'Could not load orders.');
             empty('[data-admin-finance-rows]', 'Could not load finance.');
             app._adminBootstrap = app._adminBootstrap || { metrics: {}, analytics: {}, inventory: [], restocks: [], users: [], recent_orders: [], finance: [], low_stock: [], machines: [] };
@@ -1459,7 +1490,11 @@ export function handleAdminClick(t, e, ctx) {
         app._sumKpi = sumKpi.dataset.sumKpi;
         if (app._adminBootstrap) {
             renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
-            showSumKpiModal(app, app._sumKpi);
+            if (app._sumKpi === 'cancelled') {
+                app.querySelector('[data-sum-cancelled-card]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                showSumKpiModal(app, app._sumKpi);
+            }
         }
         return true;
     }
@@ -1467,6 +1502,31 @@ export function handleAdminClick(t, e, ctx) {
     if (t.closest('[data-close-kpi-detail]')) {
         e.preventDefault();
         closeKpiDetailModal();
+        return true;
+    }
+
+    const machineKpi = t.closest('[data-mach-kpi]');
+    if (machineKpi) {
+        e.preventDefault();
+        e.stopPropagation();
+        app._machKpi = machineKpi.dataset.machKpi;
+        app.querySelector('[data-mach-search]').value = '';
+        app.querySelector('[data-mach-type]').value = '';
+        app.querySelector('[data-mach-status]').value = '';
+        app.querySelectorAll('[data-mach-kpi]').forEach((el) => el.classList.toggle('is-active', el === machineKpi));
+        renderMachines(app, app._adminBootstrap || {}, { resetPage: true });
+        app.querySelector('[data-admin-machine-rows]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return true;
+    }
+
+    const usersKpi = t.closest('[data-users-kpi]');
+    if (usersKpi) {
+        e.preventDefault();
+        e.stopPropagation();
+        app._usersKpi = usersKpi.dataset.usersKpi;
+        app.querySelectorAll('[data-users-kpi]').forEach((el) => el.classList.toggle('is-active', el === usersKpi));
+        renderUsers(app, app._adminBootstrap || {});
+        app.querySelector('[data-admin-user-rows]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return true;
     }
 
@@ -1507,11 +1567,6 @@ export function handleAdminClick(t, e, ctx) {
         const from = app.querySelector('[data-sum-from]')?.value;
         const to = app.querySelector('[data-sum-to]')?.value;
         if (from || to) setDefaultDates(app, from, to);
-        const typeSel = app.querySelector('[data-sum-type-filter]')?.value || 'all';
-        if (typeSel === 'revenue') app._sumKpi = 'sales';
-        else if (typeSel === 'expenses') app._sumKpi = 'expenses';
-        else if (typeSel === 'cancelled') app._sumKpi = 'cancelled';
-        else app._sumKpi = 'net';
         loadAdminBootstrap(app).then(() => {
             if (app._adminBootstrap) renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
         });
@@ -1563,15 +1618,6 @@ export function handleAdminClick(t, e, ctx) {
                 dismissBtn.disabled = false;
                 openError('Alert', ex);
             });
-        return true;
-    }
-
-    const expToggle = t.closest('[data-sum-show-expenses]') || (t.matches?.('[data-sum-show-expenses]') ? t : null);
-    if (expToggle && expToggle.matches?.('[data-sum-show-expenses]')) {
-        e.stopPropagation();
-        const showExp = expToggle.checked;
-        app._sumKpi = showExp ? 'net' : 'sales';
-        if (app._adminBootstrap) renderFinanceFiltered(app, app._adminBootstrap, app._sumKpi);
         return true;
     }
 

@@ -88,7 +88,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // ── Services (flat base prices for drop-off packages) ─────────────────
-        DB::table('services')->insert(
+        DB::table('services')->insertOrIgnore(
             collect([
                 ['Wash Only', 70, 25],
                 ['Dry Only', 60, 20],

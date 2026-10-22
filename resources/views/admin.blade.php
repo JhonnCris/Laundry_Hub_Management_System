@@ -167,21 +167,12 @@
                     <span>To</span>
                     <input type="date" data-sum-to aria-label="Summary to date">
                 </label>
-                <label class="dash-filter">
-                    <span>Show</span>
-                    <select data-sum-type-filter aria-label="Filter by revenue or expenses">
-                        <option value="all">All activity</option>
-                        <option value="revenue">Revenue only</option>
-                        <option value="expenses">Expenses only</option>
-                        <option value="cancelled">Cancelled orders</option>
-                    </select>
-                </label>
                 <button class="outline-action" type="button" data-sum-apply-range>Filter</button>
                 <button class="action-btn-primary" type="button" data-sum-export title="Export a report">Export →</button>
             </div>
         </div>
 
-        <div class="metric-grid dash-kpis">
+        <div class="metric-grid dash-kpis summary-kpis">
             <article class="kpi-card" data-sum-kpi="sales" tabindex="0" role="button" title="Show income rows">
                 <span>Total sales</span>
                 <strong data-sum-sales>—</strong>
@@ -196,6 +187,11 @@
                 <span>Net amount</span>
                 <strong data-sum-net>—</strong>
                 <small data-sum-net-sub>Sales − expenses</small>
+            </article>
+            <article class="kpi-card" data-sum-kpi="cancelled" tabindex="0" role="button" title="Show cancelled orders">
+                <span>Cancelled orders</span>
+                <strong data-sum-cancelled>—</strong>
+                <small>Excluded from sales</small>
             </article>
         </div>
 
@@ -223,7 +219,6 @@
         <section class="staff-card full-card table-card" data-sum-finance-card style="margin-top:18px">
             <div class="section-heading" style="padding:16px 20px 0;margin-bottom:0;display:flex;justify-content:space-between;align-items:center">
                 <h2 data-sum-finance-title style="margin:0">Finance activity</h2>
-                <label class="toggle-inline"><input type="checkbox" data-sum-show-expenses checked> Show expense rows</label>
             </div>
             <div class="order-row order-head"><span>Type</span><span>Description</span><span>Recorded by</span><span class="num">Amount</span></div>
             <div data-admin-finance-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading finance…</span></div></div>
@@ -308,9 +303,9 @@
             <button class="action-btn-primary" type="button" data-open-procurement title="Record goods received from an invoice">Record receipt →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small data-admin-restock-sub>0 not yet in inventory</small></article>
-            <article><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Receipt costs in range</small></article>
-            <article><span>Last receipt</span><strong data-admin-last-restock>—</strong><small data-admin-last-restock-sub>No records yet</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-admin-restock-rows]" title="Show receipt records"><span>Receipts logged</span><strong data-admin-restock-count>0</strong><small data-admin-restock-sub>0 not yet in inventory</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-admin-restock-rows]" title="Show receipts included in invoice spend"><span>Invoice spend</span><strong data-admin-month-spend>₱0</strong><small>Receipt costs in range</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-metric-jump="[data-admin-restock-rows]" title="Show the latest receipt"><span>Last receipt</span><strong data-admin-last-restock>—</strong><small data-admin-last-restock-sub>No records yet</small></article>
         </div>
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Received</span><span>Invoice #</span><span>Item</span><span>Supplier</span><span class="num">Invoiced</span><span class="num">Received qty</span><span>Inventory</span></div>
@@ -334,9 +329,9 @@
             <button type="button" class="pager-btn" data-bills-next aria-label="Next month">›</button>
         </div>
         <div class="metric-grid">
-            <article><span>Billed this month</span><strong data-bills-billed>—</strong><small>Total of bills with an amount</small></article>
-            <article><span>Paid so far</span><strong data-bills-paid>—</strong><small>Payments on these bills</small></article>
-            <article><span>Left to pay</span><strong data-bills-left>—</strong><small>Due on the last day of the month</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-bills-kpi="billed" title="Show bills with an amount this month"><span>Billed this month</span><strong data-bills-billed>—</strong><small>Total of bills with an amount</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-bills-kpi="paid" title="Show bills with payments"><span>Paid so far</span><strong data-bills-paid>—</strong><small>Payments on these bills</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-bills-kpi="outstanding" title="Show bills with a remaining balance"><span>Left to pay</span><strong data-bills-left>—</strong><small>Due on the last day of the month</small></article>
         </div>
         <section class="staff-card full-card table-card">
             <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2 data-bills-heading>Bills this month</h2></div>
@@ -395,9 +390,9 @@
             <button class="action-btn-primary" type="button" data-open-add-machine>Add machine →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Total machines</span><strong data-mach-total>0</strong><small data-mach-types>Washers and dryers</small></article>
-            <article><span>Available now</span><strong data-mach-available>0</strong><small data-mach-inuse>0 in use</small></article>
-            <article><span>Need attention</span><strong data-mach-attention>0</strong><small>Maintenance / out of service</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-mach-kpi="all" title="Show all machines"><span>Total machines</span><strong data-mach-total>0</strong><small data-mach-types>Washers and dryers</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-mach-kpi="available" title="Show available machines"><span>Available now</span><strong data-mach-available>0</strong><small data-mach-inuse>0 in use</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-mach-kpi="attention" title="Show machines needing attention"><span>Need attention</span><strong data-mach-attention>0</strong><small>Maintenance / out of service</small></article>
         </div>
         <section class="staff-card full-card table-card">
             <div class="table-filters">
@@ -432,13 +427,23 @@
             <button class="action-btn-primary" type="button" data-open-add-user>Add user →</button>
         </div>
         <div class="metric-grid">
-            <article><span>Total users</span><strong data-users-total>0</strong><small data-users-pending>Accounts</small></article>
-            <article><span>Admins</span><strong data-users-admins>0</strong><small>Full access</small></article>
-            <article><span>Staff</span><strong data-users-staff>0</strong><small>Operations</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-users-kpi="all" title="Show all user accounts"><span>Total users</span><strong data-users-total>0</strong><small data-users-pending>Accounts</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-users-kpi="admin" title="Show admin accounts"><span>Admins</span><strong data-users-admins>0</strong><small>Full access</small></article>
+            <article class="metric-kpi" role="button" tabindex="0" data-users-kpi="staff" title="Show staff accounts"><span>Staff</span><strong data-users-staff>0</strong><small>Operations</small></article>
         </div>
         <section class="staff-card full-card table-card">
             <div class="order-row order-head"><span>Name</span><span>Email</span><span>Role</span><span>Status</span><span>Action</span></div>
             <div data-admin-user-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading users…</span></div></div>
+        </section>
+        <section class="staff-card full-card table-card" style="margin-top:18px">
+            <div class="section-heading" style="padding:18px 20px 0;margin-bottom:0">
+                <div>
+                    <h2>Staff attendance</h2>
+                    <p>Latest 100 clock-in and clock-out records.</p>
+                </div>
+            </div>
+            <div class="order-row order-head"><span>Staff</span><span>Work date</span><span>Clock in</span><span>Clock out</span><span>Status</span></div>
+            <div data-admin-attendance-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading attendance…</span></div></div>
         </section>
     </section>
 

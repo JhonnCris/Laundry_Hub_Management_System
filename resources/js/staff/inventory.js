@@ -16,22 +16,6 @@ export function handleInventoryClick(t, e, ctx) {
         return true;
     }
 
-    const notifyBtn = t.closest('[data-notify-low]');
-    if (notifyBtn) {
-        e.preventDefault();
-        notifyBtn.disabled = true;
-        api(`/ajax/staff/inventory/${notifyBtn.dataset.notifyLow}/notify-low`, { method: 'POST', body: '{}' })
-            .then((r) => {
-                notifyBtn.textContent = 'Admin notified ✓';
-                openNotice('Admin notified', r.message || 'The admin will see this in their alerts.', 'success');
-            })
-            .catch((ex) => {
-                notifyBtn.disabled = false;
-                openError('Notify admin', ex);
-            });
-        return true;
-    }
-
     if (t.closest('[data-open-add-basket]')) {
         e.preventDefault();
         const err = document.querySelector('[data-add-basket-error]');

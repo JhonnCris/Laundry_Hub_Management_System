@@ -56,6 +56,13 @@ export function bootStaffApp() {
         const t = e.target;
         if (!(t instanceof Element)) return;
 
+        const metricJump = t.closest('[data-metric-jump]');
+        if (metricJump && app.contains(metricJump)) {
+            e.preventDefault();
+            app.querySelector(metricJump.dataset.metricJump)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
         if (t.closest('[data-screen="sales"]')) loadSales(app);
         if (t.closest('[data-screen="audit"]')) loadAudit(app, 1);
         if (t.closest('[data-screen="bills"]')) loadBills(app);
@@ -82,13 +89,6 @@ export function bootStaffApp() {
     app.addEventListener('change', (e) => {
         const t = e.target;
         if (!(t instanceof Element)) return;
-        if (t.matches('[data-sum-type-filter]')) {
-            const v = t.value || 'all';
-            if (app._adminBootstrap) {
-                renderFinanceFiltered(app, app._adminBootstrap, v === 'revenue' ? 'sales' : v === 'expenses' ? 'expenses' : v === 'cancelled' ? 'cancelled' : 'net');
-            }
-            return;
-        }
         if (t.matches('[data-basket-filter]')) {
             app._basketFilter = t.value;
             if (app._bootstrap) renderBaskets(app, app._bootstrap);
@@ -100,7 +100,9 @@ export function bootStaffApp() {
 
     // Keyboard: KPI cards act as buttons; Esc closes the top-most open modal
     app.addEventListener('keydown', (e) => {
-        const card = e.target instanceof Element ? e.target.closest('[role="button"][data-kpi], [role="button"][data-sum-kpi], [role="button"][data-inv-kpi]') : null;
+        const card = e.target instanceof Element
+            ? e.target.closest('[role="button"][data-kpi], [role="button"][data-sum-kpi], [role="button"][data-inv-kpi], [role="button"][data-metric-jump], [role="button"][data-bills-kpi], [role="button"][data-mach-kpi], [role="button"][data-users-kpi]')
+            : null;
         if (card && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             card.click();

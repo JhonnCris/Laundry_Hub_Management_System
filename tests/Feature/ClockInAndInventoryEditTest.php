@@ -42,6 +42,37 @@ it('blocks staff from adding customers or transactions until they clock in, and 
     expect(StaffAttendance::count())->toBe(1);
 });
 
+it('allows staff to clock in again after clocking out', function () {
+    $user = offDutyStaff();
+    $staff = Staff::create(['name' => $user->name, 'email' => $user->email, 'password' => 'x', 'role' => 'staff']);
+
+    $this->actingAs($user)->postJson('/ajax/staff/attendance/clock-in')->assertOk();
+    $this->actingAs($user)->postJson('/ajax/staff/attendance/clock-in')->assertOk();
+    expect(StaffAttendance::where('staff_id', $staff->id)->count())->toBe(1)
+        ->and(StaffAttendance::where('staff_id', $staff->id)->whereNull('clock_out')->count())->toBe(1);
+
+    $this->actingAs($user)->postJson('/ajax/staff/attendance/clock-out')->assertOk();
+    $this->actingAs($user)->postJson('/ajax/staff/attendance/clock-in')->assertOk();
+
+    $attendance = StaffAttendance::where('staff_id', $staff->id)->orderByDesc('id')->first();
+    expect(StaffAttendance::where('staff_id', $staff->id)->count())->toBe(2)
+        ->and($attendance->clock_in)->not->toBeNull()
+        ->and($attendance->clock_out)->toBeNull();
+});
+
+it('provides default services for the staff service selector', function () {
+    $user = offDutyStaff();
+    Staff::create(['name' => $user->name, 'email' => $user->email, 'password' => 'x', 'role' => 'staff']);
+
+    $this->actingAs($user)
+        ->getJson('/ajax/staff/bootstrap')
+        ->assertOk()
+        ->assertJsonCount(3, 'services')
+        ->assertJsonPath('services.0.name', 'Dry Only')
+        ->assertJsonPath('services.1.name', 'Wash Only')
+        ->assertJsonPath('services.2.name', 'Wash with Dry');
+});
+
 it('lets an admin edit an inventory item and logs a changed quantity', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Snack/Drink', 'created_at' => now(), 'updated_at' => now()]);
