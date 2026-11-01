@@ -184,10 +184,12 @@ it('records sales and cancellations in the stock ledger', function () {
 it('lets admin change service prices and hide an inactive service from staff', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $staff = User::factory()->create(['role' => 'staff']);
+    $serviceName = 'Test Wash Only';
 
-    $id = $this->actingAs($admin)->postJson('/ajax/admin/services', ['name' => 'Wash Only', 'base_price' => 70, 'rate_per_kg' => 25, 'is_active' => true])->assertCreated()->json('service.id');
-    $this->actingAs($admin)->patchJson("/ajax/admin/services/{$id}", ['name' => 'Wash Only', 'base_price' => 80, 'rate_per_kg' => 30, 'is_active' => false])->assertOk();
+    $id = $this->actingAs($admin)->postJson('/ajax/admin/services', ['name' => $serviceName, 'base_price' => 70, 'rate_per_kg' => 25, 'is_active' => true])->assertCreated()->json('service.id');
+    $this->actingAs($admin)->patchJson("/ajax/admin/services/{$id}", ['name' => $serviceName, 'base_price' => 80, 'rate_per_kg' => 30, 'is_active' => false])->assertOk();
 
-    expect($this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json('services'))->toBeEmpty();
+    $staffServices = collect($this->actingAs($staff)->getJson('/ajax/staff/bootstrap')->json('services'));
+    expect($staffServices->pluck('id'))->not->toContain($id);
     $this->actingAs($staff)->postJson('/ajax/admin/services', ['name' => 'X', 'base_price' => 1, 'is_active' => true])->assertForbidden();
 });

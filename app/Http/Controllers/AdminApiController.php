@@ -167,7 +167,13 @@ class AdminApiController extends Controller
             ->orderByDesc('work_date')
             ->orderByDesc('clock_in')
             ->limit(100)
-            ->get();
+            ->get()
+            ->map(function (StaffAttendance $attendance): array {
+                $row = $attendance->toArray();
+                $row['work_date'] = $attendance->work_date?->toDateString();
+
+                return $row;
+            });
 
         // Daily sales series (paid laundry) for charts
         $paidInRange = LaundryTransaction::query()

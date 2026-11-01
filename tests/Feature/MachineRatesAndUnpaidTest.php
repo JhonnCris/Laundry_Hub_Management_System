@@ -23,7 +23,7 @@ it('bills several machines at their size rates and records the machine summary',
     $w1 = makeMachine('Washer 1', 'washer', 'titan');
     $w2 = makeMachine('Washer 2', 'washer', 'giant');
     $d1 = makeMachine('Dryer 1', 'dryer', 'titan');
-    Service::create(['name' => 'Wash with Dry', 'base_price' => 120, 'is_active' => true]);
+    $serviceName = 'Wash with Dry';
 
     // titan wash 110 + giant wash 65 + titan dry 30 min 90 = 265
     $payload = [
@@ -36,7 +36,7 @@ it('bills several machines at their size rates and records the machine summary',
     $order = LaundryTransaction::first();
     expect($order->machine_summary)->toBe('2 washers · 1 dryer')
         ->and($order->machineUsages->pluck('minutes')->sort()->values()->all())->toBe([30, 38, 38])
-        ->and($order->service->name)->toBe('Wash with Dry')
+        ->and($order->service->name)->toBe($serviceName)
         ->and(DB::table('machines')->whereIn('id', [$w1, $w2, $d1])->pluck('status')->unique()->all())->toBe(['in_use']);
 
     $order->releaseMachines();
