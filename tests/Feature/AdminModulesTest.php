@@ -4,6 +4,7 @@ use App\Models\Customer;
 use App\Models\FinanceTransaction;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
+use App\Models\InventoryRestock;
 use App\Models\Machine;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
@@ -73,7 +74,7 @@ it('only changes inventory when a recorded receipt is added to inventory, once',
     $admin = User::factory()->create(['role' => 'admin']);
     $item = stockItem(5);
 
-    $id = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 12])->assertCreated()->json('restock.id');
+    $id = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 12, 'confirmed' => true])->assertCreated()->json('restock.id');
     expect($item->fresh()->quantity_on_hand)->toBe(5);
 
     $this->actingAs($admin)->postJson("/ajax/admin/procurement/{$id}/stock")->assertOk();
@@ -125,7 +126,7 @@ it('keeps machine management away from staff', function () {
 it('adds a receipt to inventory in parts and logs each part in the stock ledger', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $item = stockItem(0);
-    $id = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 10, 'cost' => 100, 'invoice_number' => 'INV-1'])->assertCreated()->json('restock.id');
+    $id = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 10, 'cost' => 100, 'invoice_number' => 'INV-1', 'confirmed' => true])->assertCreated()->json('restock.id');
 
     $this->actingAs($admin)->postJson("/ajax/admin/procurement/{$id}/stock", ['quantity' => 11])->assertStatus(422);
     $this->actingAs($admin)->postJson("/ajax/admin/procurement/{$id}/stock", ['quantity' => 4])->assertOk()->assertJsonPath('restock.receipt_status', 'partial');
@@ -151,8 +152,8 @@ it('records all scanned invoice lines and logs the invoice cost only once', func
 
     $response = $this->actingAs($admin)->postJson('/ajax/admin/procurement', [
         'items' => [
-            ['inventory_item_id' => $firstItem->id, 'quantity_received' => 4, 'quantity_invoiced' => 5],
-            ['inventory_item_id' => $secondItem->id, 'quantity_received' => 2, 'quantity_invoiced' => 2],
+            ['inventory_item_id' => $firstItem->id, 'quantity_received' => 4, 'quantity_invoiced' => 5, 'confirmed' => true],
+            ['inventory_item_id' => $secondItem->id, 'quantity_received' => 2, 'quantity_invoiced' => 2, 'confirmed' => true],
         ],
         'supplier' => 'Supplier',
         'invoice_number' => 'INV-2',
@@ -171,10 +172,31 @@ it('records all scanned invoice lines and logs the invoice cost only once', func
         ->and($secondItem->fresh()->quantity_on_hand)->toBe(0);
 });
 
+it('requires confirmation of every line before saving a multi-item receipt', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $item = stockItem(0);
+
+    $this->actingAs($admin)->postJson('/ajax/admin/procurement', [
+        'items' => [
+            ['inventory_item_id' => $item->id, 'quantity_received' => 4, 'quantity_invoiced' => 4],
+        ],
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors(['items.0.confirmed']);
+
+    $this->actingAs($admin)->postJson('/ajax/admin/procurement', [
+        'inventory_item_id' => $item->id,
+        'quantity_received' => 4,
+    ])->assertStatus(422)
+        ->assertJsonValidationErrors(['confirmed']);
+
+    expect(InventoryRestock::query()->count())->toBe(0)
+        ->and($item->fresh()->quantity_on_hand)->toBe(0);
+});
+
 it('voids a mistaken receipt and removes its expense, but not one already stocked', function () {
     $admin = User::factory()->create(['role' => 'admin']);
     $item = stockItem(0);
-    $make = fn () => $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 5, 'cost' => 50])->json('restock.id');
+    $make = fn () => $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $item->id, 'quantity_received' => 5, 'cost' => 50, 'confirmed' => true])->json('restock.id');
 
     $a = $make();
     expect(FinanceTransaction::where('inventory_restock_id', $a)->count())->toBe(1);

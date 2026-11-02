@@ -102,6 +102,48 @@ function parseExplicitQuantity(line) {
     return match ? Number(match[1]) : 0;
 }
 
+function parseStandaloneQuantity(line) {
+    const match = String(line || '').match(/^\s*(\d{1,5})\s*$/);
+
+    return match ? Number(match[1]) : 0;
+}
+
+function isQuantityUnit(line) {
+    return /^\s*(?:pcs?|pieces?|packs?|bottles?|sachets?|units?)\.?\s*$/i.test(line);
+}
+
+function isQuantityLabel(line) {
+    return /^\s*(?:qty|quantity)\.?\s*$/i.test(line);
+}
+
+function parseNearbyQuantity(lines, lineIndex, products) {
+    for (let offset = 1; offset <= 4 && lineIndex + offset < lines.length; offset += 1) {
+        const nextLine = lines[lineIndex + offset];
+        if (findProduct(nextLine, products) || /\b(invoice|receipt|date|grand total|amount due)\b/i.test(nextLine)) {
+            break;
+        }
+
+        const explicit = parseExplicitQuantity(nextLine);
+        if (explicit > 0) return explicit;
+
+        const standalone = parseStandaloneQuantity(nextLine);
+        if (standalone > 0) {
+            const followingLine = lines[lineIndex + offset + 1] || '';
+            const precedingLine = lines[lineIndex + offset - 1] || '';
+            if (isQuantityUnit(followingLine) || isQuantityLabel(precedingLine)) {
+                return standalone;
+            }
+        }
+
+        if (isQuantityUnit(nextLine)) {
+            const followingQuantity = parseStandaloneQuantity(lines[lineIndex + offset + 1]);
+            if (followingQuantity > 0) return followingQuantity;
+        }
+    }
+
+    return 0;
+}
+
 export function parseInvoiceText(text, inventoryItems) {
     const lines = String(text || '')
         .split(/\r?\n/)
@@ -121,14 +163,7 @@ export function parseInvoiceText(text, inventoryItems) {
 
         let quantity = parseQuantity(line, product.item.name);
         if (quantity < 1) {
-            for (let offset = 1; offset <= 4 && lineIndex + offset < lines.length; offset += 1) {
-                const nextLine = lines[lineIndex + offset];
-                if (findProduct(nextLine, products) || /\b(invoice|receipt|date|grand total|amount due)\b/i.test(nextLine)) {
-                    break;
-                }
-                quantity = parseExplicitQuantity(nextLine);
-                if (quantity > 0) break;
-            }
+            quantity = parseNearbyQuantity(lines, lineIndex, products);
         }
         if (quantity < 1) {
             unreadableProducts.add(product.item.name);

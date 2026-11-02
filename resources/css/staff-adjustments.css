@@ -1324,6 +1324,56 @@
     font-size: 12px;
     line-height: 1.4;
 }
+.po-source-section {
+    display: grid;
+    gap: 12px;
+    padding: 18px clamp(22px, 3vw, 36px);
+    border-bottom: 1px solid var(--staff-border);
+    background: var(--staff-input-bg);
+}
+.po-source-preview {
+    display: grid;
+    min-height: 120px;
+    max-height: 320px;
+    place-items: center;
+    overflow: auto;
+    border: 1px solid var(--staff-border);
+    border-radius: 10px;
+    background: var(--staff-card-bg);
+}
+.po-source-preview img {
+    display: block;
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+}
+.po-source-section > p {
+    margin: 0;
+    color: var(--staff-muted);
+    font-size: 12px;
+}
+.po-ocr-text {
+    border: 1px solid var(--staff-border);
+    border-radius: 9px;
+    background: var(--staff-card-bg);
+}
+.po-ocr-text summary {
+    padding: 10px 12px;
+    color: var(--staff-input-text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+.po-ocr-text pre {
+    max-height: 180px;
+    overflow: auto;
+    margin: 0;
+    padding: 0 12px 12px;
+    color: var(--staff-muted);
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
 .po-form-section {
     min-width: 0;
     padding: 20px 22px;
@@ -1456,6 +1506,27 @@
 .po-receipt-line small,
 .po-receipt-line label { color: var(--staff-muted); font-size: 11px; }
 .po-receipt-line label { display: grid; gap: 4px; }
+.po-line-confirm {
+    grid-column: 1 / -1;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px !important;
+    color: var(--staff-input-text) !important;
+    font-size: 12px !important;
+}
+.po-receipt-line .po-line-confirm input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--staff-accent, #247a54);
+}
+.po-line-review-status {
+    color: #8a4b08;
+    font-size: 12px !important;
+}
+.po-receipt-line.is-confirmed .po-line-review-status {
+    color: #197044;
+}
 .po-receipt-line input,
 .po-receipt-line select {
     box-sizing: border-box;

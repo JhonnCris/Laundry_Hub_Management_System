@@ -859,10 +859,18 @@
             <input type="file" data-po-receipt-scan accept="image/*" hidden>
             <p class="po-scan-status" data-po-scan-status aria-live="polite">JPG, PNG, or another image format · up to 12 MB</p>
         </section>
+        <section class="po-source-section" data-po-source-preview hidden aria-label="Invoice source reference">
+            <div class="po-source-preview"><img data-po-preview alt="Uploaded supplier invoice for staff review"></div>
+            <details class="po-ocr-text" data-po-ocr-details hidden>
+                <summary>View text detected by OCR</summary>
+                <pre data-po-ocr-text></pre>
+            </details>
+            <p>Reference only. This image stays in your browser and is not saved or uploaded.</p>
+        </section>
         <section class="po-form-section" aria-labelledby="po-details-heading">
             <div class="po-section-heading">
                 <div><span class="po-step">1</span><h3 id="po-details-heading">Invoice details</h3></div>
-                <p>Check and correct any values filled from the image.</p>
+                <p>OCR suggestions can be wrong. Compare them with the invoice.</p>
             </div>
             <div class="po-details-grid">
                 <label class="modal-field">Invoice number
@@ -879,7 +887,7 @@
         <section class="po-form-section" aria-labelledby="po-items-heading">
             <div class="po-section-heading">
                 <div><span class="po-step">2</span><h3 id="po-items-heading">Items received</h3></div>
-                <p>Verify invoice quantity and enter the quantity actually received.</p>
+                <p>Compare every item and quantity with the invoice, then confirm each line.</p>
             </div>
             <div class="po-receipt-lines" data-po-lines aria-live="polite">
                 <p class="dash-empty">Uploaded invoice items will appear here. You can also add items manually.</p>

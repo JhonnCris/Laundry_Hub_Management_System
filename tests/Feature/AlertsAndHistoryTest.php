@@ -50,7 +50,7 @@ it('resolves the staff report when the admin adds a receipt to inventory, and le
     $itemId = lowItem();
     $this->actingAs($staff)->postJson("/ajax/staff/inventory/{$itemId}/notify-low")->assertOk();
 
-    $restockId = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $itemId, 'quantity_received' => 20])->assertCreated()->json('restock.id');
+    $restockId = $this->actingAs($admin)->postJson('/ajax/admin/procurement', ['inventory_item_id' => $itemId, 'quantity_received' => 20, 'confirmed' => true])->assertCreated()->json('restock.id');
     expect(Notification::where('is_read', false)->count())->toBe(1);
 
     $this->actingAs($admin)->postJson("/ajax/admin/procurement/{$restockId}/stock")->assertOk();

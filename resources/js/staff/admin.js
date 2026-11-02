@@ -1364,17 +1364,44 @@ function pricedInventoryItems(app) {
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function procurementLineMarkup(app, { id = '', quantityInvoiced = '', quantityReceived = '' } = {}) {
+function procurementLineMarkup(app, { id = '', quantityInvoiced = '', quantityReceived = '', source = 'manual' } = {}) {
     const options = pricedInventoryItems(app)
         .map((item) => `<option value="${Number(item.id)}"${Number(id) === Number(item.id) ? ' selected' : ''}>${esc(item.name)}</option>`)
         .join('');
 
-    return `<div class="po-receipt-line" data-po-line data-item-id="${Number(id) || ''}">
+    return `<div class="po-receipt-line" data-po-line data-po-origin="${source}" data-item-id="${Number(id) || ''}">
         <label class="po-line-item"><span>Inventory item</span><select data-po-item required><option value="">Select a priced item</option>${options}</select></label>
         <label><span>Qty on invoice</span><input type="number" data-po-invoiced-qty min="0" step="1" value="${Number(quantityInvoiced) > 0 ? Number(quantityInvoiced) : ''}" inputmode="numeric" required></label>
         <label><span>Qty received</span><input type="number" data-po-qty min="1" step="1" value="${Number(quantityReceived) > 0 ? Number(quantityReceived) : ''}" inputmode="numeric" required></label>
+        <label class="po-line-confirm"><input type="checkbox" data-po-confirm-line required><span>I verified the item and both quantities against the receipt.</span></label>
+        <strong class="po-line-review-status" data-po-line-status>Needs review</strong>
         <button type="button" class="text-button po-line-remove" data-po-remove-line>Remove item</button>
     </div>`;
+}
+
+function updateProcurementLineConfirmation(line) {
+    const confirmed = Boolean(line.querySelector('[data-po-confirm-line]')?.checked);
+    const status = line.querySelector('[data-po-line-status]');
+    line.dataset.confirmed = confirmed ? 'true' : 'false';
+    line.classList.toggle('is-confirmed', confirmed);
+    if (status) status.textContent = confirmed ? 'Confirmed' : 'Needs review';
+}
+
+function clearProcurementSource(app) {
+    const image = app.querySelector('[data-po-preview]');
+    if (image?.dataset.objectUrl) {
+        URL.revokeObjectURL(image.dataset.objectUrl);
+        delete image.dataset.objectUrl;
+    }
+    if (image) {
+        image.removeAttribute('src');
+    }
+    const source = app.querySelector('[data-po-source-preview]');
+    if (source) source.hidden = true;
+    const transcript = app.querySelector('[data-po-ocr-text]');
+    if (transcript) transcript.textContent = '';
+    const details = app.querySelector('[data-po-ocr-details]');
+    if (details) details.hidden = true;
 }
 
 function bindProcurementScanner(app) {
@@ -1382,12 +1409,27 @@ function bindProcurementScanner(app) {
     if (!input || input.dataset.scanBound === '1') return;
     input.dataset.scanBound = '1';
 
+    const invalidateConfirmation = (event) => {
+        const field = event.target.closest('[data-po-item], [data-po-invoiced-qty], [data-po-qty]');
+        if (field) {
+            const line = field.closest('[data-po-line]');
+            const confirmation = line?.querySelector('[data-po-confirm-line]');
+            if (line && confirmation?.checked) {
+                confirmation.checked = false;
+                updateProcurementLineConfirmation(line);
+            }
+        }
+    };
+    app.addEventListener('input', invalidateConfirmation);
     app.addEventListener('change', (event) => {
         const select = event.target.closest('[data-po-item]');
         if (select) {
             const line = select.closest('[data-po-line]');
             if (line) line.dataset.itemId = select.value;
+            invalidateConfirmation(event);
         }
+        const confirmation = event.target.closest('[data-po-confirm-line]');
+        if (confirmation) updateProcurementLineConfirmation(confirmation.closest('[data-po-line]'));
     });
 
     input.addEventListener('change', async () => {
@@ -1407,12 +1449,14 @@ function bindProcurementScanner(app) {
         };
 
         if (error) error.hidden = true;
+        const imagePreview = app.querySelector('[data-po-preview]');
         buttons.forEach((button) => {
             button.disabled = true;
         });
         if (status) status.textContent = 'Reading invoice locally…';
 
         try {
+            clearProcurementSource(app);
             if (!file.type.startsWith('image/')) {
                 throw new Error('Choose an invoice image file, such as a photo, JPG, or PNG.');
             }
@@ -1420,9 +1464,22 @@ function bindProcurementScanner(app) {
                 throw new Error('The image is too large to scan. Choose an image smaller than 12 MB.');
             }
 
+            if (imagePreview) {
+                const objectUrl = URL.createObjectURL(file);
+                imagePreview.src = objectUrl;
+                imagePreview.dataset.objectUrl = objectUrl;
+                app.querySelector('[data-po-source-preview]').hidden = false;
+            }
             const text = await scanInvoiceImage(file, (progress) => {
                 if (status) status.textContent = `Processing invoice in this browser: ${progress}…`;
             });
+            const transcript = app.querySelector('[data-po-ocr-text]');
+            const transcriptDetails = app.querySelector('[data-po-ocr-details]');
+            if (transcript) transcript.textContent = text.trim() || 'No text was recognized in this image.';
+            if (transcriptDetails) {
+                transcriptDetails.hidden = false;
+                transcriptDetails.open = true;
+            }
             const parsed = parseInvoiceText(text, app._adminBootstrap?.inventory || []);
             if (parsed.lines.length > 50) {
                 throw new Error('This invoice has more than 50 priced inventory items. Scan a smaller group of items at a time.');
@@ -1431,21 +1488,25 @@ function bindProcurementScanner(app) {
             set('[data-po-invoice-date]', parsed.invoiceDate);
             set('[data-po-supplier]', parsed.supplier);
             set('[data-po-cost]', parsed.total);
-            if (lines && parsed.lines.length) {
+            if (lines) {
+                lines.querySelectorAll('[data-po-line][data-po-origin="ocr"]').forEach((line) => line.remove());
                 lines.querySelector('.dash-empty')?.remove();
-                lines.insertAdjacentHTML('beforeend', parsed.lines.map((line) => procurementLineMarkup(app, {
-                    id: line.id,
-                    quantityInvoiced: line.quantity,
-                    quantityReceived: line.quantity,
-                })).join(''));
+                if (parsed.lines.length) {
+                    lines.insertAdjacentHTML('beforeend', parsed.lines.map((line) => procurementLineMarkup(app, {
+                        id: line.id,
+                        quantityInvoiced: line.quantity,
+                        quantityReceived: line.quantity,
+                        source: 'ocr',
+                    })).join(''));
+                } else if (!lines.querySelector('[data-po-line]')) {
+                    lines.innerHTML = '<p class="dash-empty">No invoice items were recognized. Add items manually and compare them with the invoice.</p>';
+                }
             }
             if (status) {
                 if (!parsed.lines.length) {
                     status.textContent = 'No invoice items were recognized. Add inventory lines manually below or try another image.';
-                } else if (parsed.unreadableProducts.length) {
-                    status.textContent = 'Some invoice item quantities could not be recognized. Review them before saving, or add missing items manually.';
                 } else {
-                    status.textContent = 'OCR filled the form. Review invoice quantities and confirm each received quantity.';
+                    status.textContent = 'OCR suggestions are ready. Verify every line against the invoice and confirm it before saving.';
                 }
             }
         } catch (scanError) {
@@ -2257,6 +2318,7 @@ export function handleAdminClick(t, e, ctx) {
         set('[data-po-supplier]', '');
         set('[data-po-cost]', '');
         set('[data-po-notes]', '');
+        clearProcurementSource(app);
         const lines = document.querySelector('[data-po-lines]');
         if (lines) lines.innerHTML = '<p class="dash-empty">Uploaded invoice items will appear here. You can also add items manually.</p>';
         const status = document.querySelector('[data-po-scan-status]');
@@ -2296,6 +2358,7 @@ export function handleAdminClick(t, e, ctx) {
     }
     if (t.closest('[data-close-procurement]')) {
         e.preventDefault();
+        clearProcurementSource(app);
         hideModal('[data-procurement-modal]');
         return true;
     }
@@ -2306,6 +2369,7 @@ export function handleAdminClick(t, e, ctx) {
             quantity_invoiced: Number(line.querySelector('[data-po-invoiced-qty]')?.value ?? ''),
             quantity_received: Number(line.querySelector('[data-po-qty]')?.value || 0),
             has_invoice_quantity: (line.querySelector('[data-po-invoiced-qty]')?.value || '').trim() !== '',
+            confirmed: Boolean(line.querySelector('[data-po-confirm-line]')?.checked),
         }));
         const supplier = (document.querySelector('[data-po-supplier]')?.value || '').trim();
         const invoice = (document.querySelector('[data-po-invoice]')?.value || '').trim();
@@ -2320,11 +2384,12 @@ export function handleAdminClick(t, e, ctx) {
             !Number.isInteger(line.quantity_invoiced) ||
             line.quantity_invoiced < 0 ||
             !Number.isInteger(line.quantity_received) ||
-            line.quantity_received < 1
+            line.quantity_received < 1 ||
+            !line.confirmed
         )) {
             if (err) {
                 err.hidden = false;
-                err.textContent = 'Add up to 50 priced inventory items and enter a whole invoice quantity (0 or more) and received quantity (at least 1) for each.';
+                err.textContent = 'Add up to 50 priced items, enter a valid invoice and received quantity for each, and confirm every line after checking the receipt.';
             }
             return true;
         }
@@ -2341,10 +2406,11 @@ export function handleAdminClick(t, e, ctx) {
                 api('/ajax/admin/procurement', {
                     method: 'POST',
                     body: JSON.stringify({
-                        items: lines.map(({ inventory_item_id, quantity_received, quantity_invoiced }) => ({
+                        items: lines.map(({ inventory_item_id, quantity_received, quantity_invoiced, confirmed }) => ({
                             inventory_item_id,
                             quantity_received,
                             quantity_invoiced,
+                            confirmed,
                         })),
                         supplier: supplier || null,
                         invoice_number: invoice || null,
@@ -2355,7 +2421,8 @@ export function handleAdminClick(t, e, ctx) {
                     }),
                 })
                     .then((r) => {
-                        hideModal('[data-procurement-modal]');
+                    clearProcurementSource(app);
+                    hideModal('[data-procurement-modal]');
                         openNotice(
                             'Receipt recorded',
                             r.message || 'Receipt saved.',
