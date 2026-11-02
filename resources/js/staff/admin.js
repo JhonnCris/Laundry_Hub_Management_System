@@ -1449,7 +1449,12 @@ function bindProcurementScanner(app) {
                 }
             }
         } catch (scanError) {
-            const message = scanError instanceof Error ? scanError.message : 'The invoice could not be scanned. Try a clearer image.';
+            const message = scanError instanceof Error
+                ? scanError.message
+                : typeof scanError === 'string'
+                    ? scanError
+                    : scanError?.message || 'The invoice could not be scanned because the OCR service failed to initialize.';
+            console.error('Invoice OCR failed:', scanError);
             if (status) status.textContent = 'You can try another image or add the receipt items manually.';
             if (error) {
                 error.textContent = message;

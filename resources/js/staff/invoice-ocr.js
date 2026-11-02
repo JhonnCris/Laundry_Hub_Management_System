@@ -1,9 +1,14 @@
-function normalizeText(value) {
+function textTokens(value) {
     return String(value || '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '');
+        .match(/[a-z0-9]+/g) || [];
+}
+
+function findProduct(line, products) {
+    const lineTokens = new Set(textTokens(line));
+    return products.find((candidate) => candidate.tokens.every((token) => lineTokens.has(token)));
 }
 
 function productPattern(name) {
@@ -89,6 +94,14 @@ function parseQuantity(line, itemName) {
     return valuesBeforeName.length === 1 ? Number(valuesBeforeName[0]) : 0;
 }
 
+function parseExplicitQuantity(line) {
+    const match = line.match(/(?:qty|quantity)\s*[:#-]?\s*(\d{1,5})\b/i)
+        || line.match(/\b(?:x|×)\s*(\d{1,5})\b/i)
+        || line.match(/\b(\d{1,5})\s*(?:pcs?|pieces?|packs?|bottles?|sachets?|units?)\b/i);
+
+    return match ? Number(match[1]) : 0;
+}
+
 export function parseInvoiceText(text, inventoryItems) {
     const lines = String(text || '')
         .split(/\r?\n/)
@@ -96,18 +109,27 @@ export function parseInvoiceText(text, inventoryItems) {
         .filter(Boolean);
     const products = (inventoryItems || [])
         .filter((item) => item.status === 'active' && Number(item.unit_price) > 0)
-        .map((item) => ({ item, normalizedName: normalizeText(item.name) }))
-        .filter((product) => product.normalizedName)
-        .sort((a, b) => b.normalizedName.length - a.normalizedName.length);
+        .map((item) => ({ item, tokens: textTokens(item.name) }))
+        .filter((product) => product.tokens.length)
+        .sort((a, b) => b.tokens.length - a.tokens.length);
     const quantitiesByItem = new Map();
     const unreadableProducts = new Set();
 
-    for (const line of lines) {
-        const normalizedLine = normalizeText(line);
-        const product = products.find((candidate) => normalizedLine.includes(candidate.normalizedName));
+    for (const [lineIndex, line] of lines.entries()) {
+        const product = findProduct(line, products);
         if (!product) continue;
 
-        const quantity = parseQuantity(line, product.item.name);
+        let quantity = parseQuantity(line, product.item.name);
+        if (quantity < 1) {
+            for (let offset = 1; offset <= 4 && lineIndex + offset < lines.length; offset += 1) {
+                const nextLine = lines[lineIndex + offset];
+                if (findProduct(nextLine, products) || /\b(invoice|receipt|date|grand total|amount due)\b/i.test(nextLine)) {
+                    break;
+                }
+                quantity = parseExplicitQuantity(nextLine);
+                if (quantity > 0) break;
+            }
+        }
         if (quantity < 1) {
             unreadableProducts.add(product.item.name);
             if (!quantitiesByItem.has(product.item.id)) {
@@ -141,16 +163,20 @@ export function parseInvoiceText(text, inventoryItems) {
 
 export async function scanInvoiceImage(image, onProgress = () => {}) {
     const { createWorker } = await import('tesseract.js');
-    const worker = await createWorker('eng', 1, {
-        logger: (progress) => {
-            if (progress.status) onProgress(progress.status);
-        },
-    });
-
+    let worker;
     try {
+        worker = await createWorker('eng', 1, {
+            logger: (progress) => {
+                if (progress.status) onProgress(progress.status);
+            },
+        });
+        await worker.setParameters({ tessedit_pageseg_mode: '11' });
+
         const { data } = await worker.recognize(image);
         return data.text;
     } finally {
-        await worker.terminate();
+        if (worker) {
+            await worker.terminate();
+        }
     }
 }
