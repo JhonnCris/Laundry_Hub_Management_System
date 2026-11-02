@@ -51,18 +51,20 @@ class SecurityHeaders
         $scriptSources = "'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com";
         $connectSources = "'self'";
         $workerSources = "'self'";
+        $imageSources = "'self' data: https://api.qrserver.com";
 
         if ($allowsInvoiceOcr) {
             $scriptSources .= ' '.self::OCR_WORKER_SOURCE.' '.self::OCR_CORE_SOURCE;
             $connectSources .= ' '.self::OCR_WORKER_SOURCE.' '.self::OCR_CORE_SOURCE.' '.self::OCR_LANGUAGE_SOURCE;
             $workerSources .= ' blob:';
+            $imageSources .= ' blob:';
         }
 
         return "default-src 'self'; "
             ."script-src {$scriptSources}; "
             ."style-src 'self' 'unsafe-inline' https://fonts.bunny.net; "
             ."font-src 'self' https://fonts.bunny.net data:; "
-            ."img-src 'self' data: https://api.qrserver.com; "
+            ."img-src {$imageSources}; "
             ."connect-src {$connectSources}; "
             ."worker-src {$workerSources}; frame-src 'none'; object-src 'none'; "
             ."base-uri 'self'; form-action 'self'; frame-ancestors 'self'";

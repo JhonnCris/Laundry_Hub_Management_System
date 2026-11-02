@@ -26,10 +26,12 @@ it('allows invoice OCR assets only on the admin page under the production policy
     $adminPolicy = $this->actingAs($admin)->get('/admin')->headers->get('Content-Security-Policy');
     expect(str_contains($adminPolicy, "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://cdn.jsdelivr.net/npm/tesseract.js@v7.0.0/dist/worker.min.js https://cdn.jsdelivr.net/npm/tesseract.js-core@v7.0.0/"))->toBeTrue()
         ->and(str_contains($adminPolicy, "connect-src 'self' https://cdn.jsdelivr.net/npm/tesseract.js@v7.0.0/dist/worker.min.js https://cdn.jsdelivr.net/npm/tesseract.js-core@v7.0.0/ https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/"))->toBeTrue()
-        ->and(str_contains($adminPolicy, "worker-src 'self' blob:"))->toBeTrue();
+        ->and(str_contains($adminPolicy, "worker-src 'self' blob:"))->toBeTrue()
+        ->and(str_contains($adminPolicy, "img-src 'self' data: https://api.qrserver.com blob:"))->toBeTrue();
 
     $loginPolicy = $this->get('/login')->headers->get('Content-Security-Policy');
-    expect(str_contains($loginPolicy, 'cdn.jsdelivr.net'))->toBeFalse();
+    expect(str_contains($loginPolicy, 'cdn.jsdelivr.net'))->toBeFalse()
+        ->and(str_contains($loginPolicy, 'blob:'))->toBeFalse();
 });
 
 it('keeps the strict policy out of local development so the Vite dev server still works', function () {
