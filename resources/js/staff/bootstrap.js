@@ -280,7 +280,7 @@ export function loadStaffBootstrap(app, updateFn) {
                                   </div>`
                           )
                           .join('')
-                    : '<p class="dash-empty" style="padding:8px 0;margin:0">No snacks/drinks in inventory yet.</p>';
+                    : '<p class="dash-empty" style="padding:8px 0;margin:0">No priced counter items in inventory yet.</p>';
             }
             app.querySelectorAll('[data-detergent-list]').forEach((list) => {
                 const detergents = data.detergents || [];

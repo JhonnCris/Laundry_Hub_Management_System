@@ -269,11 +269,6 @@
                 <div class="order-row order-head inv5"><span>Item</span><span>Category</span><span>Quantity</span><span>Status</span><span>Action</span></div>
                 <div data-admin-inventory-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading inventory…</span></div></div>
             </section>
-            <section class="staff-card full-card table-card">
-                <div class="section-heading section-heading-wrap" style="padding:16px 20px 0;margin-bottom:0"><h2>Product categories</h2><button class="action-btn-primary" type="button" data-open-add-category>Add category →</button></div>
-                <div class="order-row order-head cat-row"><span>Category</span><span class="num">Products</span><span>Action</span></div>
-                <div data-admin-category-rows><div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading…</span></div></div>
-            </section>
             <section class="staff-card full-card">
                 <div class="section-heading"><h2>Top sellers</h2><small style="color:var(--staff-muted)">From paid orders in current range</small></div>
                 <div class="rank-bars" data-chart-top-products></div>
@@ -583,21 +578,6 @@
     </section>
 </div>
 
-<div class="modal-backdrop" data-category-modal hidden>
-    <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
-        <button class="modal-close" data-close-category type="button">×</button>
-        <h2 data-category-modal-title>Add category</h2>
-        <p class="modal-hint">Group products such as Detergent or Fabric conditioner so stock is easier to track.</p>
-        <input type="hidden" data-category-id>
-        <label class="modal-field">Name<input type="text" data-category-name maxlength="60" placeholder="e.g. Fabric conditioner"></label>
-        <p class="modal-error" data-category-error hidden></p>
-        <div class="modal-actions">
-            <button type="button" class="text-button" data-close-category>Cancel</button>
-            <button type="button" class="save-button" data-confirm-category>Save category</button>
-        </div>
-    </section>
-</div>
-
 <div class="modal-backdrop" data-machine-modal hidden>
     <section class="profile-modal action-modal admin-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-machine type="button">×</button>
@@ -866,35 +846,31 @@
     <section class="profile-modal action-modal admin-modal receive-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-procurement type="button">×</button>
         <h2>Record stock receipt</h2>
-        <p class="modal-hint">Enter what the invoice shows, then confirm the quantity you actually received. This only logs the delivery; use Add to inventory on the receipt to update stock.</p>
+        <p class="modal-hint">Scan or upload a supplier invoice image to fill in its details. The first scan downloads OCR assets; the image is processed in this browser and never uploaded. Confirm each received quantity and add any notes. Stock changes only when you add each receipt to inventory.</p>
+        <div class="po-scan-tools">
+            <button type="button" class="action-btn-secondary" data-po-scan>Scan invoice photo</button>
+            <button type="button" class="action-btn-secondary" data-po-upload>Upload invoice image</button>
+            <input type="file" data-po-receipt-scan accept="image/*" hidden>
+            <p data-po-scan-status aria-live="polite">Choose a clear invoice photo or upload an image.</p>
+        </div>
         <label class="modal-field">Invoice number
-            <input type="text" data-po-invoice placeholder="e.g. INV-2026-0142">
+            <input type="text" data-po-invoice>
         </label>
         <label class="modal-field">Invoice date
             <input type="date" data-po-invoice-date>
         </label>
         <label class="modal-field">Supplier
-            <input type="text" data-po-supplier list="po-suppliers" placeholder="Pick a supplier or type a name" autocomplete="off">
-            <datalist id="po-suppliers">
-                <option value="Unilever">
-                <option value="Procter &amp; Gamble">
-                <option value="South Davao Gasul Trade Corp">
-            </datalist>
+            <input type="text" data-po-supplier>
         </label>
-        <label class="modal-field">Inventory item
-            <select data-po-item></select>
-        </label>
-        <label class="modal-field">Qty on invoice
-            <input type="number" data-po-qty-invoiced min="0" value="1">
-        </label>
-        <label class="modal-field"><span>Qty received <small>(confirmed count)</small></span>
-            <input type="number" data-po-qty min="1" value="1">
-        </label>
+        <div class="po-receipt-lines" data-po-lines aria-live="polite">
+            <p class="dash-empty">Scanned inventory items will appear here.</p>
+        </div>
+        <button type="button" class="action-btn-secondary" data-po-add-item>Add inventory item manually</button>
         <label class="modal-field"><span>Invoice total (₱) <small>(optional · logged as expense)</small></span>
-            <input type="number" data-po-cost min="0" step="0.01" placeholder="0.00">
+            <input type="number" data-po-cost min="0" step="0.01">
         </label>
         <label class="modal-field"><span>Notes <small>(optional)</small></span>
-            <input type="text" data-po-notes placeholder="e.g. Short 2 pcs vs invoice · accepted">
+            <input type="text" data-po-notes maxlength="255" placeholder="e.g. Short 2 pcs vs invoice · accepted">
         </label>
         <p class="modal-error" data-po-error hidden></p>
         <div class="modal-actions">

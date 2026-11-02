@@ -145,8 +145,10 @@ class StaffApiController extends Controller
                 ->get();
         }
 
-        $snacks = $activeInventory->filter(fn ($i) => optional($i->category)->name === 'Snack/Drink')->values();
-        $detergents = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Detergent', 'Consumable'], true))->values();
+        $snacks = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Snack/Drink', 'Supply'], true)
+            && (float) $i->unit_price > 0)->values();
+        $detergents = $activeInventory->filter(fn ($i) => in_array(optional($i->category)->name, ['Detergent', 'Consumable'], true)
+            && (float) $i->unit_price > 0)->values();
 
         $customersWithStats = $customers->map(function ($c) {
             return [
@@ -366,6 +368,11 @@ class StaffApiController extends Controller
                             'items' => "{$item->name} is no longer available for sale. Refresh inventory and try again.",
                         ]);
                     }
+                    if ((float) $item->unit_price <= 0) {
+                        throw ValidationException::withMessages([
+                            'items' => "{$item->name} has no sale price configured and cannot be sold.",
+                        ]);
+                    }
                     $subtotal += (float) $item->unit_price * (int) $line['quantity'];
                 }
                 if ($detergentId && $detergentQty > 0) {
@@ -373,6 +380,11 @@ class StaffApiController extends Controller
                     if ($det->status !== 'active') {
                         throw ValidationException::withMessages([
                             'detergent_item_id' => "{$det->name} is no longer available. Refresh inventory and try again.",
+                        ]);
+                    }
+                    if ((float) $det->unit_price <= 0) {
+                        throw ValidationException::withMessages([
+                            'detergent_item_id' => "{$det->name} has no sale price configured and cannot be sold.",
                         ]);
                     }
                     $subtotal += (float) $det->unit_price * $detergentQty;

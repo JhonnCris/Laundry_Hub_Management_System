@@ -95,10 +95,10 @@
 <p class="kg-price-preview" data-kg-preview hidden>Machine charge: <strong>—</strong></p>
 </div>
 </section>
-<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Snacks & Drinks</h2><p>Add items to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading snacks from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
+<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Counter items</h2><p>Add priced products and supplies to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading priced items from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
 <div class="summary-top">
     <p data-summary-title>Summary</p>
-    <p class="summary-empty" data-summary-empty>Nothing recorded yet. Choose a service or add snacks to see a summary.</p>
+    <p class="summary-empty" data-summary-empty>Nothing recorded yet. Choose a service or add counter items to see a summary.</p>
     <dl data-summary-service-block hidden>
         <div data-row-basket><dt>Basket tag</dt><dd data-summary-tag>—</dd></div>
         <div data-row-service><dt>Service</dt><dd data-summary-service>—</dd></div>

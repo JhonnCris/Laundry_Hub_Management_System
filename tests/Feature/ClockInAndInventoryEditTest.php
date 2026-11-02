@@ -1,13 +1,13 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\Service;
 use App\Models\Staff;
 use App\Models\StaffAttendance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -75,7 +75,7 @@ it('provides default services for the staff service selector', function () {
 
 it('lets an admin edit an inventory item and logs a changed quantity', function () {
     $admin = User::factory()->create(['role' => 'admin']);
-    $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Snack/Drink', 'created_at' => now(), 'updated_at' => now()]);
+    $categoryId = InventoryCategory::query()->firstOrCreate(['name' => 'Snack/Drink'])->id;
     $item = InventoryItem::create([
         'inventory_category_id' => $categoryId, 'name' => 'Soda', 'unit' => 'can', 'unit_price' => 20,
         'quantity_on_hand' => 10, 'low_stock_threshold' => 3,

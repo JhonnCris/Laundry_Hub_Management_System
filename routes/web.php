@@ -19,6 +19,7 @@ Route::view('/company', 'pages.profile')->name('company');
 Route::get('/products-services', function () {
     $supplies = InventoryItem::query()
         ->where('status', 'active')
+        ->where('unit_price', '>', 0)
         ->whereHas('category', fn ($query) => $query->whereIn('name', ['Detergent', 'Supply']))
         ->orderBy('name')
         ->get(['name', 'unit', 'unit_price', 'quantity_on_hand']);

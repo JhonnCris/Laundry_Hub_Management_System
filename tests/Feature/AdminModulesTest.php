@@ -14,7 +14,7 @@ uses(RefreshDatabase::class);
 
 function stockItem(int $qty = 10): InventoryItem
 {
-    $category = InventoryCategory::create(['name' => 'Snack/Drink']);
+    $category = InventoryCategory::firstOrCreate(['name' => 'Snack/Drink']);
 
     return InventoryItem::create([
         'inventory_category_id' => $category->id, 'name' => 'Water', 'unit' => 'bottle',
@@ -135,6 +135,40 @@ it('adds a receipt to inventory in parts and logs each part in the stock ledger'
     $boot = $this->actingAs($admin)->getJson('/ajax/admin/bootstrap');
     expect(collect($boot->json('movements'))->pluck('quantity_change')->all())->toBe([6, 4])
         ->and($boot->json('movements.0.reason'))->toContain('INV-1');
+});
+
+it('records all scanned invoice lines and logs the invoice cost only once', function () {
+    $admin = User::factory()->create(['role' => 'admin']);
+    $firstItem = stockItem(0);
+    $secondItem = InventoryItem::query()->create([
+        'inventory_category_id' => $firstItem->inventory_category_id,
+        'name' => 'Second invoice item',
+        'unit' => 'pack',
+        'unit_price' => 12,
+        'quantity_on_hand' => 0,
+        'low_stock_threshold' => 1,
+    ]);
+
+    $response = $this->actingAs($admin)->postJson('/ajax/admin/procurement', [
+        'items' => [
+            ['inventory_item_id' => $firstItem->id, 'quantity_received' => 4, 'quantity_invoiced' => 5],
+            ['inventory_item_id' => $secondItem->id, 'quantity_received' => 2, 'quantity_invoiced' => 2],
+        ],
+        'supplier' => 'Supplier',
+        'invoice_number' => 'INV-2',
+        'invoice_date' => '2026-10-22',
+        'cost' => 100,
+        'notes' => 'Short one item',
+    ])->assertCreated()
+        ->assertJsonCount(2, 'restocks');
+
+    $firstRestockId = $response->json('restocks.0.id');
+    $secondRestockId = $response->json('restocks.1.id');
+    expect(FinanceTransaction::query()->where('inventory_restock_id', $firstRestockId)->count())->toBe(1)
+        ->and(FinanceTransaction::query()->where('inventory_restock_id', $secondRestockId)->count())->toBe(0)
+        ->and((float) FinanceTransaction::query()->where('inventory_restock_id', $firstRestockId)->value('amount'))->toBe(100.0)
+        ->and($firstItem->fresh()->quantity_on_hand)->toBe(0)
+        ->and($secondItem->fresh()->quantity_on_hand)->toBe(0);
 });
 
 it('voids a mistaken receipt and removes its expense, but not one already stocked', function () {

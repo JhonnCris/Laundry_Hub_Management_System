@@ -1,6 +1,11 @@
 {
+  "_index-C6xHUsg2.js": {
+    "file": "assets/index-C6xHUsg2.js",
+    "name": "index",
+    "isDynamicEntry": true
+  },
   "resources/css/app.css": {
-    "file": "assets/app-UqXrSn9r.css",
+    "file": "assets/app-CNApsZWr.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
@@ -10,14 +15,17 @@
     "isEntry": true
   },
   "resources/css/welcome.css": {
-    "file": "assets/welcome-BoW43FCr.css",
+    "file": "assets/welcome-DhKANrLw.css",
     "src": "resources/css/welcome.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-By-cjSpD.js",
+    "file": "assets/app-DbkAYgXJ.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "dynamicImports": [
+      "_index-C6xHUsg2.js"
+    ]
   }
 }

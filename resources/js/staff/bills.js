@@ -57,7 +57,7 @@ function render(app, data) {
               .map((s) => {
                   const [label, cls] = statusBadge(s);
                   const left = s.balance == null ? '—' : money(s.balance);
-                  const action = s.status === 'paid' ? '<span></span>' : `<span class="user-actions"><button type="button" class="action-btn-primary" data-pay-bill="${s.id}">${s.status === 'no_amount' ? 'Enter & pay' : 'Pay'}</button></span>`;
+                  const action = s.status === 'paid' ? '<span></span>' : `<span class="user-actions"><button type="button" class="action-btn-primary" data-pay-bill="${s.id}">${s.status === 'no_amount' ? 'Enter amount & record payment' : 'Record payment'}</button></span>`;
                   return `<div class="order-row bill-row"><strong>${esc(s.name)}<small>${esc(CATEGORY[s.category] || s.category)}${s.payee ? ' · ' + esc(s.payee) : ''}</small></strong><span data-label="Due">${esc(dayLabel(s.due_date))}</span><span class="num" data-label="Billed">${s.amount_due == null ? '—' : money(s.amount_due)}</span><span class="num" data-label="Paid">${money(s.paid)}</span><span class="num" data-label="Left">${left}</span><em class="status ${cls}">${label}</em>${action}</div>`;
               })
               .join('')

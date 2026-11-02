@@ -564,9 +564,13 @@ class AdminApiController extends Controller
     public function storeRestock(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'inventory_item_id' => ['required', 'integer', 'exists:inventory_items,id'],
-            'quantity_received' => ['required', 'integer', 'min:1'],
+            'inventory_item_id' => ['required_without:items', 'nullable', 'integer', 'exists:inventory_items,id'],
+            'quantity_received' => ['required_without:items', 'nullable', 'integer', 'min:1'],
             'quantity_invoiced' => ['nullable', 'integer', 'min:0'],
+            'items' => ['required_without:inventory_item_id', 'array', 'min:1', 'max:50'],
+            'items.*.inventory_item_id' => ['required', 'integer', 'exists:inventory_items,id'],
+            'items.*.quantity_received' => ['required', 'integer', 'min:1'],
+            'items.*.quantity_invoiced' => ['nullable', 'integer', 'min:0'],
             'supplier' => ['nullable', 'string', 'max:120'],
             'invoice_number' => ['nullable', 'string', 'max:80'],
             'invoice_date' => ['nullable', 'date'],
@@ -575,49 +579,69 @@ class AdminApiController extends Controller
             'notes' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $restock = DB::transaction(function () use ($data) {
-            $item = InventoryItem::query()->findOrFail($data['inventory_item_id']);
+        $lines = $data['items'] ?? [[
+            'inventory_item_id' => $data['inventory_item_id'],
+            'quantity_received' => $data['quantity_received'],
+            'quantity_invoiced' => $data['quantity_invoiced'] ?? null,
+        ]];
+
+        $restocks = DB::transaction(function () use ($data, $lines) {
+            $rows = collect();
             $receivedOn = $data['restocked_at'] ?? today();
             $invoiceRef = $data['invoice_number'] ?? null;
 
-            $row = InventoryRestock::query()->create([
-                'inventory_item_id' => $item->id,
-                'staff_id' => $this->staffId(),
-                'quantity_received' => $data['quantity_received'],
-                'quantity_invoiced' => $data['quantity_invoiced'] ?? $data['quantity_received'],
-                'supplier' => $data['supplier'] ?? null,
-                'invoice_number' => $invoiceRef,
-                'invoice_date' => $data['invoice_date'] ?? $receivedOn,
-                'cost' => $data['cost'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'restocked_at' => $receivedOn,
-            ]);
-
-            if (! empty($data['cost']) && (float) $data['cost'] > 0) {
-                $desc = 'Stock receipt: '.$item->name;
-                if ($invoiceRef) {
-                    $desc .= ' (Invoice '.$invoiceRef.')';
-                }
-                FinanceTransaction::query()->create([
-                    'type' => 'expense',
-                    'category' => 'stock',
-                    'inventory_restock_id' => $row->id,
-                    'description' => $desc,
-                    'amount' => $data['cost'],
+            foreach ($lines as $index => $line) {
+                $item = InventoryItem::query()->findOrFail($line['inventory_item_id']);
+                $cost = $index === 0 ? ($data['cost'] ?? null) : null;
+                $row = InventoryRestock::query()->create([
+                    'inventory_item_id' => $item->id,
                     'staff_id' => $this->staffId(),
-                    'transaction_date' => $receivedOn,
-                    'notes' => trim(($data['supplier'] ?? '').(! empty($data['notes']) ? ' · '.$data['notes'] : '')),
+                    'quantity_received' => $line['quantity_received'],
+                    'quantity_invoiced' => $line['quantity_invoiced'] ?? $line['quantity_received'],
+                    'supplier' => $data['supplier'] ?? null,
+                    'invoice_number' => $invoiceRef,
+                    'invoice_date' => $data['invoice_date'] ?? $receivedOn,
+                    'cost' => $cost,
+                    'notes' => $data['notes'] ?? null,
+                    'restocked_at' => $receivedOn,
                 ]);
+                $rows->push($row->load(['item', 'staff']));
+
+                if ($cost !== null && (float) $cost > 0) {
+                    $desc = 'Stock receipt: '.$item->name;
+                    if ($invoiceRef) {
+                        $desc .= ' (Invoice '.$invoiceRef.')';
+                    }
+                    FinanceTransaction::query()->create([
+                        'type' => 'expense',
+                        'category' => 'stock',
+                        'inventory_restock_id' => $row->id,
+                        'description' => $desc,
+                        'amount' => $cost,
+                        'staff_id' => $this->staffId(),
+                        'transaction_date' => $receivedOn,
+                        'notes' => trim(($data['supplier'] ?? '').(! empty($data['notes']) ? ' · '.$data['notes'] : '')),
+                    ]);
+                }
             }
 
-            return $row->load(['item', 'staff']);
+            return $rows;
         });
 
-        $this->audit('inventory.receipt_recorded', ['restock_id' => $restock->id, 'item_id' => $restock->inventory_item_id, 'quantity' => $restock->quantity_received, 'cost' => $restock->cost]);
+        $this->audit('inventory.receipt_recorded', [
+            'restock_id' => $restocks->first()->id,
+            'item_id' => $restocks->first()->inventory_item_id,
+            'quantity' => $restocks->sum('quantity_received'),
+            'restock_ids' => $restocks->pluck('id')->all(),
+            'item_ids' => $restocks->pluck('inventory_item_id')->all(),
+            'quantities' => $restocks->pluck('quantity_received')->all(),
+            'cost' => $data['cost'] ?? null,
+        ]);
 
         return response()->json([
             'message' => 'Receipt saved. Use "Add to inventory" on it when the stock is put on the shelf.',
-            'restock' => $restock,
+            'restock' => $restocks->first(),
+            'restocks' => $restocks,
         ], 201);
     }
 

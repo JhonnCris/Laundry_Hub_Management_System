@@ -1,7 +1,10 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\InventoryCategory;
+use App\Models\InventoryItem;
 use App\Models\LaundryTransaction;
+use App\Models\Service;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,7 +15,7 @@ uses(RefreshDatabase::class);
 
 function snackItem(int $quantity): int
 {
-    $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Snack/Drink', 'created_at' => now(), 'updated_at' => now()]);
+    $categoryId = InventoryCategory::query()->firstOrCreate(['name' => 'Snack/Drink'])->id;
 
     return DB::table('inventory_items')->insertGetId([
         'inventory_category_id' => $categoryId, 'name' => 'Chips', 'unit' => 'pack',
@@ -68,6 +71,99 @@ it('rejects archived inventory items in a sale', function () {
 
     expect(LaundryTransaction::count())->toBe(0)
         ->and(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
+});
+
+it('lists priced supot as a counter item and excludes products without a sale price', function () {
+    $supply = InventoryCategory::query()->firstOrCreate(['name' => 'Supply']);
+    $pricedItem = InventoryItem::query()->create([
+        'inventory_category_id' => $supply->id,
+        'name' => 'Supot - transparent',
+        'unit' => 'piece',
+        'unit_price' => 4,
+        'quantity_on_hand' => 8,
+        'low_stock_threshold' => 1,
+    ]);
+    InventoryItem::query()->create([
+        'inventory_category_id' => $supply->id,
+        'name' => 'Unpriced supply',
+        'unit' => 'piece',
+        'unit_price' => 0,
+        'quantity_on_hand' => 8,
+        'low_stock_threshold' => 1,
+    ]);
+
+    $items = $this->actingAs(staffUser())
+        ->getJson('/ajax/staff/bootstrap')
+        ->assertOk()
+        ->json('snacks');
+
+    expect(collect($items)->pluck('id')->all())->toContain($pricedItem->id)
+        ->and(collect($items)->pluck('name')->all())->not->toContain('Unpriced supply');
+});
+
+it('syncs only the September workbook products with listed prices', function () {
+    $prices = InventoryItem::query()
+        ->whereIn('name', ['Supot - transparent', 'Supot - blue', 'Zonrox', 'Zonrox ColorSafe', 'Water', 'Water Big'])
+        ->pluck('unit_price', 'name')
+        ->map(fn ($price) => (float) $price)
+        ->all();
+
+    expect($prices)->toMatchArray([
+        'Supot - transparent' => 4.0,
+        'Supot - blue' => 14.0,
+        'Zonrox' => 8.0,
+        'Zonrox ColorSafe' => 10.0,
+        'Water' => 20.0,
+        'Water Big' => 30.0,
+    ]);
+});
+
+it('records supot with a laundry service in one paid transaction', function () {
+    $supply = InventoryCategory::query()->firstOrCreate(['name' => 'Supply']);
+    $item = InventoryItem::query()->create([
+        'inventory_category_id' => $supply->id,
+        'name' => 'Supot - transparent',
+        'unit' => 'piece',
+        'unit_price' => 4,
+        'quantity_on_hand' => 5,
+        'low_stock_threshold' => 1,
+    ]);
+    $service = Service::query()->create(['name' => 'Drop-off test', 'base_price' => 30, 'is_active' => true]);
+    $payload = purchasePayload($item->id, 2, [
+        'service_id' => $service->id,
+        'service_amount' => 30,
+        'total_amount' => 38,
+        'cash_tendered' => 50,
+    ]);
+
+    $transactionId = $this->actingAs(staffUser())
+        ->postJson('/ajax/staff/transactions', $payload)
+        ->assertOk()
+        ->json('transaction.id');
+
+    $transaction = LaundryTransaction::query()->with('inventoryItems')->findOrFail($transactionId);
+    $line = $transaction->inventoryItems->first();
+
+    expect((float) $transaction->total_amount)->toBe(38.0)
+        ->and($transaction->payment_status)->toBe('paid')
+        ->and($line->pivot->quantity)->toBe(2)
+        ->and((float) $line->pivot->line_total)->toBe(8.0)
+        ->and($item->fresh()->quantity_on_hand)->toBe(3);
+});
+
+it('rejects sales of inventory without a configured price', function () {
+    $itemId = snackItem(5);
+    DB::table('inventory_items')->where('id', $itemId)->update(['unit_price' => 0]);
+
+    $this->actingAs(staffUser())
+        ->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1, [
+            'total_amount' => 0,
+            'cash_tendered' => 0,
+        ]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('items');
+
+    expect(LaundryTransaction::count())->toBe(0);
 });
 
 it('rejects archived detergent items when charging them to a laundry order', function () {

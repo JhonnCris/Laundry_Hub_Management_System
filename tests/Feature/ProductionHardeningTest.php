@@ -13,9 +13,23 @@ it('applies the strict content security policy in production, but not to the Fir
     $csp = $this->get('/login')->headers->get('Content-Security-Policy');
     expect($csp)->toContain("default-src 'self'")
         ->and($csp)->toContain("connect-src 'self'")
-        ->and($csp)->toContain("frame-src 'none'");
+        ->and($csp)->toContain("frame-src 'none'")
+        ->and($csp)->not->toContain('cdn.jsdelivr.net');
 
     $this->get('/firebase-messaging-sw.js')->assertHeader('Content-Security-Policy', "frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'");
+});
+
+it('allows invoice OCR assets only on the admin page under the production policy', function () {
+    app()['env'] = 'production';
+
+    $admin = User::factory()->create(['role' => 'admin']);
+    $adminPolicy = $this->actingAs($admin)->get('/admin')->headers->get('Content-Security-Policy');
+    expect(str_contains($adminPolicy, "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com https://cdn.jsdelivr.net/npm/tesseract.js@v7.0.0/dist/worker.min.js https://cdn.jsdelivr.net/npm/tesseract.js-core@v7.0.0/"))->toBeTrue()
+        ->and(str_contains($adminPolicy, "connect-src 'self' https://cdn.jsdelivr.net/npm/tesseract.js@v7.0.0/dist/worker.min.js https://cdn.jsdelivr.net/npm/tesseract.js-core@v7.0.0/ https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int/"))->toBeTrue()
+        ->and(str_contains($adminPolicy, "worker-src 'self' blob:"))->toBeTrue();
+
+    $loginPolicy = $this->get('/login')->headers->get('Content-Security-Policy');
+    expect(str_contains($loginPolicy, 'cdn.jsdelivr.net'))->toBeFalse();
 });
 
 it('keeps the strict policy out of local development so the Vite dev server still works', function () {

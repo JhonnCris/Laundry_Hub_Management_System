@@ -2,6 +2,7 @@
  * Admin: dashboard KPIs, filters, export + stock receiving
  */
 import { api, esc, money, paginate, qtyUnit } from './core.js';
+import { parseInvoiceText, scanInvoiceImage } from './invoice-ocr.js';
 
 function statusLabel(st) {
     const map = {
@@ -414,22 +415,9 @@ function renderRates(app, data) {
         : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No machine rates yet.</span></div>';
 }
 
-/** Product categories (with product counts) and the inventory category filter. */
+/** Keep the inventory category filter without a separate category dashboard card. */
 function renderCategories(app, data) {
     const cats = data.categories || [];
-    const rows = app.querySelector('[data-admin-category-rows]');
-    if (rows) {
-        const counts = {};
-        (data.inventory || []).forEach((i) => {
-            counts[i.inventory_category_id] = (counts[i.inventory_category_id] || 0) + 1;
-        });
-        rows.innerHTML = cats.length
-            ? cats
-                  .map((c) => `<div class="order-row cat-row"><strong>${esc(c.name)}</strong><span class="num">${counts[c.id] || 0}</span><span class="user-actions"><button type="button" class="action-btn-secondary" data-edit-category="${c.id}">Rename</button><button type="button" class="action-btn-danger" data-delete-category="${c.id}">Delete</button></span></div>`)
-                  .join('')
-            : '<div class="order-row"><span style="grid-column:1/-1;color:var(--staff-muted)">No categories yet.</span></div>';
-        paginate(rows);
-    }
     const sel = app.querySelector('[data-inv-category-filter]');
     if (sel) {
         if (!app._invCatBound) {
@@ -1370,7 +1358,115 @@ function askReason(app, showModal, { title, hint, run }) {
     showModal('[data-reason-modal]');
 }
 
+function pricedInventoryItems(app) {
+    return (app._adminBootstrap?.inventory || [])
+        .filter((item) => item.status === 'active' && Number(item.unit_price) > 0)
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function procurementLineMarkup(app, { id = '', quantityInvoiced = '', quantityReceived = '' } = {}) {
+    const options = pricedInventoryItems(app)
+        .map((item) => `<option value="${Number(item.id)}"${Number(id) === Number(item.id) ? ' selected' : ''}>${esc(item.name)}</option>`)
+        .join('');
+
+    return `<div class="po-receipt-line" data-po-line data-item-id="${Number(id) || ''}">
+        <label class="po-line-item"><span>Inventory item</span><select data-po-item required><option value="">Select a priced item</option>${options}</select></label>
+        <label><span>Qty on invoice</span><input type="number" data-po-invoiced-qty min="0" step="1" value="${Number(quantityInvoiced) > 0 ? Number(quantityInvoiced) : ''}" inputmode="numeric" required></label>
+        <label><span>Qty received</span><input type="number" data-po-qty min="1" step="1" value="${Number(quantityReceived) > 0 ? Number(quantityReceived) : ''}" inputmode="numeric" required></label>
+        <button type="button" class="text-button po-line-remove" data-po-remove-line>Remove item</button>
+    </div>`;
+}
+
+function bindProcurementScanner(app) {
+    const input = app.querySelector('[data-po-receipt-scan]');
+    if (!input || input.dataset.scanBound === '1') return;
+    input.dataset.scanBound = '1';
+
+    app.addEventListener('change', (event) => {
+        const select = event.target.closest('[data-po-item]');
+        if (select) {
+            const line = select.closest('[data-po-line]');
+            if (line) line.dataset.itemId = select.value;
+        }
+    });
+
+    input.addEventListener('change', async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        const status = app.querySelector('[data-po-scan-status]');
+        const error = app.querySelector('[data-po-error]');
+        const lines = app.querySelector('[data-po-lines]');
+        const buttons = [
+            app.querySelector('[data-po-scan]'),
+            app.querySelector('[data-po-upload]'),
+            app.querySelector('[data-po-add-item]'),
+        ].filter(Boolean);
+        const set = (selector, value) => {
+            const field = app.querySelector(selector);
+            if (field && !field.value) field.value = value;
+        };
+
+        if (error) error.hidden = true;
+        buttons.forEach((button) => {
+            button.disabled = true;
+        });
+        if (status) status.textContent = 'Reading invoice locally…';
+
+        try {
+            if (!file.type.startsWith('image/')) {
+                throw new Error('Choose an invoice image file, such as a photo, JPG, or PNG.');
+            }
+            if (file.size > 12 * 1024 * 1024) {
+                throw new Error('The image is too large to scan. Choose an image smaller than 12 MB.');
+            }
+
+            const text = await scanInvoiceImage(file, (progress) => {
+                if (status) status.textContent = `Processing invoice in this browser: ${progress}…`;
+            });
+            const parsed = parseInvoiceText(text, app._adminBootstrap?.inventory || []);
+            if (parsed.lines.length > 50) {
+                throw new Error('This invoice has more than 50 priced inventory items. Scan a smaller group of items at a time.');
+            }
+            set('[data-po-invoice]', parsed.invoiceNumber);
+            set('[data-po-invoice-date]', parsed.invoiceDate);
+            set('[data-po-supplier]', parsed.supplier);
+            set('[data-po-cost]', parsed.total);
+            if (lines && parsed.lines.length) {
+                lines.querySelector('.dash-empty')?.remove();
+                lines.insertAdjacentHTML('beforeend', parsed.lines.map((line) => procurementLineMarkup(app, {
+                    id: line.id,
+                    quantityInvoiced: line.quantity,
+                    quantityReceived: line.quantity,
+                })).join(''));
+            }
+            if (status) {
+                if (!parsed.lines.length) {
+                    status.textContent = 'No invoice items were recognized. Add inventory lines manually below or try another image.';
+                } else if (parsed.unreadableProducts.length) {
+                    status.textContent = 'Some invoice item quantities could not be recognized. Review them before saving, or add missing items manually.';
+                } else {
+                    status.textContent = 'OCR filled the form. Review invoice quantities and confirm each received quantity.';
+                }
+            }
+        } catch (scanError) {
+            const message = scanError instanceof Error ? scanError.message : 'The invoice could not be scanned. Try a clearer image.';
+            if (status) status.textContent = message;
+            if (error) {
+                error.textContent = message;
+                error.hidden = false;
+            }
+        } finally {
+            buttons.forEach((button) => {
+                button.disabled = false;
+            });
+            input.value = '';
+        }
+    });
+}
+
 export function loadAdminBootstrap(app) {
+    bindProcurementScanner(app);
     const q = rangeQuery(app);
     return api('/ajax/admin/bootstrap' + q)
         .then((data) => {
@@ -1437,15 +1533,6 @@ export function loadAdminBootstrap(app) {
             const spendEl = app.querySelector('[data-admin-month-spend]');
             if (spendEl && data.metrics) {
                 spendEl.textContent = money(data.metrics.receipts_spend ?? 0);
-            }
-            const poSelect = document.querySelector('[data-po-item]');
-            if (poSelect && (data.inventory || []).length) {
-                poSelect.innerHTML = data.inventory
-                    .map(
-                        (i) =>
-                            `<option value="${esc(i.id)}">${esc(i.name)} (${esc(qtyUnit(i.quantity_on_hand, i.unit))})</option>`
-                    )
-                    .join('');
             }
         })
         .catch((err) => {
@@ -1955,56 +2042,6 @@ export function handleAdminClick(t, e, ctx) {
         return true;
     }
 
-    if (t.closest('[data-open-add-category]') || t.closest('[data-edit-category]')) {
-        e.preventDefault();
-        const editId = t.closest('[data-edit-category]')?.dataset.editCategory;
-        const c = editId ? ((app._adminBootstrap || {}).categories || []).find((x) => String(x.id) === editId) : null;
-        document.querySelector('[data-category-modal-title]').textContent = c ? 'Rename category' : 'Add category';
-        document.querySelector('[data-category-id]').value = c?.id ?? '';
-        document.querySelector('[data-category-name]').value = c?.name ?? '';
-        document.querySelector('[data-category-error]').hidden = true;
-        showModal('[data-category-modal]');
-        return true;
-    }
-    if (t.closest('[data-close-category]')) {
-        e.preventDefault();
-        hideModal('[data-category-modal]');
-        return true;
-    }
-    if (t.closest('[data-confirm-category]')) {
-        e.preventDefault();
-        const id = document.querySelector('[data-category-id]').value;
-        const name = document.querySelector('[data-category-name]').value.trim();
-        const err = document.querySelector('[data-category-error]');
-        if (!name) {
-            err.hidden = false;
-            err.textContent = 'Enter a category name.';
-            return true;
-        }
-        api(id ? `/ajax/admin/categories/${id}` : '/ajax/admin/categories', { method: id ? 'PATCH' : 'POST', body: JSON.stringify({ name }) })
-            .then(() => {
-                hideModal('[data-category-modal]');
-                openNotice('Category saved', name + ' was saved.', 'success');
-                loadAdminBootstrap(app);
-            })
-            .catch((ex) => {
-                err.hidden = false;
-                err.textContent = ex.message;
-            });
-        return true;
-    }
-    const delCat = t.closest('[data-delete-category]');
-    if (delCat) {
-        e.preventDefault();
-        const c = ((app._adminBootstrap || {}).categories || []).find((x) => String(x.id) === delCat.dataset.deleteCategory);
-        openConfirm('Delete category?', `${c?.name || 'This category'} will be removed. A category that still has products cannot be deleted.`, () => {
-            api(`/ajax/admin/categories/${delCat.dataset.deleteCategory}`, { method: 'DELETE' })
-                .then(() => loadAdminBootstrap(app))
-                .catch((ex) => openError('Delete category', ex));
-        });
-        return true;
-    }
-
     if (t.closest('[data-open-add-machine]') || t.closest('[data-edit-machine]')) {
         e.preventDefault();
         const editId = t.closest('[data-edit-machine]')?.dataset.editMachine;
@@ -2207,19 +2244,57 @@ export function handleAdminClick(t, e, ctx) {
         e.preventDefault();
         const err = document.querySelector('[data-po-error]');
         if (err) err.hidden = true;
-        const today = new Date().toISOString().slice(0, 10);
         const set = (sel, val) => {
             const el = document.querySelector(sel);
             if (el) el.value = val;
         };
         set('[data-po-invoice]', '');
-        set('[data-po-invoice-date]', today);
+        set('[data-po-invoice-date]', '');
         set('[data-po-supplier]', '');
-        set('[data-po-qty-invoiced]', '1');
-        set('[data-po-qty]', '1');
         set('[data-po-cost]', '');
         set('[data-po-notes]', '');
+        const lines = document.querySelector('[data-po-lines]');
+        if (lines) lines.innerHTML = '<p class="dash-empty">Scanned inventory items will appear here.</p>';
+        const status = document.querySelector('[data-po-scan-status]');
+        if (status) status.textContent = 'Choose a clear invoice photo or upload an image, or add receipt items manually.';
+        const scanInput = document.querySelector('[data-po-receipt-scan]');
+        if (scanInput) scanInput.value = '';
         showModal('[data-procurement-modal]');
+        return true;
+    }
+    if (t.closest('[data-po-scan]') || t.closest('[data-po-upload]')) {
+        e.preventDefault();
+        const input = document.querySelector('[data-po-receipt-scan]');
+        if (input) {
+            if (t.closest('[data-po-scan]')) {
+                input.setAttribute('capture', 'environment');
+            } else {
+                input.removeAttribute('capture');
+            }
+            input.click();
+        }
+        return true;
+    }
+    if (t.closest('[data-po-add-item]')) {
+        e.preventDefault();
+        const lines = document.querySelector('[data-po-lines]');
+        const error = document.querySelector('[data-po-error]');
+        const items = pricedInventoryItems(app);
+        if (!items.length) {
+            if (error) {
+                error.textContent = 'There are no active priced inventory items available to add.';
+                error.hidden = false;
+            }
+            return true;
+        }
+        if (error) error.hidden = true;
+        lines?.querySelector('.dash-empty')?.remove();
+        lines?.insertAdjacentHTML('beforeend', procurementLineMarkup(app));
+        return true;
+    }
+    if (t.closest('[data-po-remove-line]')) {
+        e.preventDefault();
+        t.closest('[data-po-line]')?.remove();
         return true;
     }
     if (t.closest('[data-close-procurement]')) {
@@ -2229,9 +2304,12 @@ export function handleAdminClick(t, e, ctx) {
     }
     if (t.closest('[data-confirm-procurement]')) {
         e.preventDefault();
-        const itemId = Number(document.querySelector('[data-po-item]')?.value || 0);
-        const qty = Number(document.querySelector('[data-po-qty]')?.value || 0);
-        const qtyInvoiced = Number(document.querySelector('[data-po-qty-invoiced]')?.value || 0);
+        const lines = [...document.querySelectorAll('[data-po-line]')].map((line) => ({
+            inventory_item_id: Number(line.querySelector('[data-po-item]')?.value || 0),
+            quantity_invoiced: Number(line.querySelector('[data-po-invoiced-qty]')?.value ?? ''),
+            quantity_received: Number(line.querySelector('[data-po-qty]')?.value || 0),
+            has_invoice_quantity: (line.querySelector('[data-po-invoiced-qty]')?.value || '').trim() !== '',
+        }));
         const supplier = (document.querySelector('[data-po-supplier]')?.value || '').trim();
         const invoice = (document.querySelector('[data-po-invoice]')?.value || '').trim();
         const invoiceDate = document.querySelector('[data-po-invoice-date]')?.value || null;
@@ -2239,27 +2317,38 @@ export function handleAdminClick(t, e, ctx) {
         const costRaw = document.querySelector('[data-po-cost]')?.value;
         const cost = costRaw === '' || costRaw == null ? null : Number(costRaw);
         const err = document.querySelector('[data-po-error]');
-        if (!itemId || qty < 1) {
+        if (!lines.length || lines.length > 50 || lines.some((line) =>
+            !line.inventory_item_id ||
+            !line.has_invoice_quantity ||
+            !Number.isInteger(line.quantity_invoiced) ||
+            line.quantity_invoiced < 0 ||
+            !Number.isInteger(line.quantity_received) ||
+            line.quantity_received < 1
+        )) {
             if (err) {
                 err.hidden = false;
-                err.textContent = 'Select an item and confirm quantity received (min 1).';
+                err.textContent = 'Add up to 50 priced inventory items and enter a whole invoice quantity (0 or more) and received quantity (at least 1) for each.';
             }
             return true;
         }
-        const mismatch =
-            qtyInvoiced > 0 && qty !== qtyInvoiced
-                ? ` Invoice shows ${qtyInvoiced}; you confirmed ${qty}.`
-                : '';
+        const mismatches = lines
+            .filter((line) => line.quantity_received !== line.quantity_invoiced)
+            .map((line) => {
+                const item = pricedInventoryItems(app).find((candidate) => Number(candidate.id) === line.inventory_item_id);
+                return `${item?.name || 'Item'}: invoice ${line.quantity_invoiced}, received ${line.quantity_received}`;
+            });
         openConfirm(
             'Save this receipt?',
-            `Record ${qty} received${supplier ? ' from ' + supplier : ''}.${invoice ? ' Invoice ' + invoice + '.' : ''}${mismatch} Inventory is not changed until you click Add to inventory on it.`,
+            `Record ${lines.length} item${lines.length === 1 ? '' : 's'}${supplier ? ' from ' + supplier : ''}.${invoice ? ' Invoice ' + invoice + '.' : ''}${mismatches.length ? ` Quantity difference: ${mismatches.join('; ')}.` : ''} The invoice total is logged once. Inventory is not changed until you add each receipt to inventory.`,
             () => {
                 api('/ajax/admin/procurement', {
                     method: 'POST',
                     body: JSON.stringify({
-                        inventory_item_id: itemId,
-                        quantity_received: qty,
-                        quantity_invoiced: qtyInvoiced || qty,
+                        items: lines.map(({ inventory_item_id, quantity_received, quantity_invoiced }) => ({
+                            inventory_item_id,
+                            quantity_received,
+                            quantity_invoiced,
+                        })),
                         supplier: supplier || null,
                         invoice_number: invoice || null,
                         invoice_date: invoiceDate,

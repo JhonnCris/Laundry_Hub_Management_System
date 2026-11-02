@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\InventoryCategory;
 use App\Models\LaundryTransaction;
 use App\Models\Staff;
 use App\Models\User;
@@ -12,7 +13,7 @@ uses(RefreshDatabase::class);
 
 function paidOrder(User $staff, int $quantity = 2): array
 {
-    $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Snack/Drink', 'created_at' => now(), 'updated_at' => now()]);
+    $categoryId = InventoryCategory::query()->firstOrCreate(['name' => 'Snack/Drink'])->id;
     $itemId = DB::table('inventory_items')->insertGetId([
         'inventory_category_id' => $categoryId, 'name' => 'Soda', 'unit' => 'can', 'unit_price' => 20,
         'quantity_on_hand' => 10, 'low_stock_threshold' => 1, 'created_at' => now(), 'updated_at' => now(),

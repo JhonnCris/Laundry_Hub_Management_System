@@ -30,6 +30,17 @@ it('shows live public supply prices and excludes archived inventory', function (
             'created_at' => now(),
             'updated_at' => now(),
         ],
+        [
+            'inventory_category_id' => $categoryId,
+            'name' => 'Unpriced sample supply',
+            'unit' => 'piece',
+            'unit_price' => 0,
+            'quantity_on_hand' => 10,
+            'low_stock_threshold' => 1,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
     ]);
 
     $this->get('/products-services')
@@ -37,7 +48,8 @@ it('shows live public supply prices and excludes archived inventory', function (
         ->assertSee('Public sample supply')
         ->assertSee('₱17.50 / bottle')
         ->assertSee('In stock')
-        ->assertDontSee('Archived sample supply');
+        ->assertDontSee('Archived sample supply')
+        ->assertDontSee('Unpriced sample supply');
 });
 
 it('shows the current hours, contact details and directions on public pages', function () {
