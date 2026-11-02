@@ -246,7 +246,11 @@ class StaffApiController extends Controller
             'garments.*.name' => ['required_with:garments', 'string', 'max:80'],
             'garments.*.quantity' => ['required_with:garments', 'integer', 'min:1', 'max:999'],
             'items' => ['nullable', 'array'],
-            'items.*.inventory_item_id' => ['required_with:items', 'integer', 'exists:inventory_items,id'],
+            'items.*.inventory_item_id' => [
+                'required_with:items',
+                'integer',
+                Rule::exists('inventory_items', 'id')->where('status', 'active'),
+            ],
             'items.*.quantity' => ['required_with:items', 'integer', 'min:1', 'max:99'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'cash_tendered' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
@@ -356,16 +360,22 @@ class StaffApiController extends Controller
                     $serviceId = Service::query()->where('name', $types->count() > 1 ? 'Wash with Dry' : ($types->first() === 'washer' ? 'Wash Only' : 'Dry Only'))->value('id');
                 }
                 foreach ($data['items'] ?? [] as $line) {
-                    $item = InventoryItem::query()->find($line['inventory_item_id']);
-                    if ($item) {
-                        $subtotal += (float) $item->unit_price * (int) $line['quantity'];
+                    $item = InventoryItem::query()->lockForUpdate()->findOrFail($line['inventory_item_id']);
+                    if ($item->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            'items' => "{$item->name} is no longer available for sale. Refresh inventory and try again.",
+                        ]);
                     }
+                    $subtotal += (float) $item->unit_price * (int) $line['quantity'];
                 }
                 if ($detergentId && $detergentQty > 0) {
-                    $det = InventoryItem::query()->find($detergentId);
-                    if ($det) {
-                        $subtotal += (float) $det->unit_price * $detergentQty;
+                    $det = InventoryItem::query()->lockForUpdate()->findOrFail($detergentId);
+                    if ($det->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            'detergent_item_id' => "{$det->name} is no longer available. Refresh inventory and try again.",
+                        ]);
                     }
+                    $subtotal += (float) $det->unit_price * $detergentQty;
                 }
                 if (abs($subtotal - $total) > 0.01) {
                     throw ValidationException::withMessages([
@@ -422,9 +432,11 @@ class StaffApiController extends Controller
                 }
 
                 foreach ($data['items'] ?? [] as $line) {
-                    $item = InventoryItem::query()->lockForUpdate()->find($line['inventory_item_id']);
-                    if (! $item) {
-                        continue;
+                    $item = InventoryItem::query()->lockForUpdate()->findOrFail($line['inventory_item_id']);
+                    if ($item->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            'items' => "{$item->name} is no longer available for sale. Refresh inventory and try again.",
+                        ]);
                     }
                     $qty = (int) $line['quantity'];
                     if ($item->quantity_on_hand < $qty) {
@@ -445,16 +457,19 @@ class StaffApiController extends Controller
                 }
 
                 if ($detergentId && $detergentQty > 0) {
-                    $det = InventoryItem::query()->lockForUpdate()->find($detergentId);
-                    if ($det) {
-                        if ($det->quantity_on_hand < $detergentQty) {
-                            throw ValidationException::withMessages([
-                                'detergent_quantity' => "Not enough stock for {$det->name} ({$det->quantity_on_hand} left).",
-                            ]);
-                        }
-                        $det->decrement('quantity_on_hand', $detergentQty);
-                        $det->logMovement(-$detergentQty, "Used for order #{$txn->id}", $staffId);
+                    $det = InventoryItem::query()->lockForUpdate()->findOrFail($detergentId);
+                    if ($det->status !== 'active') {
+                        throw ValidationException::withMessages([
+                            'detergent_item_id' => "{$det->name} is no longer available. Refresh inventory and try again.",
+                        ]);
                     }
+                    if ($det->quantity_on_hand < $detergentQty) {
+                        throw ValidationException::withMessages([
+                            'detergent_quantity' => "Not enough stock for {$det->name} ({$det->quantity_on_hand} left).",
+                        ]);
+                    }
+                    $det->decrement('quantity_on_hand', $detergentQty);
+                    $det->logMovement(-$detergentQty, "Used for order #{$txn->id}", $staffId);
                 }
 
                 TransactionStatusLog::query()->create([

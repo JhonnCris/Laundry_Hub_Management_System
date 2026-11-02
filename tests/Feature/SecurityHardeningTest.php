@@ -57,6 +57,47 @@ it('rejects an order for more stock than exists', function () {
     expect(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(2);
 });
 
+it('rejects archived inventory items in a sale', function () {
+    $itemId = snackItem(10);
+    DB::table('inventory_items')->where('id', $itemId)->update(['status' => 'archived']);
+
+    $this->actingAs(staffUser())
+        ->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('items.0.inventory_item_id');
+
+    expect(LaundryTransaction::count())->toBe(0)
+        ->and(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
+});
+
+it('rejects archived detergent items when charging them to a laundry order', function () {
+    $categoryId = DB::table('inventory_categories')->where('name', 'Detergent')->value('id');
+    $itemId = DB::table('inventory_items')->insertGetId([
+        'inventory_category_id' => $categoryId,
+        'name' => 'Archived detergent',
+        'unit' => 'sachet',
+        'unit_price' => 10,
+        'quantity_on_hand' => 10,
+        'low_stock_threshold' => 1,
+        'status' => 'archived',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs(staffUser())
+        ->postJson('/ajax/staff/transactions', purchasePayload($itemId, 1, [
+            'items' => [],
+            'total_amount' => 10,
+            'detergent_item_id' => $itemId,
+            'detergent_quantity' => 1,
+        ]))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('detergent_item_id');
+
+    expect(LaundryTransaction::count())->toBe(0)
+        ->and(DB::table('inventory_items')->where('id', $itemId)->value('quantity_on_hand'))->toBe(10);
+});
+
 it('rejects oversized quantities', function () {
     $itemId = snackItem(500);
 

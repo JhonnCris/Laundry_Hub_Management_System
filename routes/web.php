@@ -5,6 +5,7 @@ use App\Http\Controllers\BillsApiController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NotifyController;
 use App\Http\Controllers\StaffApiController;
+use App\Models\InventoryItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -13,6 +14,19 @@ use Livewire\Volt\Volt;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+Route::view('/company', 'pages.profile')->name('company');
+Route::get('/products-services', function () {
+    $supplies = InventoryItem::query()
+        ->where('status', 'active')
+        ->whereHas('category', fn ($query) => $query->whereIn('name', ['Detergent', 'Supply']))
+        ->orderBy('name')
+        ->get(['name', 'unit', 'unit_price', 'quantity_on_hand']);
+
+    return view('pages.offerings', compact('supplies'));
+})->name('offerings');
+Route::view('/journal', 'pages.journal.index')->name('journal');
+Route::view('/journal/our-story', 'pages.journal.story')->name('journal.story');
 
 // Customer opt-in for the "ready for pickup" push (signed link per order, no login).
 Route::get('firebase-messaging-sw.js', [NotifyController::class, 'serviceWorker']);

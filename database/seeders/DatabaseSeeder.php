@@ -141,48 +141,30 @@ class DatabaseSeeder extends Seeder
 
         $categories = DB::table('inventory_categories')->pluck('id', 'name');
 
-        DB::table('inventory_items')->insert([
-            [
-                'inventory_category_id' => $categories['Detergent'],
-                'name' => 'Ariel Sachet',
-                'unit' => 'sachet',
-                'unit_price' => 12,
-                'quantity_on_hand' => 25,
-                'low_stock_threshold' => 5,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'inventory_category_id' => $categories['Consumable'],
-                'name' => 'Downy Sachet',
-                'unit' => 'sachet',
-                'unit_price' => 10,
-                'quantity_on_hand' => 4,
-                'low_stock_threshold' => 5,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'inventory_category_id' => $categories['Snack/Drink'],
-                'name' => 'Softdrinks',
-                'unit' => 'bottle',
-                'unit_price' => 30,
-                'quantity_on_hand' => 40,
-                'low_stock_threshold' => 10,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-            [
-                'inventory_category_id' => $categories['Snack/Drink'],
-                'name' => 'Water Big',
-                'unit' => 'bottle',
-                'unit_price' => 20,
-                'quantity_on_hand' => 30,
-                'low_stock_threshold' => 10,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ],
-        ]);
+        $products = [
+            ['name' => 'Ariel', 'category' => 'Detergent', 'unit' => 'sachet', 'price' => 10, 'quantity' => 25],
+            ['name' => 'Downy', 'category' => 'Detergent', 'unit' => 'sachet', 'price' => 14, 'quantity' => 4],
+            ['name' => 'Zonrox', 'category' => 'Detergent', 'unit' => 'piece', 'price' => 8, 'quantity' => 0],
+            ['name' => 'Zonrox big bottle', 'category' => 'Detergent', 'unit' => 'bottle', 'price' => 38, 'quantity' => 0],
+            ['name' => 'Supot - transparent', 'category' => 'Supply', 'unit' => 'piece', 'price' => 4, 'quantity' => 0],
+            ['name' => 'Supot - blue', 'category' => 'Supply', 'unit' => 'piece', 'price' => 14, 'quantity' => 0],
+        ];
+
+        foreach ($products as $product) {
+            DB::table('inventory_items')->updateOrInsert(
+                ['name' => $product['name']],
+                [
+                    'inventory_category_id' => $categories[$product['category']],
+                    'unit' => $product['unit'],
+                    'unit_price' => $product['price'],
+                    'quantity_on_hand' => $product['quantity'],
+                    'low_stock_threshold' => 5,
+                    'status' => 'active',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]
+            );
+        }
 
         // ── Sample machine time slot + laundry transaction ───────────────────
         $machineId = DB::table('machines')->where('name', 'Washer 1')->value('id');
@@ -203,13 +185,13 @@ class DatabaseSeeder extends Seeder
             'machine_id' => $machineId,
             'machine_time_slot_id' => $slotId,
             'service_id' => DB::table('services')->where('name', 'Wash with Dry')->value('id'),
-            'detergent_item_id' => DB::table('inventory_items')->where('name', 'Downy Sachet')->value('id'),
+            'detergent_item_id' => DB::table('inventory_items')->where('name', 'Downy')->value('id'),
             'handled_by' => $staffId,
             'transaction_type' => 'drop_off',
             'status' => 'processing',
             'payment_status' => 'paid',
             'subtotal' => 120,
-            'total_amount' => 150,
+            'total_amount' => 130,
             'notes' => 'Separate light-colored garments.',
             'created_at' => $now,
             'updated_at' => $now,
@@ -223,14 +205,14 @@ class DatabaseSeeder extends Seeder
             'updated_at' => $now,
         ]);
 
-        $drinkId = DB::table('inventory_items')->where('name', 'Softdrinks')->value('id');
+        $arielId = DB::table('inventory_items')->where('name', 'Ariel')->value('id');
 
         DB::table('transaction_items')->insert([
             'laundry_transaction_id' => $transactionId,
-            'inventory_item_id' => $drinkId,
+            'inventory_item_id' => $arielId,
             'quantity' => 1,
-            'unit_price' => 30,
-            'line_total' => 30,
+            'unit_price' => 10,
+            'line_total' => 10,
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -277,9 +259,9 @@ class DatabaseSeeder extends Seeder
 
         DB::table('notifications')->insert([
             'type' => 'low_stock',
-            'message' => 'Downy Sachet is low on stock.',
+            'message' => 'Downy is low on stock.',
             'notifiable_type' => 'App\\Models\\InventoryItem',
-            'notifiable_id' => DB::table('inventory_items')->where('name', 'Downy Sachet')->value('id'),
+            'notifiable_id' => DB::table('inventory_items')->where('name', 'Downy')->value('id'),
             'is_read' => false,
             'created_at' => $now,
             'updated_at' => $now,

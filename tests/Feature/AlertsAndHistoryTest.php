@@ -11,7 +11,10 @@ uses(RefreshDatabase::class);
 
 function lowItem(int $qty = 1, int $threshold = 5): int
 {
-    $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Detergent', 'created_at' => now(), 'updated_at' => now()]);
+    $categoryId = DB::table('inventory_categories')->where('name', 'Detergent')->value('id');
+    if ($categoryId === null) {
+        $categoryId = DB::table('inventory_categories')->insertGetId(['name' => 'Detergent', 'created_at' => now(), 'updated_at' => now()]);
+    }
 
     return DB::table('inventory_items')->insertGetId([
         'inventory_category_id' => $categoryId, 'name' => 'Ariel', 'unit' => 'sachet', 'unit_price' => 10,
