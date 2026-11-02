@@ -845,33 +845,61 @@
 <div class="modal-backdrop" data-procurement-modal hidden>
     <section class="profile-modal action-modal admin-modal receive-modal" role="dialog" aria-modal="true">
         <button class="modal-close" data-close-procurement type="button">×</button>
-        <h2>Record stock receipt</h2>
-        <p class="modal-hint">Scan or upload a supplier invoice image to fill in its details. The first scan downloads OCR assets; the image is processed in this browser and never uploaded. Confirm each received quantity and add any notes. Stock changes only when you add each receipt to inventory.</p>
-        <div class="po-scan-tools">
-            <button type="button" class="action-btn-secondary" data-po-scan>Scan invoice photo</button>
-            <button type="button" class="action-btn-secondary" data-po-upload>Upload invoice image</button>
+        <header class="po-modal-header">
+            <p class="eyebrow">Inventory · Receiving</p>
+            <h2>Record stock receipt</h2>
+            <p class="modal-hint">Upload a supplier invoice photo to prefill the receipt. Review the extracted details and confirm quantities before saving.</p>
+        </header>
+        <section class="po-upload-section" aria-labelledby="po-upload-heading">
+            <div>
+                <h3 id="po-upload-heading">Start with an invoice photo</h3>
+                <p>Image is processed in this browser and never uploaded. The first use downloads OCR assets.</p>
+            </div>
+            <button type="button" class="action-btn-primary" data-po-upload>Upload invoice photo</button>
             <input type="file" data-po-receipt-scan accept="image/*" hidden>
-            <p data-po-scan-status aria-live="polite">Choose a clear invoice photo or upload an image.</p>
-        </div>
-        <label class="modal-field">Invoice number
-            <input type="text" data-po-invoice>
-        </label>
-        <label class="modal-field">Invoice date
-            <input type="date" data-po-invoice-date>
-        </label>
-        <label class="modal-field">Supplier
-            <input type="text" data-po-supplier>
-        </label>
-        <div class="po-receipt-lines" data-po-lines aria-live="polite">
-            <p class="dash-empty">Scanned inventory items will appear here.</p>
-        </div>
-        <button type="button" class="action-btn-secondary" data-po-add-item>Add inventory item manually</button>
-        <label class="modal-field"><span>Invoice total (₱) <small>(optional · logged as expense)</small></span>
-            <input type="number" data-po-cost min="0" step="0.01">
-        </label>
-        <label class="modal-field"><span>Notes <small>(optional)</small></span>
-            <input type="text" data-po-notes maxlength="255" placeholder="e.g. Short 2 pcs vs invoice · accepted">
-        </label>
+            <p class="po-scan-status" data-po-scan-status aria-live="polite">JPG, PNG, or another image format · up to 12 MB</p>
+        </section>
+        <section class="po-form-section" aria-labelledby="po-details-heading">
+            <div class="po-section-heading">
+                <div><span class="po-step">1</span><h3 id="po-details-heading">Invoice details</h3></div>
+                <p>Check and correct any values filled from the image.</p>
+            </div>
+            <div class="po-details-grid">
+                <label class="modal-field">Invoice number
+                    <input type="text" data-po-invoice>
+                </label>
+                <label class="modal-field">Invoice date
+                    <input type="date" data-po-invoice-date>
+                </label>
+                <label class="modal-field">Supplier
+                    <input type="text" data-po-supplier>
+                </label>
+            </div>
+        </section>
+        <section class="po-form-section" aria-labelledby="po-items-heading">
+            <div class="po-section-heading">
+                <div><span class="po-step">2</span><h3 id="po-items-heading">Items received</h3></div>
+                <p>Verify invoice quantity and enter the quantity actually received.</p>
+            </div>
+            <div class="po-receipt-lines" data-po-lines aria-live="polite">
+                <p class="dash-empty">Uploaded invoice items will appear here. You can also add items manually.</p>
+            </div>
+            <button type="button" class="action-btn-secondary" data-po-add-item>Add item manually</button>
+        </section>
+        <section class="po-form-section po-additional-section" aria-labelledby="po-additional-heading">
+            <div class="po-section-heading">
+                <div><span class="po-step">3</span><h3 id="po-additional-heading">Additional details</h3></div>
+                <p>Optional</p>
+            </div>
+            <div class="po-details-grid">
+                <label class="modal-field"><span>Invoice total (₱) <small>Logged as expense</small></span>
+                    <input type="number" data-po-cost min="0" step="0.01">
+                </label>
+                <label class="modal-field"><span>Notes</span>
+                    <input type="text" data-po-notes maxlength="255" placeholder="e.g. Short 2 pcs vs invoice · accepted">
+                </label>
+            </div>
+        </section>
         <p class="modal-error" data-po-error hidden></p>
         <div class="modal-actions">
             <button type="button" class="text-button" data-close-procurement>Cancel</button>

@@ -1398,7 +1398,6 @@ function bindProcurementScanner(app) {
         const error = app.querySelector('[data-po-error]');
         const lines = app.querySelector('[data-po-lines]');
         const buttons = [
-            app.querySelector('[data-po-scan]'),
             app.querySelector('[data-po-upload]'),
             app.querySelector('[data-po-add-item]'),
         ].filter(Boolean);
@@ -1451,7 +1450,7 @@ function bindProcurementScanner(app) {
             }
         } catch (scanError) {
             const message = scanError instanceof Error ? scanError.message : 'The invoice could not be scanned. Try a clearer image.';
-            if (status) status.textContent = message;
+            if (status) status.textContent = 'You can try another image or add the receipt items manually.';
             if (error) {
                 error.textContent = message;
                 error.hidden = false;
@@ -2254,25 +2253,18 @@ export function handleAdminClick(t, e, ctx) {
         set('[data-po-cost]', '');
         set('[data-po-notes]', '');
         const lines = document.querySelector('[data-po-lines]');
-        if (lines) lines.innerHTML = '<p class="dash-empty">Scanned inventory items will appear here.</p>';
+        if (lines) lines.innerHTML = '<p class="dash-empty">Uploaded invoice items will appear here. You can also add items manually.</p>';
         const status = document.querySelector('[data-po-scan-status]');
-        if (status) status.textContent = 'Choose a clear invoice photo or upload an image, or add receipt items manually.';
+        if (status) status.textContent = 'JPG, PNG, or another image format · up to 12 MB';
         const scanInput = document.querySelector('[data-po-receipt-scan]');
         if (scanInput) scanInput.value = '';
         showModal('[data-procurement-modal]');
         return true;
     }
-    if (t.closest('[data-po-scan]') || t.closest('[data-po-upload]')) {
+    if (t.closest('[data-po-upload]')) {
         e.preventDefault();
         const input = document.querySelector('[data-po-receipt-scan]');
-        if (input) {
-            if (t.closest('[data-po-scan]')) {
-                input.setAttribute('capture', 'environment');
-            } else {
-                input.removeAttribute('capture');
-            }
-            input.click();
-        }
+        input?.click();
         return true;
     }
     if (t.closest('[data-po-add-item]')) {

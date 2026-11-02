@@ -1258,39 +1258,126 @@
     background: rgba(15, 40, 32, 0.55) !important;
 }
 
-/* Keep the stock receipt form visible without an internal modal scrollbar. */
+/* Stock receipt modal follows a clear upload → review → save workflow. */
 .profile-modal.admin-modal.receive-modal {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
-    align-items: start;
-    gap: 0 16px;
-    width: min(700px, calc(100vw - 32px));
-    max-width: 700px;
-    max-height: min(90vh, 780px);
+    gap: 18px;
+    width: min(960px, calc(100vw - 48px));
+    max-width: 960px;
+    max-height: min(92vh, 920px);
+    max-height: min(92dvh, 920px);
     overflow-y: auto;
-    padding: 24px;
+    padding: clamp(22px, 3vw, 36px);
 }
-.profile-modal.admin-modal.receive-modal > h2,
-.profile-modal.admin-modal.receive-modal > .modal-hint,
 .profile-modal.admin-modal.receive-modal > .modal-error,
-.profile-modal.admin-modal.receive-modal > .modal-actions,
-.profile-modal.admin-modal.receive-modal > .po-scan-tools,
-.profile-modal.admin-modal.receive-modal > .po-receipt-lines,
-.profile-modal.admin-modal.receive-modal > [data-po-add-item] {
+.profile-modal.admin-modal.receive-modal > .modal-actions {
     grid-column: 1 / -1;
 }
-.profile-modal.admin-modal.receive-modal > [data-po-add-item] {
-    justify-self: start;
+.po-modal-header {
+    padding-right: 36px;
 }
-.profile-modal.admin-modal.receive-modal > .modal-field {
+.po-modal-header .eyebrow {
+    margin: 0 0 8px;
+}
+.po-modal-header h2 {
+    margin: 0;
+    color: var(--staff-text);
+    font-size: clamp(23px, 3vw, 30px);
+    line-height: 1.2;
+}
+.po-modal-header .modal-hint {
+    max-width: 680px;
+    margin: 9px 0 0;
+    color: var(--staff-muted);
+    font-size: 14px;
+    line-height: 1.55;
+}
+.po-upload-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 20px 22px;
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+    background: var(--staff-row-head-bg);
+}
+.po-upload-section h3,
+.po-section-heading h3 {
+    margin: 0;
+    color: var(--staff-text);
+    font-size: 16px;
+    line-height: 1.3;
+}
+.po-upload-section p {
+    margin: 5px 0 0;
+    color: var(--staff-muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+.po-scan-status {
+    grid-column: 1 / -1;
+    margin: -8px 0 0;
+    color: var(--staff-muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.po-form-section {
     min-width: 0;
-    margin-bottom: 10px;
-    gap: 6px;
+    padding: 20px 22px;
+    border: 1px solid var(--staff-border);
+    border-radius: 14px;
+    background: var(--staff-card-bg);
+}
+.po-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+.po-section-heading > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.po-section-heading > p {
+    margin: 3px 0 0;
+    color: var(--staff-muted);
+    font-size: 12px;
+    line-height: 1.45;
+    text-align: right;
+}
+.po-step {
+    display: grid;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--staff-sidebar-bg);
+    color: var(--staff-sidebar-text);
+    font-size: 13px;
+    font-weight: 800;
+}
+.po-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+}
+.profile-modal.admin-modal.receive-modal .modal-field {
+    min-width: 0;
+    margin: 0;
+    gap: 7px;
+    color: var(--staff-text);
+    font-size: 13px;
+    font-weight: 650;
     line-height: 1.25;
 }
-.profile-modal.admin-modal.receive-modal > .modal-field input,
-.profile-modal.admin-modal.receive-modal > .modal-field select {
+.profile-modal.admin-modal.receive-modal .modal-field input,
+.profile-modal.admin-modal.receive-modal .modal-field select {
     box-sizing: border-box;
     min-width: 0;
     width: 100%;
@@ -1303,46 +1390,63 @@
     font: inherit;
     font-size: 14px;
 }
-.profile-modal.admin-modal.receive-modal > .modal-field small {
+.profile-modal.admin-modal.receive-modal .modal-field small {
     display: inline;
     margin-left: 4px;
+    color: var(--staff-muted);
+    font-weight: 400;
     font-size: 10px;
     line-height: 1.2;
 }
-.profile-modal.admin-modal.receive-modal > .modal-hint {
-    margin-bottom: 12px;
-}
+.po-details-grid .modal-field { min-width: 0; }
+.po-details-grid .modal-field input { width: 100%; }
 .profile-modal.admin-modal.receive-modal > .modal-actions {
-    position: static;
-    margin-top: 2px;
-}
-.po-scan-tools {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px 14px;
-    margin-bottom: 12px;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 0 calc(-1 * clamp(22px, 3vw, 36px));
+    padding: 14px clamp(22px, 3vw, 36px) 0;
+    border-top: 1px solid var(--staff-border);
+    background: var(--staff-card-bg);
 }
-.po-scan-tools p {
+.profile-modal.admin-modal.receive-modal > .modal-actions .save-button {
+    width: auto;
+    min-width: 150px;
     margin: 0;
-    color: var(--staff-muted);
-    font-size: 12px;
+    padding: 12px 22px;
+}
+.profile-modal.admin-modal.receive-modal > .modal-actions .text-button {
+    min-height: 44px;
+    padding: 0 18px;
 }
 .po-receipt-lines {
     display: grid;
-    gap: 8px;
-    max-height: 260px;
+    gap: 10px;
+    max-height: 340px;
     overflow-y: auto;
-    margin: 2px 0 12px;
+    margin: 0 0 14px;
+    padding-right: 4px;
+}
+.po-receipt-lines > .dash-empty {
+    margin: 0;
+    padding: 18px;
+    border: 1px dashed var(--staff-border);
+    border-radius: 10px;
+    color: var(--staff-muted);
+    text-align: center;
 }
 .po-receipt-line {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(220px, 1.4fr) minmax(130px, .7fr) minmax(130px, .7fr) auto;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
+    gap: 12px;
+    padding: 14px;
     border: 1px solid var(--staff-border);
-    border-radius: 9px;
+    border-radius: 11px;
+    background: var(--staff-input-bg);
 }
 .po-receipt-line strong,
 .po-receipt-line small {
@@ -1352,9 +1456,6 @@
 .po-receipt-line small,
 .po-receipt-line label { color: var(--staff-muted); font-size: 11px; }
 .po-receipt-line label { display: grid; gap: 4px; }
-.po-receipt-line .po-line-item {
-    grid-column: 1 / -1;
-}
 .po-receipt-line input,
 .po-receipt-line select {
     box-sizing: border-box;
@@ -1368,8 +1469,14 @@
     color: var(--staff-input-text);
 }
 .po-line-remove {
-    grid-column: 1 / -1;
-    justify-self: end;
+    padding: 8px;
+    white-space: nowrap;
+}
+.profile-modal.admin-modal.receive-modal .modal-error:not([hidden]) {
+    display: block;
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 9px;
 }
 .profile-modal.admin-modal.receive-modal input[readonly],
 .profile-modal.admin-modal.receive-modal input:disabled {
@@ -2365,8 +2472,35 @@ button.outline-action:hover,
     .rate-row .user-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 640px) {
-    .profile-modal.admin-modal.receive-modal { grid-template-columns: minmax(0, 1fr); }
-    .po-receipt-line { grid-template-columns: minmax(0, 1fr); }
+    .profile-modal.admin-modal.receive-modal {
+        width: calc(100vw - 24px);
+        max-height: 94dvh;
+        gap: 12px;
+        padding: 18px;
+    }
+    .po-modal-header { padding-right: 28px; }
+    .po-upload-section {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+        padding: 16px;
+    }
+    .po-upload-section > button { width: 100%; }
+    .po-form-section { padding: 16px; }
+    .po-section-heading { display: grid; gap: 6px; }
+    .po-section-heading > p { text-align: left; }
+    .po-details-grid { grid-template-columns: minmax(0, 1fr); }
+    .po-receipt-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .po-receipt-line .po-line-item,
+    .po-line-remove { grid-column: 1 / -1; }
+    .profile-modal.admin-modal.receive-modal > .modal-actions {
+        margin: 0 -18px;
+        padding: 12px 18px 0;
+    }
+}
+@media (min-width: 641px) and (max-width: 800px) {
+    .po-receipt-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .po-receipt-line .po-line-item,
+    .po-line-remove { grid-column: 1 / -1; }
 }
 
 [data-panel="bills"] .order-row { gap: 6px 18px; }
