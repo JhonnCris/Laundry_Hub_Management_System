@@ -10,6 +10,13 @@
 .staff-app .staff-sidebar::-webkit-scrollbar { display: none; }
 
 @media (min-width: 801px) {
+    .staff-app > .staff-workspace {
+        grid-column: 2;
+        min-width: 0;
+    }
+}
+
+@media (min-width: 801px) {
     .staff-app .transaction-summary {
         align-self: start;
         display: flex;
