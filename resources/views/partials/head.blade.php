@@ -13,7 +13,7 @@
 
 <link rel="icon" href="{{ asset('images/ssk-laba-dami-logo.jpg') }}">
 
-<script>
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     (function () {
         try {
             var theme = localStorage.getItem('ssk-theme');

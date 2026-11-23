@@ -13,7 +13,7 @@
         <p id="status" class="save-notice" style="margin-top:12px"></p>
     </section>
 </main>
-<script type="module">
+<script type="module" nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
     import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js';
 

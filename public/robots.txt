@@ -1,2 +1,20 @@
 User-agent: *
-Disallow: /
+Allow: /
+Allow: /build/
+Allow: /images/
+
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /ajax/
+Disallow: /notify/
+Disallow: /firebase-messaging-sw.js
+Disallow: /livewire/update
+Disallow: /up
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /confirm-password
+Disallow: /logout
