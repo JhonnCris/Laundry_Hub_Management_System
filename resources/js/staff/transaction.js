@@ -178,7 +178,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
 
         const title = app.querySelector('[data-summary-title]');
         if (title) {
-            title.textContent = s.hasLaundry ? 'Service Summary' : s.hasAddOns ? 'Purchase Summary' : 'Summary';
+            title.textContent = s.hasLaundry ? 'Review laundry order' : s.hasAddOns ? 'Review counter purchase' : 'Order review';
         }
 
         const show = s.hasLaundry || s.hasAddOns;
@@ -241,7 +241,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
         const saveBtn = app.querySelector('[data-save]');
         if (saveBtn) {
             saveBtn.disabled = !(s.hasLaundry || s.hasAddOns);
-            saveBtn.textContent = s.hasLaundry ? 'Save Transaction' : 'Save Purchase';
+            saveBtn.textContent = 'Review payment';
         }
     };
 

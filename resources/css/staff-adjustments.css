@@ -1,3 +1,5 @@
+/* Hallmark · redesign: full · shape: app screen · scope: app · built: SSK staff dashboard · v2.0.0 */
+/* Critique: preserve transaction wiring while clarifying the counter workflow and operational hierarchy. */
 .staff-app .staff-sidebar {
     height: 100vh;
     height: 100dvh;
@@ -2575,3 +2577,256 @@ button.outline-action:hover,
 }
 
 [data-panel="bills"] .order-row { gap: 6px 18px; }
+
+/* Staff workstation foundation: presentation-only, keeps all existing data hooks and flows intact. */
+.staff-body {
+    background: var(--staff-bg);
+    color: var(--staff-text);
+}
+
+.staff-workspace {
+    padding-block: clamp(var(--staff-space-5), 4vw, var(--staff-space-6));
+}
+
+.staff-nav .nav-group-label,
+.context-label,
+.field-label,
+.wide-field > span,
+.group-label {
+    color: var(--staff-muted);
+    font-size: calc(0.75rem * var(--text-scale));
+    font-weight: 700;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.staff-nav {
+    gap: var(--staff-space-1);
+}
+
+.staff-nav button {
+    min-height: 44px;
+    border-radius: var(--staff-radius-control);
+    transition: background-color var(--staff-duration-short) ease-out, color var(--staff-duration-short) ease-out;
+}
+
+.staff-nav button:focus-visible,
+.action-btn-primary:focus-visible,
+.action-btn-secondary:focus-visible,
+.save-button:focus-visible,
+.text-button:focus-visible,
+.modal-close:focus-visible,
+.service-toggle button:focus-visible,
+.mobile-staff-header button:focus-visible {
+    outline: 3px solid var(--staff-focus);
+    outline-offset: 2px;
+}
+
+.page-intro {
+    align-items: end;
+    gap: var(--staff-space-4);
+    margin-bottom: var(--staff-space-4);
+}
+
+.page-intro h1 {
+    color: var(--staff-ink-strong);
+    font-size: clamp(1.75rem, 3vw, 2.35rem);
+    font-weight: 750;
+    letter-spacing: -0.025em;
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.transaction-progress {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--staff-space-2);
+    margin: 0 0 var(--staff-space-5);
+    padding: 0;
+    list-style: none;
+}
+
+.transaction-progress li {
+    display: flex;
+    align-items: center;
+    gap: var(--staff-space-2);
+    min-width: 0;
+    padding: var(--staff-space-2) var(--staff-space-3);
+    border-bottom: 2px solid var(--staff-border);
+    color: var(--staff-muted);
+    font-size: calc(0.8125rem * var(--text-scale));
+    font-weight: 700;
+}
+
+.transaction-progress span {
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--staff-surface-subtle);
+    color: var(--staff-accent-strong);
+    font-variant-numeric: tabular-nums;
+}
+
+.transaction-stage,
+.customer-card {
+    border-radius: var(--staff-radius-panel);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--staff-text) 8%, transparent);
+}
+
+.customer-context-empty,
+.customer-context-selected {
+    padding: var(--staff-space-4);
+    border-radius: var(--staff-radius-control);
+    background: var(--staff-surface-subtle);
+}
+
+.section-heading {
+    gap: var(--staff-space-3);
+}
+
+.section-heading h2 {
+    color: var(--staff-ink-strong);
+    font-size: calc(1rem * var(--text-scale));
+}
+
+.section-heading p {
+    max-width: 58ch;
+}
+
+.service-toggle {
+    border-radius: var(--staff-radius-control);
+}
+
+.service-toggle button {
+    min-height: 36px;
+    border-radius: 6px;
+}
+
+.service-toggle[aria-describedby] {
+    flex: 0 0 auto;
+}
+
+.summary-card {
+    border-radius: var(--staff-radius-panel);
+    background: var(--staff-sidebar-bg);
+    color: var(--staff-sidebar-text);
+}
+
+.summary-top {
+    padding: var(--staff-space-5);
+}
+
+.summary-top > p {
+    font-size: calc(1rem * var(--text-scale));
+}
+
+.summary-total {
+    background: color-mix(in srgb, var(--staff-sidebar-bg) 82%, var(--staff-ink-strong));
+}
+
+.save-button {
+    min-height: 44px;
+    margin: var(--staff-space-3);
+    width: calc(100% - (var(--staff-space-3) * 2));
+    border-radius: var(--staff-radius-control);
+    background: var(--staff-accent-strong);
+    color: var(--staff-accent-ink);
+    transition: background-color var(--staff-duration-fast) ease-out, transform var(--staff-duration-fast) ease-out;
+}
+
+.save-button:not(:disabled):hover {
+    background: var(--staff-accent);
+}
+
+.save-button:not(:disabled):active {
+    transform: translateY(1px);
+}
+
+.save-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.dash-empty {
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    gap: var(--staff-space-2);
+    color: var(--staff-muted);
+}
+
+.dash-empty.is-loading::before {
+    width: 1rem;
+    height: 1rem;
+    flex: 0 0 auto;
+    border: 2px solid var(--staff-border);
+    border-top-color: var(--staff-accent-strong);
+    border-radius: 50%;
+    content: "";
+    animation: staff-loader 800ms linear infinite;
+}
+
+.modal-close {
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+}
+
+@keyframes staff-loader {
+    to { transform: rotate(1turn); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .staff-nav button,
+    .save-button,
+    .dash-empty.is-loading::before {
+        animation: none;
+        transition: none;
+    }
+}
+
+@media (max-width: 800px) {
+    .transaction-progress {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .transaction-progress li {
+        padding-inline: 0;
+    }
+
+    .page-intro {
+        align-items: start;
+    }
+}
+
+@media (max-width: 520px) {
+    .transaction-progress {
+        grid-template-columns: 1fr;
+        gap: var(--staff-space-1);
+    }
+
+    .transaction-progress li {
+        border-bottom-width: 1px;
+    }
+
+    .transaction-summary {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+@media (pointer: coarse) {
+    .staff-nav button,
+    .service-toggle button,
+    .text-button,
+    .action-btn-primary,
+    .action-btn-secondary,
+    .outline-action,
+    .modal-close {
+        min-height: 44px;
+    }
+}

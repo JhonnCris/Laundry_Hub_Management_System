@@ -5,11 +5,11 @@
 <a class="brand" href="#"><img class="brand-logo" src="{{ asset('images/ssk-laba-dami-logo.jpg') }}" alt="SSK Laba Dami Laundry Hub logo" width="48" height="48"><span class="brand-text"><strong>SSK Laba Dami</strong><small>Laundry Hub</small></span></a>
 <nav class="staff-nav">
 <p class="nav-group-label">Staff operations</p>
-<button class="is-active" data-screen="attendance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance Tracking</span></button>
-<button data-screen="customers" data-needs-duty><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Manage Customer</span></button>
-<button data-screen="transactions" data-needs-duty><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>Transactions</span></button>
+<button class="is-active" data-screen="attendance"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Attendance</span></button>
+<button data-screen="customers" data-needs-duty><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 21c.5-4 3-6 7-6s6.5 2 7 6"/></svg><span>Customers</span></button>
+<button data-screen="transactions" data-needs-duty><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v16H3zM3 9h18M8 9v11"/><path d="M12 14h5M12 18h4"/></svg><span>New transaction</span></button>
 <button data-screen="queue"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 7h8M8 12h8M8 17h5"/></svg><span>Active Laundry</span><b data-nav-badge="queue" hidden>0</b></button>
-<button data-screen="sales"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sales Record</span></button>
+<button data-screen="sales"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM8 8h8M8 12h4M8 16h8"/><path d="M16 12v4"/></svg><span>Sales</span></button>
 <button class="stock-group-toggle" type="button" data-stock-toggle aria-expanded="true" aria-controls="stock-subnav"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4zM4 7v10l8 4 8-4V7M12 11v10"/></svg><span>Stocks</span><svg class="stock-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
 <div class="stock-subnav" id="stock-subnav" data-stock-subnav>
 <button data-screen="inventory"><span>Inventory</span><b data-nav-badge="inventory" hidden>0</b></button>
@@ -19,22 +19,22 @@
 </nav>
 <button class="staff-user" data-profile type="button"><span>{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span><div><strong>{{ auth()->user()->name }}</strong><small>Staff account · Manage</small></div><i>⌄</i></button>
 </aside>
-<section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button">☰</button><strong>SSK Laba Dami</strong></header>
-<section class="prototype-panel" data-panel="transactions"><div class="page-intro"><div><p class="eyebrow">New order</p><h1>New Transaction</h1><p>Record laundry services and add-ons before service begins.</p></div></div><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card">
+<section class="staff-workspace"><header class="mobile-staff-header"><button data-sidebar-toggle type="button" aria-label="Open navigation">☰</button><strong>SSK Laba Dami</strong></header>
+<section class="prototype-panel" data-panel="transactions"><div class="page-intro"><div><h1>New transaction</h1><p>Set up the customer, service, extras, then review payment.</p></div></div><ol class="transaction-progress" aria-label="Transaction workflow"><li><span>1</span> Customer</li><li><span>2</span> Service</li><li><span>3</span> Extras</li><li><span>4</span> Review</li></ol><div class="transaction-layout"><div class="transaction-main"><section class="staff-card customer-card transaction-stage">
 <div class="customer-context" data-customer-context>
     <div class="customer-context-empty" data-customer-empty>
-        <p><strong>No customer selected.</strong> Open <button type="button" class="text-button" data-screen="customers">Manage Customer</button> and click <em>Do Laundry</em>, or add a new customer first.</p>
+        <p><strong>Select a customer first.</strong> Open <button type="button" class="text-button" data-screen="customers">Customers</button>, then choose <em>Do Laundry</em> or add a customer.</p>
     </div>
     <div class="customer-context-selected" data-customer-selected hidden>
         <div>
-            <p class="eyebrow">Transaction for</p>
+            <p class="context-label">Customer</p>
             <strong data-tx-customer-name>—</strong>
             <span data-tx-customer-phone class="customer-context-phone"></span>
         </div>
         <button type="button" class="text-button" data-change-customer>Change customer</button>
     </div>
 </div>
-<div class="section-heading"><h2>Load Details</h2><div class="service-toggle"><button class="is-selected" data-service="drop_off" type="button">Drop Off</button><button data-service="self_service" type="button">Self Service</button></div></div>
+<div class="section-heading"><div><h2>Choose laundry service</h2><p id="service-choice-help">Drop off is handled by staff. Self service lets the customer use available machines.</p></div><div class="service-toggle" aria-describedby="service-choice-help"><button class="is-selected" data-service="drop_off" type="button">Drop off</button><button data-service="self_service" type="button">Self service</button></div></div>
 
 <div data-workflow="drop_off">
 <div class="wide-field">
@@ -70,13 +70,13 @@
     <div class="field detergent-selector-field">
         <span class="field-label">Detergent / Downy (optional)</span>
         <div class="detergent-selector" data-detergent-list>
-            <p class="dash-empty">Loading detergent inventory…</p>
+            <p class="dash-empty is-loading">Loading detergent inventory…</p>
         </div>
     </div>
 </div>
 </div>
 <div data-workflow="self_service" hidden>
-<div class="machine-picker" data-machine-picker><p class="dash-empty">Loading machines…</p></div>
+<div class="machine-picker" data-machine-picker><p class="dash-empty is-loading">Loading machines…</p></div>
 <div class="machine-total" data-machine-total hidden></div>
 <div class="form-grid workflow-bottom field-align">
     <label class="field">
@@ -88,16 +88,16 @@
     <div class="field detergent-selector-field" data-self-service-detergent>
         <span class="field-label">Detergent / Downy (optional)</span>
         <div class="detergent-selector" data-detergent-list>
-            <p class="dash-empty">Loading detergent inventory…</p>
+            <p class="dash-empty is-loading">Loading detergent inventory…</p>
         </div>
     </div>
 </div>
 <p class="kg-price-preview" data-kg-preview hidden>Machine charge: <strong>—</strong></p>
 </div>
 </section>
-<section class="staff-card add-ons-card"><div class="section-heading"><div><h2>Counter items</h2><p>Add priced products and supplies to this order.</p></div><button class="text-button" data-clear-items type="button">Clear all</button></div><div class="add-on-list" data-snack-list><p class="dash-empty" style="padding:8px 0;margin:0">Loading priced items from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
+<section class="staff-card add-ons-card transaction-stage"><div class="section-heading"><div><h2>Add counter items</h2><p>Optional products and supplies for this order.</p></div><button class="text-button" data-clear-items type="button">Clear items</button></div><div class="add-on-list" data-snack-list><p class="dash-empty is-loading" style="padding:8px 0;margin:0">Loading priced items from inventory…</p></div></section></div><aside class="transaction-summary"><section class="summary-card">
 <div class="summary-top">
-    <p data-summary-title>Summary</p>
+    <p data-summary-title>Order review</p>
     <p class="summary-empty" data-summary-empty>Nothing recorded yet. Choose a service or add counter items to see a summary.</p>
     <dl data-summary-service-block hidden>
         <div data-row-basket><dt>Basket tag</dt><dd data-summary-tag>—</dd></div>
@@ -109,14 +109,14 @@
     <dl data-summary-items-block data-summary-items hidden></dl>
 </div>
 <div class="summary-total" data-summary-total-block hidden><span>Total</span><strong data-total>₱0.00</strong></div>
-<button class="save-button" data-save type="button" disabled>Save Transaction</button>
+<button class="save-button" data-save type="button" disabled>Review payment</button>
 </section>
 <section class="notes-card"><label>Notes<textarea placeholder="Special requests, stains, or payment note..."></textarea></label></section>
-<p class="save-notice" data-save-notice></p>
+<p class="save-notice" data-save-notice aria-live="polite"></p>
 </aside></div></section>
 <div class="modal-backdrop" data-history-modal hidden>
 <section class="profile-modal action-modal history-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-history type="button">×</button>
+<button class="modal-close" data-close-history type="button" aria-label="Close laundry history">×</button>
 <h2>Laundry history</h2>
 <p class="modal-hint">Every order already marked as claimed, newest first.</p>
 <input class="search-input" data-history-search placeholder="Search by customer, order or service">
@@ -131,7 +131,7 @@
 <!-- Payment modal: Transaction → Payment → Receipt -->
 <div class="modal-backdrop" data-payment-modal hidden>
 <section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-payment type="button">×</button>
+<button class="modal-close" data-close-payment type="button" aria-label="Close payment dialog">×</button>
 <h2 data-payment-title>Record payment</h2>
 <p class="modal-hint" data-payment-hint>Collect cash from the customer, then confirm to issue a receipt.</p>
 <div class="payment-summary" data-payment-summary></div>
@@ -146,7 +146,7 @@
     <span>Change</span>
     <strong data-payment-change>₱0.00</strong>
 </div>
-<p class="modal-error" data-payment-error hidden></p>
+<p class="modal-error" data-payment-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-payment>Cancel</button>
 <button type="button" class="save-button" data-confirm-payment disabled>Confirm payment</button>
@@ -157,7 +157,7 @@
 <!-- Receipt modal (after successful payment) -->
 <div class="modal-backdrop" data-receipt-modal hidden>
 <section class="profile-modal receipt-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-receipt type="button">×</button>
+<button class="modal-close" data-close-receipt type="button" aria-label="Close receipt">×</button>
 <div data-receipt-body></div>
 <div class="modal-actions receipt-actions">
 <div class="receipt-actions-row">
@@ -175,13 +175,13 @@
 
 <div class="modal-backdrop" data-add-basket-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-add-basket type="button">×</button>
+<button class="modal-close" data-close-add-basket type="button" aria-label="Close add basket dialog">×</button>
 <h2>Add basket</h2>
 <p class="modal-hint">Enter a basket number or code (e.g. 021 or #021). It will start as Available.</p>
 <label class="modal-field">Basket code
 <input type="text" data-new-basket-code placeholder="#021" maxlength="20">
 </label>
-<p class="modal-error" data-add-basket-error hidden></p>
+<p class="modal-error" data-add-basket-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-add-basket>Cancel</button>
 <button type="button" class="save-button" data-confirm-add-basket>Save basket</button>
@@ -191,7 +191,7 @@
 
 <div class="modal-backdrop" data-archive-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-archive type="button">×</button>
+<button class="modal-close" data-close-archive type="button" aria-label="Close archive item dialog">×</button>
 <h2>Archive item</h2>
 <p class="modal-hint">Mark stock as expired, spoiled, or damaged.</p>
 <label class="modal-field">Item
@@ -207,7 +207,7 @@
 <label class="modal-field">Quantity to remove
 <input type="number" data-archive-qty min="1" step="1" value="1">
 </label>
-<p class="modal-error" data-archive-error hidden></p>
+<p class="modal-error" data-archive-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-archive>Cancel</button>
 <button type="button" class="save-button" data-confirm-archive>Archive</button>
@@ -218,7 +218,7 @@
 
 <div class="modal-backdrop" data-add-customer-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-add-customer type="button">×</button>
+<button class="modal-close" data-close-add-customer type="button" aria-label="Close add customer dialog">×</button>
 <h2>Add New Customer</h2>
 <p class="modal-hint">After saving, you will continue to a new transaction for this customer.</p>
 <label class="modal-field">First name<input type="text" data-new-customer-first placeholder="e.g. Juan" maxlength="80" autocomplete="given-name"></label>
@@ -227,7 +227,7 @@
 <label class="modal-field">Phone / SMS<input type="text" data-new-customer-phone placeholder="09XX XXX XXXX" maxlength="40"></label>
 <label class="modal-field">Email <small>(optional)</small><input type="email" data-new-customer-email placeholder="name@email.com"></label>
 <label class="modal-field">Address <small>(optional)</small><input type="text" data-new-customer-address placeholder="Street, barangay, city"></label>
-<p class="modal-error" data-add-customer-error hidden></p>
+<p class="modal-error" data-add-customer-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-add-customer>Cancel</button>
 <button type="button" class="save-button" data-confirm-add-customer>Save &amp; start laundry</button>
@@ -237,14 +237,14 @@
 
 <div class="modal-backdrop" data-edit-customer-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-edit-customer type="button">×</button>
+<button class="modal-close" data-close-edit-customer type="button" aria-label="Close edit customer dialog">×</button>
 <h2>Edit contact</h2>
 <p class="modal-hint">Name is locked to protect past transaction history. Update phone/SMS or email only.</p>
 <label class="modal-field">Name<input type="text" data-edit-customer-name readonly></label>
 <label class="modal-field">Phone / SMS<input type="text" data-edit-customer-phone maxlength="40"></label>
 <label class="modal-field">Email <small>(optional)</small><input type="email" data-edit-customer-email></label>
 <input type="hidden" data-edit-customer-id>
-<p class="modal-error" data-edit-customer-error hidden></p>
+<p class="modal-error" data-edit-customer-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-edit-customer>Cancel</button>
 <button type="button" class="save-button" data-confirm-edit-customer>Save changes</button>
@@ -255,7 +255,7 @@
 
 <div class="modal-backdrop" data-confirm-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-confirm type="button">×</button>
+<button class="modal-close" data-close-confirm type="button" aria-label="Close confirmation dialog">×</button>
 <h2 data-confirm-title>Confirm</h2>
 <p class="modal-hint" data-confirm-body></p>
 <div class="modal-actions">
@@ -267,12 +267,12 @@
 
 <div class="modal-backdrop" data-cancel-order-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-cancel-order type="button">×</button>
+<button class="modal-close" data-close-cancel-order type="button" aria-label="Close cancel order dialog">×</button>
 <h2>Cancel order</h2>
 <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Cancelled orders. This cannot be undone.</p>
 <input type="hidden" data-cancel-order-id>
 <label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
-<p class="modal-error" data-cancel-order-error hidden></p>
+<p class="modal-error" data-cancel-order-error role="alert" hidden></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-cancel-order>Keep order</button>
 <button type="button" class="save-button" data-confirm-cancel-order>Cancel order</button>
@@ -282,7 +282,7 @@
 
 <div class="modal-backdrop" data-notice-modal hidden>
 <section class="profile-modal action-modal" role="dialog" aria-modal="true">
-<button class="modal-close" data-close-notice type="button">×</button>
+<button class="modal-close" data-close-notice type="button" aria-label="Close notice">×</button>
 <h2 data-notice-title>Notice</h2>
 <p data-notice-body class="modal-hint"></p>
 <div class="modal-actions">
@@ -383,7 +383,7 @@
 </section>
 </section>
 </section>
-<div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true"><button class="modal-close" data-close-modal type="button">×</button>
+<div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true"><button class="modal-close" data-close-modal type="button" aria-label="Close account menu">×</button>
 <div data-modal-view="menu"><span class="profile-avatar">SS</span><h2>{{ auth()->user()->name }}</h2><p>{{ auth()->user()->email }}</p><div class="settings-options"><button data-show-view="profile" type="button">Edit profile settings <span>›</span></button><button data-show-view="password" type="button">Change password <span>›</span></button><button data-show-view="display" type="button">Display settings <span>›</span></button><button data-show-view="language" type="button">Language <span>›</span></button><form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit">Log out</button></form></div></div>
 <div data-modal-view="profile" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Edit profile</h2><livewire:settings.profile-modal-form /></div>
 <div data-modal-view="password" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Change password</h2><livewire:settings.password-modal-form /></div>

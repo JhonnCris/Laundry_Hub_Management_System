@@ -32,12 +32,21 @@
 
 html {
     font-family: Arial, Helvetica, sans-serif;
+    overflow-x: clip;
+    scrollbar-color: var(--primary-color) var(--background-color);
 }
 
 body {
     background-color: var(--background-color);
     color: var(--text-color);
     min-height: 100vh;
+    overflow-x: clip;
+    caret-color: var(--primary-color);
+}
+
+::selection {
+    background: var(--primary-color);
+    color: var(--background-color);
 }
 
 a {

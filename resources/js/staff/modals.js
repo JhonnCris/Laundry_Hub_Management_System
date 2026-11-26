@@ -3,6 +3,30 @@
  */
 export function createModals() {
     let _confirmCallback = null;
+    const focusOrigins = new WeakMap();
+    const modalStack = [];
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Tab') return;
+        const activeModal = modalStack.at(-1);
+        if (!activeModal || activeModal.hidden) return;
+        const focusable = [...activeModal.querySelectorAll(focusableSelector)]
+            .filter((element) => element instanceof HTMLElement && !element.closest('[hidden]'));
+        if (!focusable.length) {
+            event.preventDefault();
+            return;
+        }
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
 
     const showModal = (sel) => {
         const el = document.querySelector(sel);
@@ -10,19 +34,34 @@ export function createModals() {
             console.warn('SSK modal not found:', sel);
             return;
         }
+        const activeElement = document.activeElement;
+        if (activeElement instanceof HTMLElement) {
+            focusOrigins.set(el, activeElement);
+        }
+        const existingIndex = modalStack.indexOf(el);
+        if (existingIndex >= 0) modalStack.splice(existingIndex, 1);
+        modalStack.push(el);
         el.hidden = false;
         el.removeAttribute('hidden');
         el.style.display = 'grid';
         el.style.pointerEvents = 'auto';
         el.style.visibility = 'visible';
+        requestAnimationFrame(() => {
+            const focusTarget = el.querySelector('[autofocus], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+            if (focusTarget instanceof HTMLElement) focusTarget.focus();
+        });
     };
 
-    const hideModal = (sel) => {
-        const el = document.querySelector(sel);
+    const hideModal = (target) => {
+        const el = target instanceof HTMLElement ? target : document.querySelector(target);
         if (!el) return;
         el.hidden = true;
         el.setAttribute('hidden', '');
         el.style.display = 'none';
+        const stackIndex = modalStack.indexOf(el);
+        if (stackIndex >= 0) modalStack.splice(stackIndex, 1);
+        const focusOrigin = focusOrigins.get(el);
+        if (focusOrigin?.isConnected) focusOrigin.focus();
     };
 
     /** type: "info" (blue), "success" (green) or "error" (red) colours and labels the dialog. */

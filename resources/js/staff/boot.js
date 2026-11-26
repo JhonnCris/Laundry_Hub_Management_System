@@ -113,8 +113,7 @@ export function bootStaffApp() {
         const open = [...document.querySelectorAll('.modal-backdrop')].filter((el) => !el.hidden && el.style.display !== 'none');
         const top = open[open.length - 1];
         if (top) {
-            top.hidden = true;
-            top.style.display = 'none';
+            hideModal(top);
         }
     });
 
