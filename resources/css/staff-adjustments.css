@@ -1094,7 +1094,6 @@
     border-radius: 8px 8px 4px 4px;
     background: linear-gradient(180deg, #2d6a4f 0%, #1a4d3e 100%);
     min-height: 4px;
-    transition: height 0.2s ease;
 }
 .chart-bar .bar.is-expense {
     background: linear-gradient(180deg, #c2410c 0%, #9a3412 100%);

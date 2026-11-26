@@ -6,6 +6,8 @@
     <meta name="description" content="@yield('description', 'SSK Laba Dami Laundry Hub in Matina, Davao City.')">
     <meta name="theme-color" content="#f3f0d4">
     <title>@yield('title', 'SSK Laba Dami | Laundry Hub')</title>
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/css/welcome.css', 'resources/css/auth.css', 'resources/js/app.js'])
 </head>
 <body class="site-page">

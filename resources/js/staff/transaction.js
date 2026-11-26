@@ -579,6 +579,7 @@ export function createTransaction(app, { showModal, hideModal, openNotice, loadS
             e.preventDefault();
             app.querySelectorAll('[data-service]').forEach((item) => {
                 item.classList.toggle('is-selected', item === serviceBtn);
+                item.setAttribute('aria-pressed', item === serviceBtn ? 'true' : 'false');
             });
             const mode = serviceBtn.dataset.service;
             app.querySelectorAll('[data-workflow]').forEach((w) => {

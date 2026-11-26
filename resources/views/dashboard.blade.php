@@ -34,13 +34,13 @@
         <button type="button" class="text-button" data-change-customer>Change customer</button>
     </div>
 </div>
-<div class="section-heading"><div><h2>Choose laundry service</h2><p id="service-choice-help">Drop off is handled by staff. Self service lets the customer use available machines.</p></div><div class="service-toggle" aria-describedby="service-choice-help"><button class="is-selected" data-service="drop_off" type="button">Drop off</button><button data-service="self_service" type="button">Self service</button></div></div>
+<div class="section-heading"><div><h2>Choose laundry service</h2><p id="service-choice-help">Drop off is handled by staff. Self service lets the customer use available machines.</p></div><div class="service-toggle" role="group" aria-label="Laundry service" aria-describedby="service-choice-help"><button class="is-selected" data-service="drop_off" type="button" aria-pressed="true">Drop off</button><button data-service="self_service" type="button" aria-pressed="false">Self service</button></div></div>
 
 <div data-workflow="drop_off">
 <div class="wide-field">
-    <span>Basket Tag <small>For drop-off</small></span>
+    <span id="basket-tag-label">Basket Tag <small>For drop-off</small></span>
     <div class="tag-field">
-        <input data-basket-tag value="" placeholder="Select basket" readonly>
+        <input data-basket-tag value="" placeholder="Select basket" aria-labelledby="basket-tag-label" readonly>
         <button type="button" data-reassign-basket>Reassign</button>
     </div>
     <div class="basket-picker" data-basket-picker hidden>
@@ -115,11 +115,11 @@
 <p class="save-notice" data-save-notice aria-live="polite"></p>
 </aside></div></section>
 <div class="modal-backdrop" data-history-modal hidden>
-<section class="profile-modal action-modal history-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal history-modal" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
 <button class="modal-close" data-close-history type="button" aria-label="Close laundry history">×</button>
-<h2>Laundry history</h2>
+<h2 id="history-modal-title">Laundry history</h2>
 <p class="modal-hint">Every order already marked as claimed, newest first.</p>
-<input class="search-input" data-history-search placeholder="Search by customer, order or service">
+<input class="search-input" data-history-search aria-label="Search laundry history" placeholder="Search by customer, order or service">
 <div class="history-table">
 <div class="history-row history-head"><span>Claimed</span><span>Order</span><span>Customer</span><span>Service</span><span class="num">Total</span></div>
 <div data-history-rows><div class="history-row"><span style="grid-column:1/-1;color:var(--staff-muted)">Loading history…</span></div></div>
@@ -130,9 +130,9 @@
 
 <!-- Payment modal: Transaction → Payment → Receipt -->
 <div class="modal-backdrop" data-payment-modal hidden>
-<section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
 <button class="modal-close" data-close-payment type="button" aria-label="Close payment dialog">×</button>
-<h2 data-payment-title>Record payment</h2>
+<h2 id="payment-modal-title" data-payment-title>Record payment</h2>
 <p class="modal-hint" data-payment-hint>Collect cash from the customer, then confirm to issue a receipt.</p>
 <div class="payment-summary" data-payment-summary></div>
 <fieldset class="payment-methods" data-payment-methods hidden>
@@ -156,7 +156,7 @@
 
 <!-- Receipt modal (after successful payment) -->
 <div class="modal-backdrop" data-receipt-modal hidden>
-<section class="profile-modal receipt-modal" role="dialog" aria-modal="true">
+<section class="profile-modal receipt-modal" role="dialog" aria-modal="true" aria-label="Receipt">
 <button class="modal-close" data-close-receipt type="button" aria-label="Close receipt">×</button>
 <div data-receipt-body></div>
 <div class="modal-actions receipt-actions">
@@ -174,9 +174,9 @@
 
 
 <div class="modal-backdrop" data-add-basket-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="add-basket-modal-title">
 <button class="modal-close" data-close-add-basket type="button" aria-label="Close add basket dialog">×</button>
-<h2>Add basket</h2>
+<h2 id="add-basket-modal-title">Add basket</h2>
 <p class="modal-hint">Enter a basket number or code (e.g. 021 or #021). It will start as Available.</p>
 <label class="modal-field">Basket code
 <input type="text" data-new-basket-code placeholder="#021" maxlength="20">
@@ -190,9 +190,9 @@
 </div>
 
 <div class="modal-backdrop" data-archive-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="archive-modal-title">
 <button class="modal-close" data-close-archive type="button" aria-label="Close archive item dialog">×</button>
-<h2>Archive item</h2>
+<h2 id="archive-modal-title">Archive item</h2>
 <p class="modal-hint">Mark stock as expired, spoiled, or damaged.</p>
 <label class="modal-field">Item
 <select data-archive-item></select>
@@ -217,9 +217,9 @@
 
 
 <div class="modal-backdrop" data-add-customer-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="add-customer-modal-title">
 <button class="modal-close" data-close-add-customer type="button" aria-label="Close add customer dialog">×</button>
-<h2>Add New Customer</h2>
+<h2 id="add-customer-modal-title">Add New Customer</h2>
 <p class="modal-hint">After saving, you will continue to a new transaction for this customer.</p>
 <label class="modal-field">First name<input type="text" data-new-customer-first placeholder="e.g. Juan" maxlength="80" autocomplete="given-name"></label>
 <label class="modal-field">Middle name <small>(optional)</small><input type="text" data-new-customer-middle placeholder="e.g. Dela" maxlength="80" autocomplete="additional-name"></label>
@@ -236,9 +236,9 @@
 </div>
 
 <div class="modal-backdrop" data-edit-customer-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="edit-customer-modal-title">
 <button class="modal-close" data-close-edit-customer type="button" aria-label="Close edit customer dialog">×</button>
-<h2>Edit contact</h2>
+<h2 id="edit-customer-modal-title">Edit contact</h2>
 <p class="modal-hint">Name is locked to protect past transaction history. Update phone/SMS or email only.</p>
 <label class="modal-field">Name<input type="text" data-edit-customer-name readonly></label>
 <label class="modal-field">Phone / SMS<input type="text" data-edit-customer-phone maxlength="40"></label>
@@ -254,9 +254,9 @@
 
 
 <div class="modal-backdrop" data-confirm-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
 <button class="modal-close" data-close-confirm type="button" aria-label="Close confirmation dialog">×</button>
-<h2 data-confirm-title>Confirm</h2>
+<h2 id="confirm-modal-title" data-confirm-title>Confirm</h2>
 <p class="modal-hint" data-confirm-body></p>
 <div class="modal-actions">
 <button type="button" class="text-button" data-close-confirm>Cancel</button>
@@ -266,9 +266,9 @@
 </div>
 
 <div class="modal-backdrop" data-cancel-order-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="cancel-order-modal-title">
 <button class="modal-close" data-close-cancel-order type="button" aria-label="Close cancel order dialog">×</button>
-<h2>Cancel order</h2>
+<h2 id="cancel-order-modal-title">Cancel order</h2>
 <p class="modal-hint">The order is removed from sales, its stock is returned, and it is kept in Cancelled orders. This cannot be undone.</p>
 <input type="hidden" data-cancel-order-id>
 <label class="modal-field">Reason<input type="text" data-cancel-order-reason maxlength="200" placeholder="e.g. Customer changed mind"></label>
@@ -281,9 +281,9 @@
 </div>
 
 <div class="modal-backdrop" data-notice-modal hidden>
-<section class="profile-modal action-modal" role="dialog" aria-modal="true">
+<section class="profile-modal action-modal" role="dialog" aria-modal="true" aria-labelledby="notice-modal-title">
 <button class="modal-close" data-close-notice type="button" aria-label="Close notice">×</button>
-<h2 data-notice-title>Notice</h2>
+<h2 id="notice-modal-title" data-notice-title>Notice</h2>
 <p data-notice-body class="modal-hint"></p>
 <div class="modal-actions">
 <button type="button" class="save-button" data-close-notice>OK</button>
@@ -312,7 +312,7 @@
     <button class="action-btn-primary" type="button" data-open-add-customer>Add New Customer</button>
 </div>
 <section class="staff-card full-card table-card">
-    <input class="search-input" data-customer-search placeholder="Search by name or phone number">
+    <input class="search-input" data-customer-search aria-label="Search customers" placeholder="Search by name or phone number">
     <div class="order-row order-head">
         <span>Name</span>
         <span>Phone / SMS</span>
@@ -383,7 +383,7 @@
 </section>
 </section>
 </section>
-<div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true"><button class="modal-close" data-close-modal type="button" aria-label="Close account menu">×</button>
+<div class="modal-backdrop" data-modal hidden><section class="profile-modal" role="dialog" aria-modal="true" aria-label="Account settings"><button class="modal-close" data-close-modal type="button" aria-label="Close account menu">×</button>
 <div data-modal-view="menu"><span class="profile-avatar">SS</span><h2>{{ auth()->user()->name }}</h2><p>{{ auth()->user()->email }}</p><div class="settings-options"><button data-show-view="profile" type="button">Edit profile settings <span>›</span></button><button data-show-view="password" type="button">Change password <span>›</span></button><button data-show-view="display" type="button">Display settings <span>›</span></button><button data-show-view="language" type="button">Language <span>›</span></button><form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit">Log out</button></form></div></div>
 <div data-modal-view="profile" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Edit profile</h2><livewire:settings.profile-modal-form /></div>
 <div data-modal-view="password" hidden><button class="text-button" data-show-view="menu" type="button">‹ Back</button><h2>Change password</h2><livewire:settings.password-modal-form /></div>

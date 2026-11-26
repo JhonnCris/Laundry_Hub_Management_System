@@ -1,12 +1,12 @@
 :root {
     --paper: #f3f0d4;
     --ink: #053827;
-    --ochre: #ba8f1b;
+    --ochre: #8b650f;
     --rule: var(--ink);
     --ink-soft: var(--ink);
     --muted: var(--ink);
     --stock: var(--paper);
-    --ochre-light: var(--ochre);
+    --ochre-light: #d8b84f;
     --page-width: 1160px;
 }
 
@@ -15,8 +15,13 @@
     overflow-x: hidden;
     background: var(--paper);
     color: var(--ink);
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: "Instrument Sans", Arial, Helvetica, sans-serif;
     -webkit-font-smoothing: antialiased;
+}
+
+.site-page ::selection {
+    background: var(--ochre);
+    color: var(--ink);
 }
 
 .site-page *,
@@ -140,8 +145,8 @@
 
 .home-hero {
     display: grid;
-    min-height: 650px;
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, .75fr);
+    min-height: 620px;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr);
     align-items: center;
     gap: clamp(42px, 8vw, 110px);
     padding-block: 72px 94px;
@@ -173,9 +178,9 @@
 .article-header h1 {
     margin: 22px 0 0;
     font-family: Georgia, "Times New Roman", serif;
-    font-size: clamp(56px, 7.6vw, 100px);
+    font-size: clamp(56px, 7.3vw, 96px);
     font-weight: 400;
-    letter-spacing: -.075em;
+    letter-spacing: -.04em;
     line-height: .96;
 }
 
@@ -188,11 +193,19 @@
 }
 
 .hero-intro {
-    max-width: 480px;
+    max-width: 43ch;
     margin: 25px 0 0;
     color: var(--ink-soft);
     font-size: 17px;
     line-height: 1.65;
+}
+
+.hero-location {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
 }
 
 .hero-links {
@@ -250,155 +263,39 @@
     line-height: 1.7;
 }
 
-.washer-ticket {
+.hero-shop-photo {
     position: relative;
-    display: flex;
-    min-height: 470px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 25px 26px 28px;
-    border: 2px solid var(--ink);
-    border-radius: 12px 12px 5px 5px;
-    background: var(--paper);
-    text-align: center;
-}
-
-.washer-ticket::before {
-    position: absolute;
-    inset: 9px;
-    border: 1px solid var(--ink);
-    border-radius: 7px 7px 2px 2px;
-    content: "";
-    pointer-events: none;
-}
-
-.washer-controls {
-    z-index: 1;
-    display: flex;
-    width: 100%;
-    min-height: 46px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 9px;
-    padding: 8px 11px;
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    background: var(--stock);
-}
-
-.washer-brand,
-.washer-display {
-    color: var(--ink-soft);
-    font-size: 7px;
-    font-weight: 800;
-    letter-spacing: .09em;
-}
-
-.washer-display {
-    margin-left: auto;
-    padding: 5px 6px;
-    border: 1px solid var(--rule);
-    color: var(--ink);
-    font-size: 6px;
-}
-
-.washer-dial {
-    position: relative;
-    width: 22px;
-    height: 22px;
-    flex: 0 0 auto;
-    border-radius: 50%;
-    background: var(--paper);
-    box-shadow: inset 0 0 0 1px var(--ink), inset 0 0 0 4px var(--paper);
-}
-
-.washer-dial::after {
-    position: absolute;
-    top: 4px;
-    left: 10px;
-    width: 1px;
-    height: 6px;
-    transform: rotate(25deg);
-    transform-origin: bottom;
-    background: var(--ink);
-    content: "";
-}
-
-.washer-door {
-    position: relative;
-    display: grid;
-    width: 174px;
-    height: 174px;
-    flex: 0 0 auto;
-    place-items: center;
-    margin-top: 40px;
-    border: 1px solid var(--ink);
-    border-radius: 50%;
-    background: var(--paper);
-    box-shadow: inset 0 0 0 7px var(--paper), inset 0 0 0 8px var(--ink), inset 0 0 0 14px var(--paper);
-}
-
-.washer-door::before {
-    position: absolute;
-    inset: 20px;
-    border: 1px solid var(--ink);
-    border-radius: 50%;
-    content: "";
-}
-
-.ticket-mark {
-    z-index: 1;
-    width: 94px;
-    height: 94px;
-    border: 1px solid var(--rule);
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.ticket-label {
-    margin: 23px 0 8px;
-    color: var(--ink-soft);
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 18px;
-}
-
-.ticket-services {
+    min-width: 0;
     margin: 0;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .16em;
+    overflow: hidden;
+    align-self: stretch;
+    min-height: 430px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
 }
 
-.ticket-services i {
-    padding-inline: 5px;
-    color: var(--ochre);
-    font-style: normal;
+.hero-shop-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 58%;
 }
 
-.washer-status {
+.hero-shop-photo figcaption {
     position: absolute;
-    right: 26px;
-    bottom: 23px;
-    left: 26px;
+    right: 0;
+    bottom: 0;
+    left: 0;
     display: flex;
-    align-items: baseline;
     justify-content: space-between;
-    gap: 9px;
+    gap: 12px;
+    padding: 11px 13px;
+    background: var(--paper);
+    color: var(--ink);
     font-size: 8px;
     font-weight: 800;
-    letter-spacing: .1em;
-}
-
-.washer-status span {
-    color: var(--ink-soft);
-}
-
-.washer-status strong {
-    color: var(--ochre);
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 21px;
-    font-weight: 400;
+    letter-spacing: .12em;
 }
 
 .ruled-section {
@@ -407,8 +304,9 @@
 
 .home-intro {
     display: grid;
-    grid-template-columns: .55fr 1.2fr .65fr;
-    gap: 42px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(180px, .65fr);
+    justify-content: end;
+    gap: clamp(32px, 8vw, 120px);
     padding-block: 78px 87px;
 }
 
@@ -428,7 +326,7 @@
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(33px, 4vw, 52px);
     font-weight: 400;
-    letter-spacing: -.055em;
+    letter-spacing: -.035em;
     line-height: 1.04;
 }
 
@@ -470,6 +368,11 @@
     grid-template-columns: .58fr 1fr .65fr;
     align-items: end;
     gap: 34px;
+}
+
+.home-services .section-heading {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr);
+    justify-content: space-between;
 }
 
 .section-heading h2 {
@@ -644,7 +547,7 @@
 
 .visit-inner {
     display: grid;
-    grid-template-columns: .6fr 1fr .75fr auto;
+    grid-template-columns: minmax(0, 1.15fr) minmax(180px, .75fr) auto;
     align-items: center;
     gap: 32px;
 }
@@ -658,7 +561,7 @@
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(37px, 4vw, 54px);
     font-weight: 400;
-    letter-spacing: -.06em;
+    letter-spacing: -.04em;
     line-height: 1;
 }
 
@@ -1448,30 +1351,9 @@
         gap: 40px;
     }
 
-    .washer-ticket {
-        min-height: 365px;
-        padding-inline: 17px;
-    }
-
-    .washer-door {
-        width: 146px;
-        height: 146px;
-        margin-top: 27px;
-    }
-
-    .ticket-mark {
-        width: 82px;
-        height: 82px;
-    }
-
     .home-intro,
     .profile-story {
-        grid-template-columns: .5fr 1.2fr .7fr;
-    }
-
-    .intro-note {
-        grid-column: 2;
-        max-width: 360px;
+        grid-template-columns: minmax(0, 1.2fr) minmax(180px, .7fr);
     }
 
     .section-heading {
@@ -1491,11 +1373,11 @@
     }
 
     .visit-inner {
-        grid-template-columns: .55fr 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(180px, .8fr);
     }
 
     .button-paper {
-        grid-column: 2 / -1;
+        grid-column: 1 / -1;
         justify-self: start;
     }
 
@@ -1567,6 +1449,13 @@
         padding-block: 64px 67px;
     }
 
+    .hero-shop-photo {
+        width: min(100%, 520px);
+        min-height: 0;
+        aspect-ratio: 4 / 3;
+        justify-self: center;
+    }
+
     .hero-copy h1 {
         font-size: clamp(54px, 15vw, 78px);
     }
@@ -1585,18 +1474,6 @@
         margin-top: 29px;
     }
 
-    .washer-ticket {
-        width: min(100%, 390px);
-        min-height: 390px;
-        justify-self: center;
-    }
-
-    .washer-door {
-        width: 150px;
-        height: 150px;
-        margin-top: 28px;
-    }
-
     .home-intro,
     .profile-story {
         grid-template-columns: 1fr;
@@ -1604,8 +1481,16 @@
         padding-block: 48px 57px;
     }
 
+    .home-intro {
+        grid-template-columns: 1fr;
+    }
+
     .intro-copy {
         grid-row: 2;
+    }
+
+    .home-intro .intro-copy {
+        grid-row: auto;
     }
 
     .intro-copy h2 {
@@ -1624,6 +1509,10 @@
     .section-heading {
         grid-template-columns: 1fr;
         gap: 15px;
+    }
+
+    .home-services .section-heading {
+        grid-template-columns: 1fr;
     }
 
     .section-heading h2 {
